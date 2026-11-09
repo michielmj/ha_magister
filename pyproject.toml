@@ -1,0 +1,35 @@
+[project]
+name = "ha-magister"
+version = "0.0.1"
+description = "Home Assistant custom integration for the Magister school agenda"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "ASYNC", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+check_untyped_defs = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+files = ["custom_components/magister"]
+# Strict settings for the API layer, to be enabled when it exists (M1):
+# [[tool.mypy.overrides]]
+# module = "custom_components.magister.api.*"
+# strict = true
