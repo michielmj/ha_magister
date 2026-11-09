@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-09)** |
 | Date | 2026-11-09 |
 | Owner | Architect (Claude) · Product: PM |
 
@@ -191,10 +191,9 @@ filters out cancelled lessons **must be confirmed in Milestone 1** from real res
 - GitHub Actions: tests + ruff, `hassfest`, `hacs/action`.
 - Every milestone: Developer session → Reviewer session → PM acceptance.
 
-## 10. Open points for the PM
+## 10. PM decisions on open points (2026-11-09)
 
-1. **SSO/passkey accounts** are out of scope for v1 (setup fails with a clear message). OK?
-2. **License**: MIT is proposed.
-3. **Prefix texts** in §7: OK as proposed, or would you like emoji / other wording?
-4. Which **tenants/account types** do you have to test with in Milestone 1 (parent with
-   2FA? without? student?)
+1. SSO/passkey accounts are out of scope for v1 (setup fails with a clear message). **Approved.**
+2. License: **MIT.**
+3. Prefix texts in §7: **approved as proposed.**
+4. Test tenants/account types for Milestone 1: *still to be provided by the PM before M1.*
