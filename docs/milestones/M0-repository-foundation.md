@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Approved by PM (2026-11-09)** |
+| Status | **Accepted by PM (2026-11-09)** — reviewed and approved; CI green except HACS topics (repo setting) |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | `docs/design/high-level-design.md` §4, §9 · `docs/plan/implementation-plan.md` |
 
