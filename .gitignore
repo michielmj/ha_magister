@@ -14,9 +14,10 @@ dist/
 htmlcov/
 coverage.xml
 # Home Assistant config dirs
-config/
+/config/
 .storage/
 home-assistant.log*
 *.db
 .idea/
 .vscode/
+.DS_Store
