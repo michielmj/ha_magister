@@ -383,11 +383,21 @@ async def run(args: argparse.Namespace, password: str, totp_secret: str | None) 
         return 2
     tz = local_tz()
     async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar()) as session:
-        auth = MagisterAuth(session, host, args.username, password, totp_secret)
+        auth = MagisterAuth(
+            session,
+            host,
+            args.username,
+            password,
+            totp_secret,
+            max_password_submissions=MAX_PASSWORD_SUBMISSIONS,
+        )
         client = MagisterClient(session, auth, host)
         try:
             return await verify(client, auth, host, args.dump, tz)
         except MagisterAuthError as err:
+            if err.server_error == "PasswordLimitReached":
+                print(f"\nSTOPPED: {err} (to protect your account).", file=sys.stderr)
+                return 1
             server = f" [server error: {err.server_error}]" if err.server_error else ""
             print(
                 f"\nLOGIN FAILED ({err.code}){server}: {AUTH_HINTS.get(err.code, err)}",

@@ -299,3 +299,30 @@ def test_privileges_names_are_kept() -> None:
         }
     )
     assert out["Groep"][0]["Privileges"][0]["Naam"] == "Agenda"
+
+
+def test_subject_and_room_names_survive_name_collisions() -> None:
+    """Vakken/Lokalen keep literal names even if a person is called "Engels"."""
+    anon = Anonymizer(HOST)
+    anon.collect({"Items": [{"Id": 8, "Roepnaam": "Frans", "Achternaam": "Engels"}]})
+    out = anon.appointments(
+        {
+            "Items": [
+                {
+                    "Id": 1,
+                    "Start": "a",
+                    "Einde": "b",
+                    "Vakken": [
+                        {"Id": 1, "Naam": "Engels", "Afkorting": "en"},
+                        {"Naam": "Frans", "Code": "fa"},
+                    ],
+                    "Lokalen": [{"Naam": "Frans 2"}],
+                    "Omschrijving": "Frans heeft Engels",
+                }
+            ]
+        }
+    )["Items"][0]
+    assert [v["Naam"] for v in out["Vakken"]] == ["Engels", "Frans"]
+    assert out["Vakken"][0]["Afkorting"] == "en"
+    assert out["Lokalen"] == [{"Naam": "Frans 2"}]
+    assert out["Omschrijving"] == "Kind A heeft Kind A"

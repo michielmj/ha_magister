@@ -66,6 +66,9 @@ _DROP_KEYS = frozenset(
 )
 # Lists whose ``Naam`` is not personal.
 _NAAM_KEEP_KEYS = frozenset({"Vakken", "Lokalen", "Groep", "Docenten", "Privileges"})
+# Items under these keys keep Naam/Afkorting/Code literally (subjects, rooms).
+_LITERAL_KEYS = frozenset({"Vakken", "Lokalen", "Privileges"})
+_LITERAL_FIELDS = frozenset({"Naam", "Afkorting", "Code"})
 # Dutch name infixes: never replaced on their own (they are ordinary words).
 _INFIXES = frozenset(
     {"de", "den", "der", "van", "von", "te", "ten", "ter", "het", "la", "le"}
@@ -268,6 +271,12 @@ class Anonymizer:
                     continue
                 if name == "Bijlagen" and isinstance(value, list):
                     result[name] = [{"Naam": "bijlage"} for _ in value]
+                elif (
+                    key in _LITERAL_KEYS
+                    and name in _LITERAL_FIELDS
+                    and isinstance(value, str)
+                ):
+                    result[name] = value
                 elif name == "Id" and is_appointment and _is_int(value):
                     result[name] = self.appointment_id(value)
                 else:

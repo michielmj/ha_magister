@@ -1090,3 +1090,40 @@ async def test_totp_wait_is_capped(
     clock.now = 10_000
     await auth.async_get_token()
     assert sleeps and sleeps[0] <= 31
+
+
+async def test_password_limit_blocks_third_post(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """With max_password_submissions=2 a third login never posts the password."""
+    clock = Clock()
+    flow = _login_steps({"redirectURL": RETURN_URL})
+    fake = FakeLogin(mocked, challenges=flow * 3)
+    auth = MagisterAuth(
+        session, HOST, USERNAME, PASSWORD, clock=clock, max_password_submissions=2
+    )
+    await auth.async_get_token()
+    clock.now = 10_000
+    await auth.async_get_token()
+    clock.now = 20_000
+    with pytest.raises(MagisterAuthError, match="limit reached") as err:
+        await auth.async_get_token()
+    assert err.value.server_error == "PasswordLimitReached"
+    assert [s for s, _, _ in fake.posts].count("password") == 2
+    posts = len(fake.posts)
+    with pytest.raises(MagisterAuthError):  # remembered, no new requests
+        await auth.async_get_token()
+    assert len(fake.posts) == posts
+
+
+async def test_password_limit_default_is_unlimited(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """The default (None) never limits password submissions."""
+    clock = Clock()
+    fake = FakeLogin(mocked, challenges=_login_steps({"redirectURL": RETURN_URL}) * 4)
+    auth = make_auth(session, clock=clock)
+    for i in range(4):
+        clock.now = i * 10_000
+        await auth.async_get_token()
+    assert [s for s, _, _ in fake.posts].count("password") == 4

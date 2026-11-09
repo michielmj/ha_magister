@@ -93,5 +93,6 @@ Names are replaced (`Ouder`, `Kind A`), IDs are fake numbers, teachers are `Doce
 the school becomes `school.example`, e-mail addresses and links are removed.
 **Before sharing, open the files and skim `Omschrijving`, `Inhoud` and `Opmerking` for
 names of people** (pupils, teachers, parents) that the tool could not recognize, and
-edit them out. Also check short first names, middle names and the `Lokatie` field.
+edit them out. Surnames or first names that are ordinary words (e.g. "Engels") may also be replaced
+in descriptions; that is expected. Also check short first names, middle names and the `Lokatie` field.
 Then send the folder to the developer.

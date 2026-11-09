@@ -279,3 +279,32 @@ async def test_forced_refresh_skipped_after_two_password_submissions(
     out = capsys.readouterr().out
     assert "Skipped" in out
     assert [s for s, _, _ in fake.posts].count("password") == 2
+
+
+async def test_password_never_sent_a_third_time_even_in_dump(
+    mocked: aioresponses, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """401s in step 2 and in the dump never lead to a 3rd password POST."""
+    login = [
+        {"action": "username"},
+        {"action": "password"},
+        {"redirectURL": RETURN_URL},
+    ]
+    fake = FakeLogin(mocked, challenges=login * 4)
+    mocked.get(f"{BASE}/api/account", status=401)  # step 2 -> login #2
+    mocked.get(
+        f"{BASE}/api/account",
+        payload={"Persoon": {"Id": 7}, "Groep": [{"Naam": "Leerling"}]},
+        repeat=True,
+    )
+    afspraken = re.compile(rf"^{re.escape(BASE)}/api/personen/7/afspraken\?.*$")
+    mocked.get(afspraken, payload={"Items": []})  # step 3
+    mocked.get(afspraken, status=401)  # dump -> would be login #3
+    args = cli.parse_args(
+        ["--tenant", HOST, "--username", "u", "--dump", str(tmp_path / "d")]
+    )
+    assert await cli.run(args, PASSWORD, None) == 1
+    captured = capsys.readouterr()
+    assert "Skipped" in captured.out
+    assert "STOPPED" in captured.err
+    assert [s for s, _, _ in fake.posts].count("password") == 2

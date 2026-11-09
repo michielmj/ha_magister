@@ -152,6 +152,7 @@ class MagisterAuth:
         *,
         clock: Callable[[], float] = time.monotonic,
         wall_clock: Callable[[], float] = time.time,
+        max_password_submissions: int | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         """Create the auth helper.
@@ -167,6 +168,7 @@ class MagisterAuth:
         self._totp_secret = totp_secret.replace(" ", "") if totp_secret else None
         self._clock = clock
         self._wall_clock = wall_clock
+        self._max_password_submissions = max_password_submissions
         self._sleep = sleep
 
         self._token: str | None = None
@@ -528,6 +530,13 @@ class MagisterAuth:
             if action == "username":
                 payload: dict[str, Any] = {"username": self._username}
             elif action == "password":
+                limit = self._max_password_submissions
+                if limit is not None and self.password_submissions >= limit:
+                    raise MagisterAuthError(
+                        AUTH_INVALID,
+                        "Password submission limit reached for this run",
+                        "PasswordLimitReached",
+                    )
                 payload = {
                     "password": self._password,
                     "userWantsToPairSoftToken": False,
