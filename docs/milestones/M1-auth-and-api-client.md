@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-09)** |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | `docs/design/high-level-design.md` §3, §4, §7, §8 · `docs/reference/magister_agenda.py` |
 
