@@ -13,7 +13,6 @@ from aioresponses import aioresponses
 from custom_components.magister.api import (
     MagisterApiError,
     MagisterAuth,
-    MagisterAuthError,
     MagisterClient,
     MagisterConnectionError,
 )
@@ -122,15 +121,15 @@ async def test_401_triggers_one_reauth(
     assert requests[1].kwargs["headers"]["Authorization"] == "Bearer tok-2"
 
 
-async def test_second_401_raises_auth_error(
+async def test_second_401_raises_api_error(
     mocked: aioresponses, session: aiohttp.ClientSession
 ) -> None:
     """A 401 after the retry means the credentials do not work."""
     mocked.get(f"{BASE}/api/account", status=401, repeat=True)
     client, get_token = make_client(session)
-    with pytest.raises(MagisterAuthError) as err:
+    with pytest.raises(MagisterApiError, match="Access token rejected") as err:
         await client.async_get_account()
-    assert err.value.code == "invalid_auth"
+    assert err.value.status == 401
     assert get_token.await_count == 2
 
 
@@ -190,3 +189,37 @@ def test_invalid_host(session: aiohttp.ClientSession) -> None:
     """The client refuses non-Magister hosts."""
     with pytest.raises(ValueError):
         MagisterClient(session, AsyncMock(spec=MagisterAuth), "evil.example.com")
+
+
+async def test_429_retry_after(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """The Retry-After header is parsed into retry_after."""
+    mocked.get(f"{BASE}/api/account", status=429, headers={"Retry-After": "12"})
+    mocked.get(f"{BASE}/api/account", status=429, headers={"Retry-After": "Wed, 1 Jan"})
+    client, _ = make_client(session)
+    with pytest.raises(MagisterApiError) as err:
+        await client.async_get_account()
+    assert err.value.retry_after == 12
+    with pytest.raises(MagisterApiError) as err:
+        await client.async_get_account()
+    assert err.value.retry_after is None
+
+
+async def test_malformed_appointment_is_skipped(
+    mocked: aioresponses,
+    session: aiohttp.ClientSession,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """One broken item does not break the list; only its Id is logged."""
+    caplog.set_level("DEBUG")
+    pattern = re.compile(rf"^{re.escape(BASE)}/api/personen/11/afspraken\?.*$")
+    broken = lesson(Id=666, Start="garbage", Omschrijving="secret text")
+    mocked.get(pattern, payload={"Items": [lesson(), broken, lesson(Id=3)]})
+    client, _ = make_client(session)
+    items = await client.async_get_appointments(
+        11, datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 1, 2, tzinfo=UTC)
+    )
+    assert [a.id for a in items] == [1001, 3]
+    assert "Id=666" in caplog.text
+    assert "secret text" not in caplog.text

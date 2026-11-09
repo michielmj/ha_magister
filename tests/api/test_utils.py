@@ -41,3 +41,13 @@ def test_format_api_timestamp() -> None:
     assert format_api_timestamp(datetime(2026, 1, 1, tzinfo=UTC)).endswith("00.000Z")
     with pytest.raises(ValueError):
         format_api_timestamp(datetime(2026, 1, 1))
+
+
+def test_parse_retry_after() -> None:
+    """Only non-negative seconds are accepted."""
+    from custom_components.magister.api.utils import parse_retry_after
+
+    assert parse_retry_after("5") == 5
+    assert parse_retry_after(None) is None
+    assert parse_retry_after("-1") is None
+    assert parse_retry_after("soon") is None

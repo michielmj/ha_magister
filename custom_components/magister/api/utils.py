@@ -31,6 +31,17 @@ def normalize_host(tenant: str) -> str:
     return host
 
 
+def parse_retry_after(value: str | None) -> float | None:
+    """Parse a ``Retry-After`` header given in seconds (HTTP-dates give ``None``)."""
+    if not value:
+        return None
+    try:
+        seconds = float(value.strip())
+    except ValueError:
+        return None
+    return seconds if seconds >= 0 else None
+
+
 def format_api_timestamp(value: datetime) -> str:
     """Format an aware datetime the way the Magister API expects (UTC, ``Z``)."""
     if value.tzinfo is None:

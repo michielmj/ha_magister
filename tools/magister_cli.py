@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
 """Verify the Magister login and agenda from the command line (PM verification tool).
 
-Requirements: Python 3.14 (3.12+ is likely fine) with only ``aiohttp`` and ``pyotp``::
+See ``tools/README.md`` for step-by-step instructions. Short version, from the
+repository root, in Terminal (macOS/Linux) or PowerShell / cmd (Windows; NOT Git Bash or
+mintty, where the hidden password prompt does not work)::
 
-    python -m venv .venv-magister
-    .venv-magister/bin/pip install aiohttp pyotp          # Windows: Scripts\\pip
-    .venv-magister/bin/python tools/magister_cli.py --tenant myschool --username me
+    python3 -m venv .venv-magister
+    .venv-magister/bin/pip install aiohttp pyotp
+    .venv-magister/bin/python tools/magister_cli.py \\
+        --tenant myschool --username me --dump dump1
 
-On Windows also run ``pip install tzdata`` (time zone data for Europe/Amsterdam).
+(Windows: ``.venv-magister\\Scripts\\pip`` / ``...\\Scripts\\python``.)
 
-What it does:
+Only ``aiohttp`` and ``pyotp`` are needed (Home Assistant is not). On Windows also run
+``pip install tzdata``.
 
-1. asks for your password (hidden input, never a command-line argument) and logs in;
-2. prints the account type and children, and this week's agenda per child;
-3. fetches a second token with the cache bypassed and reports whether the silent
-   renew worked or a full login was needed;
-4. with ``--dump DIR``: writes anonymized JSON (account, children, appointments from
-   one week back to three weeks ahead) that can be shared safely. Check it anyway.
+The password is always asked with hidden input (there is no password option). For a 2FA
+account use ``--totp-prompt`` (hidden input) or ``--totp-secret-env VAR``.
 
-The password, TOTP secret, tokens and cookies are never printed. For a 2FA account put
-the base32 TOTP secret in an environment variable and pass ``--totp-secret-env NAME``.
+Output, in four steps: (1) login, (2) account type and children, (3) this week's agenda
+per child with the raw Status/InfoType/Type codes, (4) a second token fetch with the
+cache bypassed: "Silent renew WORKED" or "did NOT work ... a full login was used".
+``--dump DIR`` additionally writes anonymized JSON; skim it before sharing.
 """
 
 from __future__ import annotations
@@ -93,7 +95,8 @@ else:
 DAYS = ["ma", "di", "wo", "do", "vr", "za", "zo"]
 AUTH_HINTS = {
     "invalid_auth": "Wrong username or password (or the account is blocked).",
-    "totp_required": "This account needs a TOTP code: use --totp-secret-env.",
+    "totp_required": "This account needs a TOTP secret: use --totp-prompt "
+    "or --totp-secret-env.",
     "invalid_totp": "The TOTP code or secret was rejected.",
     "unsupported_login": "This login method (SSO / passkey) is not supported.",
 }
@@ -255,18 +258,30 @@ async def collect_dump(
     """Fetch -1..+3 weeks per child and return ``{file name: anonymized data}``."""
     anon = Anonymizer(host)
     start, end = week_window(tz, today, offset_weeks=-1, weeks=4)
+    base = {"van": format_api_timestamp(start), "tot": format_api_timestamp(end)}
+    raw: dict[int, tuple[dict[str, Any], dict[str, Any]]] = {}
+    for person_id, _ in targets:
+        path = f"/api/personen/{person_id}/afspraken"
+        filtered = await client.async_get_raw(path, {**base, "status": "1"})
+        unfiltered = await client.async_get_raw(path, base)
+        raw[person_id] = (filtered, unfiltered)
+
+    # Pass 1: learn every name and teacher code before anything is written.
+    anon.collect(account)
+    anon.collect(children_raw)
+    for filtered, unfiltered in raw.values():
+        anon.collect(filtered)
+        anon.collect(unfiltered)
+
+    # Pass 2: anonymize.
     files: dict[str, Any] = {
         "account.json": anon.account(account),
         "children.json": anon.children(children_raw),
     }
     summary: dict[str, Any] = {}
-    for person_id, _ in targets:
+    for person_id, (filtered, unfiltered) in raw.items():
         label = anon.person_label(person_id)
         slug = label.lower().replace(" ", "-")
-        base = {"van": format_api_timestamp(start), "tot": format_api_timestamp(end)}
-        path = f"/api/personen/{person_id}/afspraken"
-        filtered = await client.async_get_raw(path, {**base, "status": "1"})
-        unfiltered = await client.async_get_raw(path, base)
         files[f"appointments-{slug}.json"] = anon.appointments(filtered)
         files[f"appointments-{slug}-without-status-filter.json"] = anon.appointments(
             unfiltered
@@ -313,6 +328,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--username", required=True)
     parser.add_argument(
+        "--totp-prompt",
+        action="store_true",
+        help="ask for the base32 TOTP secret with hidden input",
+    )
+    parser.add_argument(
         "--totp-secret-env",
         metavar="VAR",
         help="name of an environment variable holding the base32 TOTP secret",
@@ -343,8 +363,9 @@ async def run(args: argparse.Namespace, password: str, totp_secret: str | None) 
         try:
             return await verify(client, auth, host, args.dump, tz)
         except MagisterAuthError as err:
+            server = f" [server error: {err.server_error}]" if err.server_error else ""
             print(
-                f"\nLOGIN FAILED ({err.code}): {AUTH_HINTS.get(err.code, err)}",
+                f"\nLOGIN FAILED ({err.code}){server}: {AUTH_HINTS.get(err.code, err)}",
                 file=sys.stderr,
             )
             return 1
@@ -372,6 +393,11 @@ def main(argv: list[str] | None = None) -> int:
                 f"Environment variable {args.totp_secret_env} is empty or not set.",
                 file=sys.stderr,
             )
+            return 2
+    if args.totp_prompt and not totp_secret:
+        totp_secret = getpass.getpass("TOTP secret (base32, hidden): ").strip() or None
+        if not totp_secret:
+            print("No TOTP secret entered.", file=sys.stderr)
             return 2
     password = getpass.getpass(f"Magister password for {args.username}: ")
     if not password:

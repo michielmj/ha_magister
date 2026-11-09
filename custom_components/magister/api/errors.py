@@ -25,10 +25,17 @@ class MagisterAuthError(MagisterError):
     These errors are never retried automatically.
     """
 
-    def __init__(self, code: str, message: str | None = None) -> None:
-        """Create the error with a machine-readable ``code``."""
+    def __init__(
+        self, code: str, message: str | None = None, server_error: str | None = None
+    ) -> None:
+        """Create the error with a machine-readable ``code``.
+
+        ``server_error`` is Magister's own error name (e.g. ``UserLockedOut``); it
+        never contains secrets.
+        """
         super().__init__(message or code)
         self.code = code
+        self.server_error = server_error
 
 
 class MagisterConnectionError(MagisterError):

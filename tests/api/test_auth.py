@@ -81,9 +81,10 @@ async def test_full_login(mocked: aioresponses, session: aiohttp.ClientSession) 
     assert "redirect_uri=https%3A%2F%2Fschool.magister.net" in current["returnUrl"]
     assert headers["X-XSRF-TOKEN"] == "xsrf-two"
     assert fake.posts[1][1]["username"] == USERNAME
-    assert fake.posts[1][1]["action"] == "username"
+    assert "action" not in fake.posts[1][1]
     assert fake.posts[2][1]["password"] == PASSWORD
-    assert fake.posts[2][1]["action"] == "password"
+    assert "action" not in fake.posts[2][1]
+    assert fake.posts[2][1]["userSkippedFido"] is False
 
 
 async def test_cached_token_is_reused(
@@ -116,7 +117,6 @@ async def test_login_with_totp(
     assert await auth.async_get_token() == TOKEN
     step, body, _ = fake.posts[-1]
     assert step == "soft-token"
-    assert body["action"] == "soft-token"
     assert pyotp.TOTP(TOTP_SECRET).verify(body["code"])
 
 
@@ -818,3 +818,238 @@ def test_decode_uri_matches_javascript() -> None:
     assert _decode_uri("a%20b%3Ac%2Fd%25e%C3%A9") == "a b%3Ac%2Fd%eé"
     assert _decode_uri("%ff") == "%ff"
     assert Any  # keep the typing import used
+
+
+# ---------------------------------------------------------------- review fixes
+
+
+def _login_steps(*extra: dict[str, Any]) -> list[dict[str, Any]]:
+    return [{"action": "username"}, {"action": "password"}, *extra]
+
+
+async def test_totp_step_is_not_reused(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """A second login in the same 30 s step waits for the next step."""
+    wall = Clock()
+    wall.now = 1_000_005.0  # step 33333, 25 s remaining
+    sleeps: list[float] = []
+
+    async def fake_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        wall.now += seconds
+
+    totp_flow = [
+        {"action": "username"},
+        {"action": "password"},
+        {"action": "soft-token"},
+        {"redirectURL": RETURN_URL},
+    ]
+    fake = FakeLogin(mocked, challenges=totp_flow * 2)
+    clock = Clock()
+    auth = MagisterAuth(
+        session,
+        HOST,
+        USERNAME,
+        PASSWORD,
+        TOTP_SECRET,
+        clock=clock,
+        wall_clock=wall,
+        sleep=fake_sleep,
+    )
+    await auth.async_get_token()
+    assert sleeps == []
+    wall.now += 2  # still the same time step
+    clock.now = 10_000  # token expired -> new login
+    await auth.async_get_token()
+    assert len(sleeps) == 1
+    assert 0 < sleeps[0] <= 31
+    codes = [body["code"] for step, body, _ in fake.posts if step == "soft-token"]
+    assert len(codes) == 2
+    totp = pyotp.TOTP(TOTP_SECRET)
+    assert codes[0] == totp.at(1_000_005)
+    assert codes[1] == totp.at(1_000_005 + 30)
+    assert codes[0] != codes[1]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"error": "SomethingNew"},
+        {"_status": 400, "_raw": "<html>nope</html>"},
+        {"_status": 429, "_headers": {"Retry-After": "7"}},
+        {"action": "password"},  # repeated step
+        {"error": "AuthCodeValidation"},
+    ],
+)
+async def test_failure_after_password_is_never_retried(
+    mocked: aioresponses, session: aiohttp.ClientSession, bad: dict[str, Any]
+) -> None:
+    """Whatever goes wrong once the password was sent blocks further attempts."""
+    fake = FakeLogin(mocked, challenges=_login_steps(bad))
+    auth = make_auth(session)
+    with pytest.raises(MagisterApiError) as first:
+        await auth.async_get_token()
+    posts = len(fake.posts)
+    hits = fake.authorize_hits
+    with pytest.raises(MagisterApiError) as second:
+        await auth.async_get_token()
+    assert second.value is first.value
+    assert len(fake.posts) == posts
+    assert fake.authorize_hits == hits
+    # reauth with new credentials unlocks it again
+    auth.update_credentials("other")
+    fake._responses.extend(_login_steps({"redirectURL": RETURN_URL}))
+    assert await auth.async_get_token() == TOKEN
+
+
+async def test_unknown_error_before_password_is_retryable(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """Failures before the password was sent do not lock the object."""
+    fake = FakeLogin(
+        mocked,
+        challenges=[
+            {"error": "SomethingNew"},
+            *_login_steps({"redirectURL": RETURN_URL}),
+        ],
+    )
+    auth = make_auth(session)
+    with pytest.raises(MagisterApiError):
+        await auth.async_get_token()
+    assert await auth.async_get_token() == TOKEN
+    assert fake.posts[-1][0] == "password"
+
+
+async def test_429_during_login_keeps_retry_after(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """Retry-After from the login service ends up on the exception."""
+    FakeLogin(
+        mocked,
+        challenges=_login_steps({"_status": 429, "_headers": {"Retry-After": "7"}}),
+    )
+    with pytest.raises(MagisterApiError) as err:
+        await make_auth(session).async_get_token()
+    assert err.value.status == 429
+    assert err.value.retry_after == 7
+
+
+async def test_connection_error_after_password_backs_off(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """No answer to the password POST: back off, but allow a retry later."""
+    clock = Clock()
+    fake = FakeLogin(
+        mocked,
+        challenges=_login_steps({"_exception": aiohttp.ClientConnectionError("x")}),
+    )
+    auth = make_auth(session, clock=clock)
+    with pytest.raises(MagisterConnectionError):
+        await auth.async_get_token()
+    posts = len(fake.posts)
+    with pytest.raises(MagisterConnectionError, match="Waiting"):
+        await auth.async_get_token()
+    assert len(fake.posts) == posts
+
+    clock.now = 31
+    fake._responses.extend(_login_steps({"redirectURL": RETURN_URL}))
+    assert await auth.async_get_token() == TOKEN
+
+
+@pytest.mark.parametrize(
+    ("error", "code"),
+    [
+        ("InvalidChallenge", "invalid_auth"),
+        ("InvalidChallengeValue", "invalid_auth"),
+        ("TenantNotFound", "unsupported_login"),
+        ("DisabledTenant", "unsupported_login"),
+        ("UserLockedOut", "invalid_auth"),
+        ("UserBlocked", "invalid_auth"),
+    ],
+)
+async def test_error_code_mapping(
+    mocked: aioresponses, session: aiohttp.ClientSession, error: str, code: str
+) -> None:
+    """Server error names map to codes and are kept for diagnostics."""
+    FakeLogin(mocked, challenges=_login_steps({"error": error}))
+    with pytest.raises(MagisterAuthError) as err:
+        await make_auth(session).async_get_token()
+    assert err.value.code == code
+    assert err.value.server_error == error
+    assert error in str(err.value)
+
+
+async def test_auth_code_validation_error_variant_is_retried(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """AuthCodeValidationError is treated like AuthCodeValidation."""
+    fake = FakeLogin(
+        mocked,
+        challenges=[
+            {"error": "AuthCodeValidationError"},
+            *_login_steps({"redirectURL": RETURN_URL}),
+        ],
+    )
+    assert await make_auth(session).async_get_token() == TOKEN
+    assert fake.bundle_hits == 2
+
+
+async def test_short_lived_token_margin(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """The margin is at most half of the token lifetime."""
+    clock = Clock()
+    fake = FakeLogin(mocked, expires_in=60)
+    fake.silent_locations = [callback_url("second", 60)]
+    auth = make_auth(session, clock=clock)
+    await auth.async_get_token()
+    clock.now = 29
+    assert await auth.async_get_token() == TOKEN
+    clock.now = 31
+    assert await auth.async_get_token() == "second"
+
+
+async def test_xsrf_only_from_accounts_host_and_only_on_posts(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """A cookie from the school host is ignored; GETs carry no XSRF header."""
+    mocked.get(
+        f"https://{HOST}/oidc_config.js",
+        body="var x;",
+        headers={"Set-Cookie": "XSRF-TOKEN=school-cookie; path=/"},
+    )
+    auth = make_auth(session)
+    await auth._get_scope()
+    assert auth._xsrf is None
+
+    FakeLogin(mocked)
+    await make_auth(session).async_get_token()
+    for (method, url), calls in mocked.requests.items():
+        for call in calls:
+            has = "X-XSRF-TOKEN" in call.kwargs["headers"]
+            assert has == (method == "POST"), (method, str(url))
+
+
+async def test_non_https_redirect_refused(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """An http:// redirect is never followed."""
+    mocked.get(f"https://{HOST}/oidc_config.js", body="var x;")
+    mocked.get(
+        AUTHORIZE_RE,
+        status=302,
+        headers={"Location": "http://accounts.magister.net/Account/Login"},
+    )
+    with pytest.raises(MagisterApiError, match="non-HTTPS"):
+        await make_auth(session).async_get_token()
+
+
+async def test_429_without_response_header(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """429 from a plain GET keeps status 429 and no retry_after."""
+    mocked.get(f"https://{HOST}/oidc_config.js", status=429)
+    with pytest.raises(MagisterApiError) as err:
+        await make_auth(session).async_get_token()
+    assert (err.value.status, err.value.retry_after) == (429, None)

@@ -1,5 +1,6 @@
 """Shared test fixtures."""
 
+import inspect
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
 from unittest.mock import Mock
@@ -21,7 +22,10 @@ class _CompatClientResponse(aiohttp.ClientResponse):
     """ClientResponse that tolerates aioresponses 0.7.9 on aiohttp >= 3.14.
 
     aiohttp 3.14 added a required ``stream_writer`` argument that aioresponses
-    0.7.9 does not pass yet. Remove this shim once aioresponses supports it.
+    0.7.9 does not pass yet. Upstream: https://github.com/pnuckowski/aioresponses
+    (no release with the fix at the time of writing). The shim is only applied
+    when ``ClientResponse`` actually requires ``stream_writer``; remove it once
+    aioresponses supports aiohttp 3.14.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -34,7 +38,8 @@ class _CompatClientResponse(aiohttp.ClientResponse):
 @pytest.fixture(autouse=True)
 def _patch_aioresponses(monkeypatch: pytest.MonkeyPatch) -> None:
     """Apply the aioresponses/aiohttp compatibility shim."""
-    monkeypatch.setattr(core, "ClientResponse", _CompatClientResponse)
+    if "stream_writer" in inspect.signature(aiohttp.ClientResponse.__init__).parameters:
+        monkeypatch.setattr(core, "ClientResponse", _CompatClientResponse)
 
 
 @pytest.fixture

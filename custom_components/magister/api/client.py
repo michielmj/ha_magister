@@ -9,14 +9,9 @@ from typing import Any, Final
 import aiohttp
 
 from .auth import REQUEST_TIMEOUT, USER_AGENT, MagisterAuth
-from .errors import (
-    AUTH_INVALID,
-    MagisterApiError,
-    MagisterAuthError,
-    MagisterConnectionError,
-)
+from .errors import MagisterApiError, MagisterConnectionError
 from .models import Account, Appointment, Person
-from .utils import format_api_timestamp, normalize_host
+from .utils import format_api_timestamp, normalize_host, parse_retry_after
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,7 +65,13 @@ class MagisterClient:
         data = await self._get_json(
             f"/api/personen/{int(person_id)}/afspraken", params=params
         )
-        return [Appointment.from_json(item) for item in _items(data)]
+        appointments: list[Appointment] = []
+        for item in _items(data):
+            try:
+                appointments.append(Appointment.from_json(item))
+            except MagisterApiError:
+                _LOGGER.debug("Skipping malformed appointment (Id=%s)", item.get("Id"))
+        return appointments
 
     async def async_get_raw(
         self, path: str, params: dict[str, str] | None = None
@@ -88,11 +89,7 @@ class MagisterClient:
             token = await self._auth.async_get_token(force_refresh=True)
             status, body = await self._request(path, params, token)
             if status == 401:
-                raise MagisterAuthError(
-                    AUTH_INVALID, "Magister rejected the access token after re-login"
-                )
-        if status == 429:
-            raise MagisterApiError("Magister rate limit hit", status=429)
+                raise MagisterApiError("Access token rejected", status=401)
         if status >= 500:
             raise MagisterConnectionError(f"Magister server error {status}")
         if status != 200:
@@ -114,6 +111,12 @@ class MagisterClient:
             async with self._session.get(
                 url, params=params, headers=headers, timeout=REQUEST_TIMEOUT
             ) as resp:
+                if resp.status == 429:
+                    raise MagisterApiError(
+                        "Magister rate limit hit",
+                        status=429,
+                        retry_after=parse_retry_after(resp.headers.get("Retry-After")),
+                    )
                 if resp.status != 200:
                     return resp.status, None
                 try:

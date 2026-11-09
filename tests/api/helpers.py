@@ -91,9 +91,14 @@ class FakeLogin:
         self.posts.append(
             (str(url).rsplit("/", 1)[-1], kwargs["json"], dict(kwargs["headers"]))
         )
-        body = self._responses.pop(0)
-        status = 400 if "error" in body else 200
-        return CallbackResult(status=status, payload=body)
+        body = dict(self._responses.pop(0))
+        if "_exception" in body:
+            raise body["_exception"]
+        status = body.pop("_status", 400 if "error" in body else 200)
+        headers = body.pop("_headers", None)
+        if "_raw" in body:
+            return CallbackResult(status=status, body=body["_raw"], headers=headers)
+        return CallbackResult(status=status, payload=body, headers=headers)
 
     def _bundle(self, url: Any, **kwargs: Any) -> CallbackResult:
         self.bundle_hits += 1

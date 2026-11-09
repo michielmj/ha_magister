@@ -1,19 +1,21 @@
 """Anonymize Magister API responses so they can be shared and committed.
 
-What is changed:
+Two passes over all payloads of one dump:
 
-* person names: the account holder of a parent account becomes ``Ouder``, children
-  become ``Kind A``, ``Kind B``, ...
-* person IDs and appointment IDs become stable fake numbers (the same real ID always
-  maps to the same fake one within one :class:`Anonymizer`).
-* teacher names and codes become ``Docent N`` / ``D<N>``.
-* the school host name becomes ``school.example``.
-* free text keeps its words, but e-mail addresses and URLs are removed.
-* person objects are cut down to ID and name fields; links and attachments are
-  neutralized.
+1. ``collect`` gathers every person name part (Roepnaam, Voorletters, Achternaam,
+   Tussenvoegsel, Voornamen) and every teacher name and code, and assigns a
+   placeholder (``Ouder``, ``Kind A``, ``Docent 1`` / ``D1``).
+2. The ``account`` / ``children`` / ``appointments`` methods replace those values in
+   ALL strings (case-insensitive, whole words, longest first), so a teacher code in
+   ``Omschrijving`` ("wi - JDV - h4a") disappears too.
 
-Review the output before sharing it: free text (``Omschrijving``, ``Inhoud``) can still
-contain names or other personal details that no tool can recognize.
+Also changed: person and appointment IDs become stable fake numbers; GUIDs and keys such
+as ``UuId`` / ``ExterneId`` / ``OpdrachtId`` / ``Stamnummer`` are dropped or replaced;
+``Naam`` of unknown list items becomes ``<naam>``; the school host becomes
+``school.example``; e-mail addresses and URLs are removed from free text.
+
+Review the output before sharing it: free text (``Omschrijving``, ``Inhoud``,
+``Opmerking``) can still contain names that no tool can recognize.
 """
 
 from __future__ import annotations
@@ -25,16 +27,47 @@ from typing import Any
 SCHOOL_PLACEHOLDER = "school.example"
 EMAIL_PLACEHOLDER = "email@example.invalid"
 URL_PLACEHOLDER = "https://example.invalid/"
+NAME_PLACEHOLDER = "<naam>"
 
 _EMAIL_RE = re.compile(r"[\w.+'-]+@[\w-]+(?:\.[\w-]+)+")
 _URL_RE = re.compile(r"(?:https?://|www\.)[^\s<>\"')]+", re.IGNORECASE)
 _MAGISTER_HOST_RE = re.compile(r"[\w-]+\.magister\.net", re.IGNORECASE)
+_GUID_RE = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.IGNORECASE
+)
 
+_PERSON_NAME_KEYS = (
+    "Roepnaam",
+    "Voorletters",
+    "Achternaam",
+    "Tussenvoegsel",
+    "Voornamen",
+)
 _PERSON_KEYS = frozenset(
     {"Id", "Roepnaam", "Tussenvoegsel", "Achternaam", "Voorletters"}
 )
 _TEACHER_KEYS = frozenset({"Id", "Naam", "Docentcode"})
-_DROP_KEYS = frozenset({"Links", "Geboortedatum", "Email", "EmailAdres", "Telefoon"})
+_DROP_KEYS = frozenset(
+    k.lower()
+    for k in (
+        "Links",
+        "Geboortedatum",
+        "Email",
+        "EmailAdres",
+        "Telefoon",
+        "UuId",
+        "Uuid",
+        "ExterneId",
+        "Stamnummer",
+        "OpdrachtId",
+    )
+)
+# Lists whose ``Naam`` is not personal.
+_NAAM_KEEP_KEYS = frozenset({"Vakken", "Lokalen", "Groep", "Docenten"})
+# Dutch name infixes: never replaced on their own (they are ordinary words).
+_INFIXES = frozenset(
+    {"de", "den", "der", "van", "von", "te", "ten", "ter", "het", "la", "le"}
+)
 
 PERSON_ID_BASE = 1000
 APPOINTMENT_ID_BASE = 100000
@@ -43,12 +76,11 @@ TEACHER_ID_BASE = 9000
 
 def _letters(index: int) -> str:
     """0 -> A, 25 -> Z, 26 -> AA, ..."""
-    letters = string.ascii_uppercase
     result = ""
     index += 1
     while index:
         index, rest = divmod(index - 1, 26)
-        result = letters[rest] + result
+        result = string.ascii_uppercase[rest] + result
     return result
 
 
@@ -62,7 +94,10 @@ class Anonymizer:
         self._person_labels: dict[int, str] = {}
         self._appointment_ids: dict[int, int] = {}
         self._teachers: dict[str, int] = {}
+        self._guids: dict[str, str] = {}
         self._children = 0
+        self._replacements: dict[str, str] = {}
+        self._pattern: re.Pattern[str] | None = None
 
     # ---------------------------------------------------------------- lookups
 
@@ -96,34 +131,112 @@ class Anonymizer:
             self._teachers[key] = len(self._teachers) + 1
         return self._teachers[key]
 
-    # ----------------------------------------------------------------- scrubbing
+    # -------------------------------------------------------------- pass 1
+
+    def collect(self, data: Any) -> None:
+        """Pass 1: register names and codes found in ``data`` for replacement."""
+        if isinstance(data, dict) and "Persoon" in data and "Groep" in data:
+            groups = [g.get("Naam") for g in data["Groep"] or [] if isinstance(g, dict)]
+            persoon = data["Persoon"]
+            if isinstance(persoon, dict) and _int_id(persoon) is not None:
+                self.person_label(_int_id(persoon) or 0, parent="Ouder" in groups)
+        self._collect(data)
+
+    def _collect(self, node: Any, key: str | None = None) -> None:
+        if isinstance(node, list):
+            for item in node:
+                self._collect(item, key)
+        elif isinstance(node, dict):
+            if "Docentcode" in node or (key == "Docenten" and "Naam" in node):
+                self._collect_teacher(node)
+            elif "Achternaam" in node or "Roepnaam" in node:
+                self._collect_person(node)
+            for name, value in node.items():
+                self._collect(value, name)
+
+    def _collect_teacher(self, node: dict[str, Any]) -> None:
+        code = node.get("Docentcode")
+        name = node.get("Naam")
+        marker = str(code or name or node.get("Id"))
+        number = self.teacher_number(marker)
+        if isinstance(code, str):
+            self._add(code, f"D{number}", min_len=2)
+        if isinstance(name, str):
+            self._add_name(name, f"Docent {number}")
+
+    def _collect_person(self, node: dict[str, Any]) -> None:
+        real = _int_id(node)
+        label = self.person_label(real) if real is not None else "Kind"
+        parts = [str(node.get(k) or "") for k in _PERSON_NAME_KEYS]
+        first, initials, last, infix, first_names = parts
+        for full in (
+            " ".join(p for p in (first, infix, last) if p),
+            " ".join(p for p in (initials, infix, last) if p),
+            " ".join(p for p in (first_names, infix, last) if p),
+        ):
+            self._add(full, label)
+        for token in (first, initials, last, first_names, infix):
+            self._add_name(token, label)
+
+    def _add_name(self, name: str, placeholder: str) -> None:
+        self._add(name, placeholder)
+        for token in re.split(r"[\s,]+", name):
+            self._add(token, placeholder)
+
+    def _add(self, value: str, placeholder: str, min_len: int = 3) -> None:
+        value = value.strip()
+        if len(value) < min_len or value.lower() in _INFIXES:
+            return
+        key = value.lower()
+        if key not in self._replacements:
+            self._replacements[key] = placeholder
+            self._pattern = None
+
+    # -------------------------------------------------------------- scrubbing
+
+    def _name_pattern(self) -> re.Pattern[str] | None:
+        if self._pattern is None and self._replacements:
+            keys = sorted(self._replacements, key=len, reverse=True)
+            self._pattern = re.compile(
+                "|".join(rf"(?<!\w){re.escape(k)}(?!\w)" for k in keys), re.IGNORECASE
+            )
+        return self._pattern
 
     def scrub_text(self, text: str) -> str:
-        """Remove e-mail addresses, URLs and the school host from free text."""
+        """Pass 2 for one string: names, GUIDs, e-mail addresses, URLs, host."""
         text = _URL_RE.sub(URL_PLACEHOLDER, text)
         text = _EMAIL_RE.sub(EMAIL_PLACEHOLDER, text)
+        text = _GUID_RE.sub(self._guid, text)
         if self._host:
             text = re.sub(re.escape(self._host), SCHOOL_PLACEHOLDER, text, flags=re.I)
-        return _MAGISTER_HOST_RE.sub(SCHOOL_PLACEHOLDER, text)
+        text = _MAGISTER_HOST_RE.sub(SCHOOL_PLACEHOLDER, text)
+        if (pattern := self._name_pattern()) is not None:
+            text = pattern.sub(lambda m: self._replacements[m.group(0).lower()], text)
+        return text
+
+    def _guid(self, match: re.Match[str]) -> str:
+        key = match.group(0).lower()
+        if key not in self._guids:
+            self._guids[key] = f"00000000-0000-0000-0000-{len(self._guids) + 1:012d}"
+        return self._guids[key]
 
     # ----------------------------------------------------------------- payloads
 
     def account(self, data: dict[str, Any]) -> dict[str, Any]:
         """Anonymize an ``/api/account`` response."""
-        groups = [g.get("Naam") for g in data.get("Groep") or [] if isinstance(g, dict)]
-        persoon = data.get("Persoon")
-        if isinstance(persoon, dict) and isinstance(persoon.get("Id"), int):
-            self.person_label(persoon["Id"], parent="Ouder" in groups)
+        self.collect(data)
         result: dict[str, Any] = self._walk(data)
         return result
 
     def children(self, data: dict[str, Any]) -> dict[str, Any]:
         """Anonymize a ``/api/personen/<id>/kinderen`` response."""
+        self.collect(data)
         result: dict[str, Any] = self._walk(data)
         return result
 
     def appointments(self, data: dict[str, Any]) -> dict[str, Any]:
         """Anonymize an ``/api/personen/<id>/afspraken`` response."""
+        self.collect(data)
         result: dict[str, Any] = self._walk(data)
         return result
 
@@ -131,43 +244,40 @@ class Anonymizer:
 
     def _walk(self, node: Any, key: str | None = None) -> Any:
         if isinstance(node, dict):
-            if key == "Docenten" or _is_teacher(node):
+            if key == "Docenten" or "Docentcode" in node:
                 return self._teacher(node)
             if "Achternaam" in node or "Roepnaam" in node:
                 return self._person(node)
             is_appointment = {"Start", "Einde", "Id"} <= node.keys()
             result: dict[str, Any] = {}
             for name, value in node.items():
-                if name in _DROP_KEYS:
+                if name.lower() in _DROP_KEYS:
                     continue
                 if name == "Bijlagen" and isinstance(value, list):
                     result[name] = [{"Naam": "bijlage"} for _ in value]
-                elif (
-                    name == "Id"
-                    and is_appointment
-                    and isinstance(value, int)
-                    and not isinstance(value, bool)
-                ):
+                elif name == "Id" and is_appointment and _is_int(value):
                     result[name] = self.appointment_id(value)
                 else:
                     result[name] = self._walk(value, name)
             return result
         if isinstance(node, list):
-            return [self._walk(item, key) for item in node]
+            items = [self._walk(item, key) for item in node]
+            if key not in _NAAM_KEEP_KEYS:
+                for item in items:
+                    if isinstance(item, dict) and isinstance(item.get("Naam"), str):
+                        item["Naam"] = NAME_PLACEHOLDER
+            return items
         if isinstance(node, str):
             return self.scrub_text(node)
         return node
 
     def _person(self, node: dict[str, Any]) -> dict[str, Any]:
-        raw_id = node.get("Id")
-        real = (
-            raw_id if isinstance(raw_id, int) and not isinstance(raw_id, bool) else None
-        )
+        real = _int_id(node)
         label = self.person_label(real) if real is not None else "Kind"
         out: dict[str, Any] = {}
         for name in _PERSON_KEYS & node.keys():
             if name == "Id":
-                out[name] = self.person_id(real) if real is not None else raw_id
+                out[name] = self.person_id(real) if real is not None else node[name]
             elif name == "Roepnaam":
                 out[name] = label
             elif name == "Voorletters":
@@ -192,8 +302,13 @@ class Anonymizer:
         return dict(sorted(out.items()))
 
 
-def _is_teacher(node: dict[str, Any]) -> bool:
-    return "Docentcode" in node
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _int_id(node: dict[str, Any]) -> int | None:
+    value = node.get("Id")
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 def count_codes(items: list[dict[str, Any]], key: str) -> dict[str, int]:

@@ -74,3 +74,24 @@ def test_parse_login_url() -> None:
     assert return_url.startswith("/connect/authorize/callback?")
     assert parse_login_url("https://accounts.magister.net/other") is None
     assert parse_login_url("https://accounts.magister.net/account/login") is None
+
+
+def test_extract_auth_code_prefers_assembly_after_key() -> None:
+    """A decoy assembly before the authCode key is ignored."""
+    decoy = (
+        '(q=["xx","yy"],["1"].map((function(t){return q[parseInt(t)||0]})).join(""))'
+    )
+    real = (
+        '(q=["aa","bb"],["1","0"].map('
+        '(function(t){return q[parseInt(t)||0]})).join(""))'
+    )
+    assert extract_auth_code(f'{decoy};k=["authCode"];{real}') == "bbaa"
+    assert extract_auth_code(decoy) == "yy"
+
+
+def test_parse_login_url_requires_https_and_accounts_host() -> None:
+    """Look-alike login URLs are rejected."""
+    query = "?sessionId=a&returnUrl=b"
+    assert parse_login_url("https://accounts.magister.net/account/login" + query)
+    assert parse_login_url("http://accounts.magister.net/account/login" + query) is None
+    assert parse_login_url("https://evil.example/account/login" + query) is None

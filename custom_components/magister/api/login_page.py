@@ -53,7 +53,12 @@ def find_login_script_url(html: str) -> str:
 
 def extract_auth_code(js: str) -> str:
     """Extract the current ``authCode`` from the login JavaScript bundle."""
-    match = _ASSEMBLED_RE.search(js)
+    key = js.find("authCode")
+    matches = list(_ASSEMBLED_RE.finditer(js))
+    # Prefer the assembly closest after the "authCode" key name.
+    match = next((m for m in matches if m.start() >= key >= 0), None) or (
+        matches[0] if matches else None
+    )
     if match:
         parts = _STRING_RE.findall(match.group("parts"))
         order = [int(i) for i in _DIGITS_RE.findall(match.group("order"))]
@@ -80,7 +85,11 @@ def parse_oidc_scope(oidc_config_js: str) -> str:
 def parse_login_url(url: str) -> tuple[str, str] | None:
     """Return ``(sessionId, returnUrl)`` of a ``/account/login`` URL, else ``None``."""
     parts = urlsplit(url)
-    if parts.path.lower() != "/account/login":
+    if (
+        parts.scheme != "https"
+        or parts.netloc != "accounts.magister.net"
+        or parts.path.lower() != "/account/login"
+    ):
         return None
     query = parse_qs(parts.query)
     session_id = query.get("sessionId", [""])[0]

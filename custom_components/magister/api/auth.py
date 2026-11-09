@@ -22,7 +22,7 @@ import logging
 import re
 import secrets
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 from urllib.parse import parse_qs, quote, urlencode, urljoin, urlsplit
@@ -39,6 +39,7 @@ from .errors import (
     MagisterApiError,
     MagisterAuthError,
     MagisterConnectionError,
+    MagisterError,
 )
 from .login_page import (
     DEFAULT_SCOPE,
@@ -47,13 +48,16 @@ from .login_page import (
     parse_login_url,
     parse_oidc_scope,
 )
-from .utils import normalize_host
+from .utils import normalize_host, parse_retry_after
 
 _LOGGER = logging.getLogger(__name__)
 
 ACCOUNTS_HOST: Final = "accounts.magister.net"
 ACCOUNTS_URL: Final = f"https://{ACCOUNTS_HOST}"
-TOKEN_MARGIN: Final = 60.0
+TOKEN_MARGIN: Final = 60.0  # maximum; shortened for tokens living < 120 s
+TOTP_PERIOD: Final = 30
+CONNECTION_BACKOFF: Final = 30.0
+CONNECTION_BACKOFF_MAX: Final = 300.0
 REQUEST_TIMEOUT: Final = aiohttp.ClientTimeout(total=30)
 MAX_REDIRECTS: Final = 10
 MAX_CHALLENGE_STEPS: Final = 8
@@ -70,6 +74,8 @@ _WRONG_CREDENTIALS: Final = frozenset(
         "InvalidUsername",
         "InvalidPassword",
         "InvalidUsernameOrPassword",
+        "InvalidChallenge",
+        "InvalidChallengeValue",
         "UserHasNoAccess",
         "NoUsername",
         "NoPassword",
@@ -91,8 +97,16 @@ _UNSUPPORTED: Final = frozenset(
         "IdPDisabled",
         "SsoDisabled",
         "NoPasswordChallenge",
+        "TenantNotFound",
+        "NoAllowedTenants",
+        "TenantNotAllowed",
+        "DisabledTenant",
+        "NoTenantSelected",
+        "InvalidTenantSelected",
+        "NoSchoolSelected",
     }
 )
+_AUTH_CODE_ERRORS: Final = frozenset({"AuthCodeValidation", "AuthCodeValidationError"})
 _NEVER_RETRY: Final = frozenset(
     {AUTH_INVALID, AUTH_TOTP_REQUIRED, AUTH_INVALID_TOTP, AUTH_UNSUPPORTED_LOGIN}
 )
@@ -108,6 +122,7 @@ class _Reply:
     headers: Mapping[str, str]
     text: str
     xsrf: str | None
+    retry_after: float | None = None
 
 
 def _decode_uri(value: str) -> str:
@@ -139,6 +154,8 @@ class MagisterAuth:
         totp_secret: str | None = None,
         *,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], float] = time.time,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         """Create the auth helper.
 
@@ -152,6 +169,8 @@ class MagisterAuth:
         self._password = password
         self._totp_secret = totp_secret.replace(" ", "") if totp_secret else None
         self._clock = clock
+        self._wall_clock = wall_clock
+        self._sleep = sleep
 
         self._token: str | None = None
         self._expires_at = 0.0
@@ -161,7 +180,12 @@ class MagisterAuth:
         self._xsrf: str | None = None
         self._scope: str | None = None
         self._auth_code: tuple[str, str] | None = None
-        self._failure: MagisterAuthError | None = None
+        self._failure: MagisterError | None = None
+        self._password_sent = False
+        self._last_totp_step: int | None = None
+        self._blocked_until = 0.0
+        self._backoff = CONNECTION_BACKOFF
+        self._valid_until = 0.0
         self.last_token_source: TokenSource | None = None
         self.last_silent_failure: str | None = None
 
@@ -183,13 +207,15 @@ class MagisterAuth:
         self._password = password
         self._totp_secret = totp_secret.replace(" ", "") if totp_secret else None
         self._failure = None
+        self._blocked_until = 0.0
+        self._backoff = CONNECTION_BACKOFF
         self._token = None
         self._has_session = False
 
     # ------------------------------------------------------------------ token
 
     def _cached_token(self) -> str | None:
-        if self._token and self._clock() < self._expires_at - TOKEN_MARGIN:
+        if self._token and self._clock() < self._valid_until:
             return self._token
         return None
 
@@ -218,13 +244,30 @@ class MagisterAuth:
             result = await self._silent_renew()
             if result is not None:
                 return self._store(result, "silent")
+        if self._clock() < self._blocked_until:
+            raise MagisterConnectionError("Waiting before retrying the login")
+        self._password_sent = False
         try:
             result = await self._full_login()
         except MagisterAuthError as err:
-            if err.code in _NEVER_RETRY:
+            if err.code in _NEVER_RETRY or self._password_sent:
                 self._failure = err
             self._token = None
             raise
+        except MagisterConnectionError:
+            # No usable answer: back off instead of hammering the login service.
+            self._blocked_until = self._clock() + self._backoff
+            self._backoff = min(self._backoff * 2, CONNECTION_BACKOFF_MAX)
+            self._token = None
+            raise
+        except MagisterError as err:
+            # Once the password was sent, any other failure may count towards a
+            # lockout, so it is remembered and never retried automatically.
+            if self._password_sent:
+                self._failure = err
+            self._token = None
+            raise
+        self._backoff = CONNECTION_BACKOFF
         self._has_session = True
         return self._store(result, "login")
 
@@ -232,6 +275,7 @@ class MagisterAuth:
         token, expires_in = result
         self._token = token
         self._expires_at = self._clock() + expires_in
+        self._valid_until = self._expires_at - min(TOKEN_MARGIN, expires_in / 2)
         self._generation += 1
         self.last_token_source = source
         _LOGGER.debug("Obtained Magister token via %s (valid %ss)", source, expires_in)
@@ -261,12 +305,17 @@ class MagisterAuth:
                     await resp.text() if resp.status < 300 or resp.status == 400 else ""
                 )
                 cookie = resp.cookies.get("XSRF-TOKEN")
-                xsrf = cookie.value if cookie is not None else None
+                xsrf = (
+                    cookie.value
+                    if cookie is not None and urlsplit(url).netloc == ACCOUNTS_HOST
+                    else None
+                )
                 reply = _Reply(
                     status=resp.status,
                     headers={k: v for k, v in resp.headers.items()},
                     text=text,
                     xsrf=xsrf,
+                    retry_after=parse_retry_after(resp.headers.get("Retry-After")),
                 )
         except TimeoutError as err:
             raise MagisterConnectionError("Timeout talking to Magister") from err
@@ -279,7 +328,9 @@ class MagisterAuth:
         if reply.status >= 500:
             raise MagisterConnectionError(f"Magister server error {reply.status}")
         if reply.status == 429:
-            raise MagisterApiError("Magister rate limit hit", status=429)
+            raise MagisterApiError(
+                "Magister rate limit hit", status=429, retry_after=reply.retry_after
+            )
         return reply
 
     def _csrf_headers(self) -> dict[str, str]:
@@ -325,7 +376,9 @@ class MagisterAuth:
     def _is_callback(self, url: str) -> bool:
         parts = urlsplit(url)
         return (
-            parts.netloc == self._host and parts.path == "/oidc/redirect_callback.html"
+            parts.scheme == "https"
+            and parts.netloc == self._host
+            and parts.path == "/oidc/redirect_callback.html"
         )
 
     async def _follow(self, url: str) -> str:
@@ -336,7 +389,9 @@ class MagisterAuth:
         for _ in range(MAX_REDIRECTS):
             if parse_login_url(url) is not None or self._is_callback(url):
                 return url
-            reply = await self._http("GET", url, headers=self._csrf_headers())
+            if urlsplit(url).scheme != "https":
+                raise MagisterApiError("Refusing a non-HTTPS redirect")
+            reply = await self._http("GET", url)
             location = reply.headers.get("Location")
             if reply.status not in (301, 302, 303, 307, 308) or not location:
                 return url
@@ -406,7 +461,7 @@ class MagisterAuth:
             raise MagisterApiError("Magister did not redirect to the login page")
         session_id, return_url = login
 
-        page = await self._http("GET", end, headers=self._csrf_headers())
+        page = await self._http("GET", end)
         if page.status != 200:
             raise MagisterApiError("Could not load the login page", status=page.status)
         auth_code = await self._get_auth_code(page.text)
@@ -471,24 +526,22 @@ class MagisterAuth:
                         AUTH_INVALID_TOTP, "The TOTP code was rejected"
                     )
                 raise MagisterApiError(f"Unexpected repeated login step '{action}'")
+            # The browser strips ``action`` from the body; it is part of the URL.
             if action == "username":
-                payload: dict[str, Any] = {
-                    "action": "username",
-                    "username": self._username,
-                }
+                payload: dict[str, Any] = {"username": self._username}
             elif action == "password":
                 payload = {
-                    "action": "password",
                     "password": self._password,
                     "userWantsToPairSoftToken": False,
-                    "userSkippedFido": True,
+                    "userSkippedFido": False,
                 }
+                self._password_sent = True
             elif action == "soft-token":
                 if not self._totp_secret:
                     raise MagisterAuthError(
                         AUTH_TOTP_REQUIRED, "This account requires a TOTP code"
                     )
-                payload = {"action": "soft-token", "code": self._totp_code()}
+                payload = {"code": await self._totp_code()}
             else:
                 raise MagisterAuthError(
                     AUTH_UNSUPPORTED_LOGIN,
@@ -501,26 +554,46 @@ class MagisterAuth:
             "Login did not finish after too many steps"
         )
 
-    def _totp_code(self) -> str:
+    async def _totp_code(self) -> str:
+        """Return a TOTP code for a time step that was not used before.
+
+        Magister rejects a code that was already used, so a second login within the
+        same 30 s step waits for the next one.
+        """
         assert self._totp_secret is not None
+        step = int(self._wall_clock() // TOTP_PERIOD)
+        if self._last_totp_step is not None and step <= self._last_totp_step:
+            wait = (self._last_totp_step + 1) * TOTP_PERIOD - self._wall_clock()
+            _LOGGER.debug("Waiting %.0fs for a fresh TOTP time step", max(wait, 0))
+            await self._sleep(max(wait, 0) + 0.5)
+            step = max(int(self._wall_clock() // TOTP_PERIOD), self._last_totp_step + 1)
         try:
-            return pyotp.TOTP(self._totp_secret).now()
+            code = pyotp.TOTP(self._totp_secret, interval=TOTP_PERIOD).at(
+                step * TOTP_PERIOD
+            )
         except ValueError as err:  # binascii.Error: malformed base32 secret
             raise MagisterAuthError(
                 AUTH_INVALID_TOTP, "The TOTP secret is not valid base32"
             ) from err
+        self._last_totp_step = step
+        return code
 
-    @staticmethod
-    def _raise_for_error(error: str) -> None:
-        if error == "AuthCodeValidation":
+    def _raise_for_error(self, error: str) -> None:
+        if error in _AUTH_CODE_ERRORS:
+            if self._password_sent:
+                raise MagisterApiError(
+                    f"Magister rejected the login request code ({error})"
+                )
             raise _AuthCodeRejectedError
         if error in _WRONG_CODE:
-            raise MagisterAuthError(AUTH_INVALID_TOTP, f"TOTP code rejected ({error})")
+            raise MagisterAuthError(
+                AUTH_INVALID_TOTP, f"TOTP code rejected ({error})", error
+            )
         if error in _WRONG_CREDENTIALS:
-            raise MagisterAuthError(AUTH_INVALID, f"Login rejected ({error})")
+            raise MagisterAuthError(AUTH_INVALID, f"Login rejected ({error})", error)
         if error in _UNSUPPORTED:
             raise MagisterAuthError(
-                AUTH_UNSUPPORTED_LOGIN, f"Login method not supported ({error})"
+                AUTH_UNSUPPORTED_LOGIN, f"Login method not supported ({error})", error
             )
         raise MagisterApiError(f"Magister login error ({error})")
 

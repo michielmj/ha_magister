@@ -139,7 +139,7 @@ async def test_run_student_and_silent_fallback(
     mocked: aioresponses, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A student account shows its own agenda; a failed silent renew is reported."""
-    FakeLogin(
+    fake = FakeLogin(
         mocked,
         challenges=[
             {"action": "username"},
@@ -154,6 +154,7 @@ async def test_run_student_and_silent_fallback(
     out = capsys.readouterr().out
     assert "Not a parent account" in out
     assert "Silent renew did NOT work (reason: login_required)" in out
+    assert [step for step, _, _ in fake.posts].count("password") <= 2
 
 
 async def test_run_empty_week(
@@ -190,7 +191,9 @@ async def test_run_error_exit_codes(
     )
     args = cli.parse_args(["--tenant", HOST, "--username", "u"])
     assert await cli.run(args, PASSWORD, None) == 1
-    assert "LOGIN FAILED (invalid_auth)" in capsys.readouterr().err
+    err_text = capsys.readouterr().err
+    assert "LOGIN FAILED (invalid_auth)" in err_text
+    assert "server error: InvalidPassword" in err_text
 
     assert (
         await cli.run(
@@ -236,6 +239,13 @@ def test_main_reads_password_and_totp_env(
 
     monkeypatch.setattr(cli.getpass, "getpass", lambda prompt: "")
     assert cli.main(["--tenant", "s", "--username", "u"]) == 2
+
+    answers = iter(["jbsw y3dp", "typed-secret"])
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt: next(answers))
+    assert cli.main(["--tenant", "s", "--username", "u", "--totp-prompt"]) == 0
+    assert calls["totp"] == "jbsw y3dp"
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt: "")
+    assert cli.main(["--tenant", "s", "--username", "u", "--totp-prompt"]) == 2
 
 
 def test_api_loads_without_homeassistant() -> None:

@@ -26,4 +26,4 @@ jobs:
       - name: Mypy
         run: mypy
       - name: Pytest
-        run: pytest --cov=custom_components.magister
+        run: pytest --cov=custom_components.magister --cov-fail-under=90

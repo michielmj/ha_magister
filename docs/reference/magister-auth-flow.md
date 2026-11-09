@@ -63,17 +63,17 @@ flow, the reference script does not use it]**.
       -> 200 {"action":"username","tenantname":"<school name>","fidoAssertionOptions":{...},
               "expiresIn":900,"externalIdPs":[], ...}
 
- 7  POST /challenges/username   body = base + {"action":"username","username":"..."}    [live: error shape]
+ 7  POST /challenges/username   body = base + {"username":"..."}    [live: error shape]
       -> 200 {"action":"password",...}
       -> 400 {"error":"InvalidUsername", ...}                  (dummy user, observed)
 
- 8  POST /challenges/password   body = base + {"action":"password","password":"...",
-                                   "userWantsToPairSoftToken":false,"userSkippedFido":true}  [bundle]
+ 8  POST /challenges/password   body = base + {"password":"...",
+                                   "userWantsToPairSoftToken":false,"userSkippedFido":false}  [bundle]
       -> 200 {"redirectURL":"/connect/authorize/callback?..."}            (no 2FA)
       -> 200 {"action":"soft-token",...}                                  (2FA with TOTP)
       -> 400 {"error":"InvalidPassword"} (and others, see 5)
 
- 9  POST /challenges/soft-token body = base + {"action":"soft-token","code":"123456"}   [bundle]
+ 9  POST /challenges/soft-token body = base + {"code":"123456"}   [bundle]
       -> 200 {"redirectURL":"..."}  |  400 {"error":"InvalidCode"|"IncorrectToken"|...}
 
 10  GET  https://accounts.magister.net<redirectURL>
@@ -93,6 +93,10 @@ server answers `400 {"error":"AuthCodeValidation"}`).
 while escaped reserved characters such as `%3A` / `%2F` stay escaped). The
 implementation mirrors this (`_decode_uri`).
 
+The `action` is part of the URL (`/challenges/<action>`), not of the body: the browser
+strips it from the payload before sending. The `XSRF-TOKEN` cookie is only read from
+`accounts.magister.net` and the `X-XSRF-TOKEN` header is only sent on the challenge POSTs.
+
 Other `action` values seen in the bundle: `tenant`, `select-user`, `external-idp`,
 `fido`, `pair-fido`, `skip-pair-fido-promo`, `pair-soft-token`, `hard-token`,
 `recovery-code`, `change-password`, `reset-password`, `activate-user`,
@@ -103,8 +107,9 @@ anything else raises `MagisterAuthError("unsupported_login")`.
 * the password and TOTP responses and the final redirect chain (steps 8 to 10);
 * the TOTP step requires the account to have a "soft token" (authenticator app) paired;
 * whether the password step ever returns a passkey promo (`pair-fido`) action. The code
-  sends `userSkippedFido: true` to avoid that, which is an educated guess from the
-  bundle (**open question for PM verification**).
+  sends the browser's defaults (`userWantsToPairSoftToken: false`,
+  `userSkippedFido: false`, the values for an account without a passkey). If a
+  promo appears the login fails with `unsupported_login` naming the action.
 
 ## 3. The `authCode`
 
@@ -176,3 +181,14 @@ other than `accounts.magister.net` / the school host, or an unsupported `action`
   from `accounts.magister.net` itself (no CDN host). Third-party hosts referenced by the
   pages (fonts, analytics) are irrelevant to the flow.
 * Request volume of this discovery: about 25 requests, no password was ever submitted.
+
+## 7. Lockout protection and TOTP (implementation notes)
+
+* Once the password POST has been sent, any failure other than "no response received"
+  (unknown error code, non-JSON answer, 429, repeated step, rejected authCode) is
+  remembered and re-raised without any request until `update_credentials()` is called.
+  A connection error gets an exponential back-off (30 s, doubling, max 300 s) instead.
+* The authCode re-scrape retry only happens before the password was sent.
+* A TOTP code is generated per 30 s time step; a second login within the same step
+  waits for the next one (Magister rejects reused codes).
+* The token cache margin is `min(60 s, expires_in / 2)`.
