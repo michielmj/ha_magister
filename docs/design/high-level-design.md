@@ -196,4 +196,4 @@ filters out cancelled lessons **must be confirmed in Milestone 1** from real res
 1. SSO/passkey accounts are out of scope for v1 (setup fails with a clear message). **Approved.**
 2. License: **MIT.**
 3. Prefix texts in §7: **approved as proposed.**
-4. Test tenants/account types for Milestone 1: *still to be provided by the PM before M1.*
+4. Test accounts for Milestone 1: **parent accounts without 2FA** at two school tenants (details shared privately with the Architect). TOTP is covered by mocked tests only (not verified against a real account).
