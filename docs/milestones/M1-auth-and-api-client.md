@@ -94,3 +94,14 @@ for `custom_components/magister/api/`.
 
 If login fails for the PM's accounts in a way we cannot fix (captcha, mandatory SSO,
 bot protection), the Architect brings options back to the PM before M2 starts.
+
+## Carried over to M2 (from M1 reviews)
+
+1. **Backoff after the password was sent** (`auth.py`): on a 5xx/connection error after the
+   password POST, start the backoff at 300 s; after 3 such failures in a row, block until
+   reload or `update_credentials`. Add a test.
+2. **Backoff before the password step**: `MagisterApiError` (429, login page 404, authCode
+   rejected twice) must honour `retry_after` or the same backoff, so coordinator polls don't
+   re-run the login flow immediately.
+3. **Git history hygiene**: an early commit contains an expired, anonymous pre-login
+   `XSRF-TOKEN` value in a test fixture. Merge the branch to `main` with a **squash merge**.
