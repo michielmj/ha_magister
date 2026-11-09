@@ -39,14 +39,16 @@ Do not add `pyotp` or other runtime requirements yet.
      mypy config (strict for `custom_components/magister/api/` later; for now basic
      settings that pass).
    - `requirements_test.txt`: pin `pytest-homeassistant-custom-component` to its
-     latest release on PyPI (this pins HA itself), plus `ruff`, `mypy`, `aioresponses`,
+     latest release on PyPI (check under Python 3.14; `pip index` hides releases that need a newer interpreter) (this pins HA itself), plus `ruff`, `mypy`, `aioresponses`,
      `pytest-cov`. Pin exact versions.
    - `.gitignore` for Python/venv/caches/coverage/HA config dirs.
 4. **Tests** in `tests/`:
    - `conftest.py` with an autouse fixture enabling custom integrations
      (`enable_custom_integrations`).
-   - `test_init.py`: `async_setup_component(hass, DOMAIN, {})` succeeds, and setting up
-     and unloading a `MockConfigEntry` succeeds.
+   - `test_init.py`: `async_setup_component(hass, DOMAIN, {})` succeeds, and
+     `async_setup_entry` / `async_unload_entry` called directly with a `MockConfigEntry`
+     return `True`. *(Spec change after review: a full config-entry lifecycle test is not
+     possible without a config flow. It moves to M2. No patching of HA internals.)*
 5. **GitHub Actions** in `.github/workflows/`, triggered on `push` and `pull_request`:
    - `tests.yml`: set up Python, install `requirements_test.txt`, `ruff check`,
      `ruff format --check`, `pytest --cov=custom_components.magister`.

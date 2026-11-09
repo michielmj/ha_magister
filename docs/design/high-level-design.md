@@ -184,7 +184,7 @@ filters out cancelled lessons **must be confirmed in Milestone 1** from real res
 
 ## 9. Quality and tooling
 
-- Python ≥ 3.13, targeting the current HA stable (minimum version set in `hacs.json`).
+- Python ≥ 3.14 (required by HA since 2026.3), targeting the newest HA release supported by `pytest-homeassistant-custom-component` (minimum version set in `hacs.json`).
 - `ruff` (lint + format), `mypy` on `api/` (strict-ish), pytest with
   `pytest-homeassistant-custom-component`, `aioresponses` for HTTP mocks, coverage
   target ≥ 90 % for `api/` and config flow.
