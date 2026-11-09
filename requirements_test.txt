@@ -3,3 +3,4 @@ pytest-cov==7.1.0
 aioresponses==0.7.9
 ruff==0.17.4
 mypy==2.4.1
+pyotp==2.10.0

@@ -27,8 +27,8 @@ testpaths = ["tests"]
 python_version = "3.14"
 check_untyped_defs = true
 warn_unused_ignores = true
-files = ["custom_components/magister"]
-# Strict settings for the API layer, to be enabled when it exists (M1):
-# [[tool.mypy.overrides]]
-# module = "custom_components.magister.api.*"
-# strict = true
+files = ["custom_components/magister", "tools"]
+
+[[tool.mypy.overrides]]
+module = "custom_components.magister.api.*"
+strict = true
