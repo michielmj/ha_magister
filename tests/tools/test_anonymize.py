@@ -285,7 +285,8 @@ def test_two_letter_first_and_last_names_are_replaced() -> None:
     )
     anon2 = Anonymizer(HOST)
     anon2.collect({"Items": [{"Id": 4, "Roepnaam": "Ab", "Voornamen": "Cd Ef"}]})
-    assert anon2.scrub_text("Ab Cd Ef") == "Kind A Cd Ef"  # only exact names: 2 letters
+    # the full Voornamen value is replaced; its 2-letter parts alone are not
+    assert anon2.scrub_text("Ab Cd Ef / Cd") == "Kind A Kind A / Cd"
 
 
 def test_privileges_names_are_kept() -> None:
