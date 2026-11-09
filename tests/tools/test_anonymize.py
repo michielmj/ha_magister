@@ -245,3 +245,56 @@ def test_naam_in_unknown_lists_is_replaced() -> None:
     assert item["Aantekeningen"][0]["Naam"] == "<naam>"
     account = anon.account(ACCOUNT)
     assert account["Groep"][0]["Naam"] == "Ouder"
+
+
+# ------------------------------------------------------------ final round
+
+
+def test_official_and_birth_name_fields_and_hyphen_parts() -> None:
+    """All *naam* person fields are collected and split on spaces and hyphens."""
+    anon = Anonymizer(HOST)
+    anon.collect(
+        {
+            "Persoon": {
+                "Id": 1,
+                "Roepnaam": "Hendrika",
+                "Achternaam": "Ouder-Jansen",
+                "OfficieleVoornamen": "Hendrika Johanna",
+                "OfficieleTussenvoegsels": "van den",
+                "OfficieleAchternaam": "Jansen",
+                "GeboorteAchternaam": "Pietersen",
+                "GeboortenaamTussenvoegsel": "de",
+            },
+            "Groep": [{"Naam": "Ouder"}],
+        }
+    )
+    text = anon.scrub_text(
+        "tante Johanna, Hendrika ziek, mevr. Ouder-Jansen, Pietersen"
+    )
+    for leaked in ("Johanna", "Hendrika", "Jansen", "Pietersen"):
+        assert leaked not in text
+    assert "Ouder" in text
+
+
+def test_two_letter_first_and_last_names_are_replaced() -> None:
+    """Exact Roepnaam/Achternaam values of 2 letters are replaced as whole words."""
+    anon = Anonymizer(HOST)
+    anon.collect({"Items": [{"Id": 3, "Roepnaam": "Bo", "Achternaam": "Li"}]})
+    assert anon.scrub_text("Bo komt, Bob niet, en li ook") == (
+        "Kind A komt, Bob niet, en Kind A ook"
+    )
+    anon2 = Anonymizer(HOST)
+    anon2.collect({"Items": [{"Id": 4, "Roepnaam": "Ab", "Voornamen": "Cd Ef"}]})
+    assert anon2.scrub_text("Ab Cd Ef") == "Kind A Cd Ef"  # only exact names: 2 letters
+
+
+def test_privileges_names_are_kept() -> None:
+    """Groep[].Privileges[].Naam is not blanked."""
+    anon = Anonymizer(HOST)
+    out = anon.account(
+        {
+            "Persoon": {"Id": 1, "Roepnaam": "X"},
+            "Groep": [{"Naam": "Ouder", "Privileges": [{"Naam": "Agenda", "X": 1}]}],
+        }
+    )
+    assert out["Groep"][0]["Privileges"][0]["Naam"] == "Agenda"

@@ -36,13 +36,15 @@ _GUID_RE = re.compile(
     r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.IGNORECASE
 )
 
-_PERSON_NAME_KEYS = (
-    "Roepnaam",
-    "Voorletters",
-    "Achternaam",
-    "Tussenvoegsel",
-    "Voornamen",
-)
+_NAME_KEY_PARTS = ("naam", "voornam", "voorletter", "tussenvoegsel")
+
+
+def _is_name_key(key: str) -> bool:
+    """Person fields that hold (parts of) a name, e.g. OfficieleVoornamen."""
+    lowered = key.lower()
+    return any(part in lowered for part in _NAME_KEY_PARTS)
+
+
 _PERSON_KEYS = frozenset(
     {"Id", "Roepnaam", "Tussenvoegsel", "Achternaam", "Voorletters"}
 )
@@ -63,7 +65,7 @@ _DROP_KEYS = frozenset(
     )
 )
 # Lists whose ``Naam`` is not personal.
-_NAAM_KEEP_KEYS = frozenset({"Vakken", "Lokalen", "Groep", "Docenten"})
+_NAAM_KEEP_KEYS = frozenset({"Vakken", "Lokalen", "Groep", "Docenten", "Privileges"})
 # Dutch name infixes: never replaced on their own (they are ordinary words).
 _INFIXES = frozenset(
     {"de", "den", "der", "van", "von", "te", "ten", "ter", "het", "la", "le"}
@@ -167,20 +169,31 @@ class Anonymizer:
     def _collect_person(self, node: dict[str, Any]) -> None:
         real = _int_id(node)
         label = self.person_label(real) if real is not None else "Kind"
-        parts = [str(node.get(k) or "") for k in _PERSON_NAME_KEYS]
-        first, initials, last, infix, first_names = parts
+        values = {
+            k: v.strip()
+            for k, v in node.items()
+            if isinstance(v, str) and v.strip() and _is_name_key(k)
+        }
+        first = values.get("Roepnaam", "")
+        last = values.get("Achternaam", "")
+        infix = values.get("Tussenvoegsel", "")
+        initials = values.get("Voorletters", "")
+        first_names = values.get("Voornamen", "")
         for full in (
             " ".join(p for p in (first, infix, last) if p),
             " ".join(p for p in (initials, infix, last) if p),
             " ".join(p for p in (first_names, infix, last) if p),
         ):
             self._add(full, label)
-        for token in (first, initials, last, first_names, infix):
-            self._add_name(token, label)
+        for key, value in values.items():
+            exact = key in ("Roepnaam", "Achternaam")
+            self._add(value, label, min_len=2 if exact else 3)
+            for token in re.split(r"[\s,\-]+", value):
+                self._add(token, label, min_len=2 if exact else 3)
 
     def _add_name(self, name: str, placeholder: str) -> None:
         self._add(name, placeholder)
-        for token in re.split(r"[\s,]+", name):
+        for token in re.split(r"[\s,\-]+", name):
             self._add(token, placeholder)
 
     def _add(self, value: str, placeholder: str, min_len: int = 3) -> None:

@@ -92,6 +92,7 @@ else:
     normalize_host = _api.normalize_host
     format_api_timestamp = _api.utils.format_api_timestamp
 
+MAX_PASSWORD_SUBMISSIONS = 2
 DAYS = ["ma", "di", "wo", "do", "vr", "za", "zo"]
 AUTH_HINTS = {
     "invalid_auth": "Wrong username or password (or the account is blocked).",
@@ -226,6 +227,15 @@ async def verify(
         print_week(name, data.get("Items", []), tz)
 
     print("\n[4/4] Second token fetch (cache bypassed) ...")
+    if auth.password_submissions >= MAX_PASSWORD_SUBMISSIONS:
+        print(
+            f"      Skipped: the password was already sent "
+            f"{auth.password_submissions} times in this run (never more than "
+            f"{MAX_PASSWORD_SUBMISSIONS})."
+        )
+        return await _finish(
+            client, dump_dir, host, account, children_raw, targets, tz, today
+        )
     await auth.async_get_token(force_refresh=True)
     if auth.last_token_source == "silent":
         print("      Silent renew WORKED (no new login needed).")
@@ -237,7 +247,22 @@ async def verify(
         )
     await client.async_get_raw("/api/account")
     print("      The new token works.")
+    return await _finish(
+        client, dump_dir, host, account, children_raw, targets, tz, today
+    )
 
+
+async def _finish(
+    client: Any,
+    dump_dir: Path | None,
+    host: str,
+    account: dict[str, Any],
+    children_raw: dict[str, Any],
+    targets: list[tuple[int, str]],
+    tz: ZoneInfo,
+    today: date | None,
+) -> int:
+    """Write the anonymized dump when requested."""
     if dump_dir is not None:
         files = await collect_dump(
             client, host, account, children_raw, targets, tz, today

@@ -252,3 +252,30 @@ def test_api_loads_without_homeassistant() -> None:
     """The CLI loads the api package standalone (no custom_components.magister)."""
     assert cli._api.__name__ == "magister_api"
     assert aiohttp  # imported
+
+
+async def test_forced_refresh_skipped_after_two_password_submissions(
+    mocked: aioresponses, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """If a 401 already cost a second login, step 4 does not log in a third time."""
+    login = [
+        {"action": "username"},
+        {"action": "password"},
+        {"redirectURL": RETURN_URL},
+    ]
+    fake = FakeLogin(mocked, challenges=login * 3)
+    mocked.get(f"{BASE}/api/account", status=401)
+    mocked.get(
+        f"{BASE}/api/account",
+        payload={"Persoon": {"Id": 7}, "Groep": [{"Naam": "Leerling"}]},
+        repeat=True,
+    )
+    mocked.get(
+        re.compile(rf"^{re.escape(BASE)}/api/personen/7/afspraken\?.*$"),
+        payload={"Items": []},
+    )
+    args = cli.parse_args(["--tenant", HOST, "--username", "u"])
+    assert await cli.run(args, PASSWORD, None) == 0
+    out = capsys.readouterr().out
+    assert "Skipped" in out
+    assert [s for s, _, _ in fake.posts].count("password") == 2

@@ -1053,3 +1053,40 @@ async def test_429_without_response_header(
     with pytest.raises(MagisterApiError) as err:
         await make_auth(session).async_get_token()
     assert (err.value.status, err.value.retry_after) == (429, None)
+
+
+async def test_totp_wait_is_capped(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """A wall clock that jumps backwards never causes a long sleep."""
+    wall = Clock()
+    wall.now = 1_000_005.0
+    sleeps: list[float] = []
+
+    async def fake_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        wall.now += 30
+
+    flow = [
+        {"action": "username"},
+        {"action": "password"},
+        {"action": "soft-token"},
+        {"redirectURL": RETURN_URL},
+    ]
+    FakeLogin(mocked, challenges=flow * 2)
+    clock = Clock()
+    auth = MagisterAuth(
+        session,
+        HOST,
+        USERNAME,
+        PASSWORD,
+        TOTP_SECRET,
+        clock=clock,
+        wall_clock=wall,
+        sleep=fake_sleep,
+    )
+    await auth.async_get_token()
+    wall.now -= 3600  # clock jumps back an hour
+    clock.now = 10_000
+    await auth.async_get_token()
+    assert sleeps and sleeps[0] <= 31

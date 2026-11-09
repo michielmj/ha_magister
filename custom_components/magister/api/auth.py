@@ -107,9 +107,6 @@ _UNSUPPORTED: Final = frozenset(
     }
 )
 _AUTH_CODE_ERRORS: Final = frozenset({"AuthCodeValidation", "AuthCodeValidationError"})
-_NEVER_RETRY: Final = frozenset(
-    {AUTH_INVALID, AUTH_TOTP_REQUIRED, AUTH_INVALID_TOTP, AUTH_UNSUPPORTED_LOGIN}
-)
 
 
 class _AuthCodeRejectedError(Exception):
@@ -188,6 +185,7 @@ class MagisterAuth:
         self._valid_until = 0.0
         self.last_token_source: TokenSource | None = None
         self.last_silent_failure: str | None = None
+        self.password_submissions = 0
 
     def __repr__(self) -> str:
         """Representation without any credentials."""
@@ -250,8 +248,8 @@ class MagisterAuth:
         try:
             result = await self._full_login()
         except MagisterAuthError as err:
-            if err.code in _NEVER_RETRY or self._password_sent:
-                self._failure = err
+            # Every MagisterAuthError code is final: never retried automatically.
+            self._failure = err
             self._token = None
             raise
         except MagisterConnectionError:
@@ -536,6 +534,7 @@ class MagisterAuth:
                     "userSkippedFido": False,
                 }
                 self._password_sent = True
+                self.password_submissions += 1
             elif action == "soft-token":
                 if not self._totp_secret:
                     raise MagisterAuthError(
@@ -565,7 +564,7 @@ class MagisterAuth:
         if self._last_totp_step is not None and step <= self._last_totp_step:
             wait = (self._last_totp_step + 1) * TOTP_PERIOD - self._wall_clock()
             _LOGGER.debug("Waiting %.0fs for a fresh TOTP time step", max(wait, 0))
-            await self._sleep(max(wait, 0) + 0.5)
+            await self._sleep(min(max(wait, 0) + 0.5, TOTP_PERIOD + 1))
             step = max(int(self._wall_clock() // TOTP_PERIOD), self._last_totp_step + 1)
         try:
             code = pyotp.TOTP(self._totp_secret, interval=TOTP_PERIOD).at(
