@@ -41,6 +41,9 @@ OFFSET_FIELD_MAX: Final = 100
 
 MANUFACTURER: Final = "Magister"
 
+# Entities stay available on the last good data for this long after a failed refresh.
+DATA_MAX_AGE: Final = timedelta(hours=24)
+
 
 def host_prefix(host: str) -> str:
     """Return the school part of a host (``school`` for ``school.magister.net``)."""

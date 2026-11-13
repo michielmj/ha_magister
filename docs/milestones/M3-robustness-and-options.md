@@ -55,7 +55,7 @@ A test asserts that no secret or name appears.
 ### 6. Hygiene from M2 reviews
 - Cover or mark the defensive guard in `__init__.py` (lines ~61-63).
 - Reset `final_failure_reported` after a successful login and in `update_credentials`.
-- Confirm the "Gewijzigd" note for Status 3 against the PM's observations. Until it is confirmed, keep it.
+- ~~Confirm the "Gewijzigd" note for Status 3~~ **Resolved 2026-11-13:** the PM confirmed Magister shows Status 3 as a normal lesson, so the note was removed in 0.3.1.
 
 ### 8. First-appointment sensors (PM request 2026-11-13)
 Purpose: e.g. wake-up automations ("what time does the first lesson of child X start tomorrow?").

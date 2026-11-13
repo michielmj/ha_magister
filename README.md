@@ -64,6 +64,36 @@ extra requests to Magister. Each sensor is a sub-entry on the integration page t
 If you later shrink **Weeks ahead** so that a sensor's offset no longer fits, the sensor
 becomes `unknown` and a repair notice explains why.
 
+## Using the sensor in automations
+
+The sensor is a timestamp, so Home Assistant's **Time** trigger can fire relative to it.
+Wake-up alarm 1 h 30 min before the first lesson of today (sensor "today", offset 0):
+
+```yaml
+triggers:
+  - trigger: time
+    at:
+      entity_id: sensor.anna_school_first_appointment_today
+      offset: "-01:30:00"
+actions:
+  - action: script.wake_up
+```
+
+For an early lesson you may want the alarm the evening before: use the "tomorrow" sensor
+(offset 1) with a large negative offset, for example `"-14:00:00"` (the alarm fires 14 h
+before the first lesson of tomorrow).
+
+Rule: pick the sensor whose day is the target day at the moment the trigger fires. A
+"today" sensor rolls over to the next day at midnight, so an alarm at 06:45 for today's
+lesson belongs on the offset 0 sensor, and an alarm the evening before belongs on the
+offset 1 sensor.
+
+The sensors (and calendars) stay available on the last good data for up to 24 hours when
+Magister or your internet connection is down, so a running outage does not cancel a
+scheduled alarm. After 24 hours without a successful refresh they become unavailable.
+For critical alarms (a first lesson you must not miss) still add a fallback, for example
+a fixed-time alarm.
+
 ## Options
 
 **Configure** on the integration page changes the children (add or remove, which also adds

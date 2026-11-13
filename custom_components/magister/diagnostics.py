@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CHILD_ID,
@@ -85,6 +86,9 @@ async def async_get_config_entry_diagnostics(
         "coordinator": {
             "last_update_success": coordinator.last_update_success,
             "last_success": coordinator.last_success,
+            "last_success_age_seconds": None
+            if coordinator.last_success is None
+            else round((dt_util.utcnow() - coordinator.last_success).total_seconds()),
             "last_error": type(last_exception).__name__ if last_exception else None,
             "update_interval": str(coordinator.update_interval),
         },

@@ -62,7 +62,7 @@ Status 4 and 5 get the prefix `[Vervallen]` (HLD section 7).
 | Code | Observed count | Meaning |
 |---|---|---|
 | 1 | 72 (**confirmed** present) | normal scheduled item (shown by `status=1`) |
-| 3 | 10 (**confirmed** present) | shown by `status=1`; meaning not determined (possibly a changed item); mostly natuurkunde (8 of 10, also 1x du, 1x en); all are lessons |
+| 3 | 10 (**confirmed** present) | shown by `status=1`; seen at school A; Magister shows it as a normal lesson (no changed marker; the "Bijgewerkt op ..." text appears on every appointment); meaning unknown; the integration adds no note to the description; mostly natuurkunde (8 of 10, also 1x du, 1x en); all are lessons |
 | 5 | 10 (**confirmed** present) | **cancelled** (hidden by `status=1`); all 10 are lessons |
 | 7 | 48 (**confirmed** present) | shown by `status=1`; exact meaning not determined |
 | 0, 2, 4, 6, 8+ | not observed | community, unconfirmed (4 is expected to be a second "cancelled" variant, manual vs. automatic) |

@@ -1,6 +1,6 @@
 [project]
 name = "ha-magister"
-version = "0.0.1"
+version = "0.3.1"
 description = "Home Assistant custom integration for the Magister school agenda"
 requires-python = ">=3.14"
 license = "MIT"

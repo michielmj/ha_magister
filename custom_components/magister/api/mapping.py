@@ -18,7 +18,7 @@ from .models import Appointment
 LOCAL_TZ: Final = ZoneInfo("Europe/Amsterdam")
 
 CANCELLED_STATUSES: Final = frozenset({4, 5})
-CHANGED_STATUSES: Final = {3: "Gewijzigd", 9: "Gewijzigd", 10: "Verplaatst"}
+CHANGED_STATUSES: Final = {9: "Verplaatst", 10: "Verplaatst"}
 
 CANCELLED_PREFIX: Final = "[Vervallen]"
 INFO_TYPE_PREFIXES: Final = {

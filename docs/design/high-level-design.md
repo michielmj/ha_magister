@@ -153,7 +153,7 @@ Removing a child in the options removes its entity/device (registry cleanup).
 | start/end | `Start`/`Einde` (UTC). All-day when `DuurtHeleDag` → date-only event (end exclusive) |
 | summary | `<prefix><subject>` where subject = `Vakken[].Naam` → first `" - "` segment of `Omschrijving` (e.g. `wisB`, `SE NAT`, `Schoolfotograaf`) → "Afspraak". Some schools leave `Vakken` empty (PM decision 2026-11-13) |
 | location | `Lokatie` → `Lokalen[].Naam` |
-| description | `Lesuur n` (or `n–m`), full Omschrijving, teachers, a status line ("Vervallen"/"Gewijzigd"), homework/test text (`Inhoud`, HTML → text) |
+| description | `Lesuur n` (or `n–m`), full Omschrijving, teachers, a status line ("Vervallen"/"Verplaatst"), homework/test text (`Inhoud`, HTML → text) |
 
 Title prefixes, using **Magister's own label words** (PM decision 2026-11-13; multiple combine, e.g. `[Vervallen] [Proefwerk] biologie`):
 
@@ -164,7 +164,8 @@ Title prefixes, using **Magister's own label words** (PM decision 2026-11-13; mu
 | InfoType 4 / 5 (schriftelijke / mondelinge overhoring) | `[SO]` / `[MO]` |
 | InfoType 6 | `[Informatie]` |
 | InfoType 1 | `[Huiswerk]` |
-| Status 3 / 9 / 10 (gewijzigd / verplaatst) | no prefix; a note in the description |
+| Status 9 / 10 (verplaatst; community codes, not yet seen) | no prefix; "Verplaatst" note in the description |
+| Status 3 | **no note**: PM confirmed 2026-11-13 that Magister shows these as normal lessons |
 
 Prefix texts are Dutch constants in `mapping.py` (the event text comes from Dutch data anyway).
 **Confirmed in M1 (PM run, 2026-11-13):** the `status=1` query parameter **hides cancelled

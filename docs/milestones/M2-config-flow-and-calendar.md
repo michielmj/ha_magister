@@ -32,7 +32,7 @@ repairs. M2 uses the default window and interval as constants. Auth failures mus
   1 `[Huiswerk]`, 2 `[Proefwerk]`, 3 `[Tentamen]`, 4 `[SO]`, 5 `[MO]`, 6 `[Informatie]`;
   then `Appointment.subject` (Vakken name, else the first Omschrijving segment, else "Afspraak").
 - `description` (plain text): `Lesuur n` or `Lesuur n–m`; a status line for cancelled
-  ("Vervallen") or changed/moved (Status 3/9/10: "Gewijzigd"/"Verplaatst"); the full Omschrijving;
+  ("Vervallen") or changed/moved (Status 9/10: "Verplaatst"; Status 3 originally "Gewijzigd", removed in 0.3.1 after the PM checked Magister); the full Omschrijving;
   teachers; then `Inhoud` converted from HTML to text (lists, `<br>`, `&nbsp;`, entities);
   "Bijlagen in Magister" when `HeeftBijlagen` is true.
 - `location`: `Lokatie`, else the `Lokalen` names.
