@@ -115,4 +115,9 @@ bot protection), the Architect brings options back to the PM before M2 starts.
   missing items are all Status 5 (vervallen automatisch). Decision recorded in HLD §7: fetch
   without a status filter.
 
-**School 2:** pending.
+**School 2 (2026-11-13): GO.** Parent account, no 2FA. Login OK, silent renew worked.
+Dumps shared and checked: no person names. `status=1` again hid exactly the cancelled
+(Status 5) items (94 vs 89). New: `Vakken` is empty at this school, so the title falls back to the
+first `Omschrijving` segment; Magister's label words are used as prefixes (HLD §7).
+
+**M1 result: GO** — unattended login with username + password works at both schools.

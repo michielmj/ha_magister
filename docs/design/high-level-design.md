@@ -151,18 +151,19 @@ Removing a child in the options removes its entity/device (registry cleanup).
 |---|---|
 | uid | `magister-<Id>@<host>` (same scheme as the reference script) |
 | start/end | `Start`/`Einde` (UTC). All-day when `DuurtHeleDag` → date-only event (end exclusive) |
-| summary | `<prefix><subject>` where subject = `Vakken[].Naam` → `Omschrijving` → "Afspraak" |
+| summary | `<prefix><subject>` where subject = `Vakken[].Naam` → first `" - "` segment of `Omschrijving` (e.g. `wisB`, `SE NAT`, `Schoolfotograaf`) → "Afspraak". Some schools leave `Vakken` empty (PM decision 2026-11-13) |
 | location | `Lokatie` → `Lokalen[].Naam` |
-| description | `Lesuur n`, Omschrijving, teachers, a status line ("Vervallen"/"Gewijzigd"), homework/test text (`Inhoud`, HTML → text) |
+| description | `Lesuur n` (or `n–m`), full Omschrijving, teachers, a status line ("Vervallen"/"Gewijzigd"), homework/test text (`Inhoud`, HTML → text) |
 
-Title prefixes (multiple combine, e.g. `[Vervallen] [Toets] Wiskunde`):
+Title prefixes, using **Magister's own label words** (PM decision 2026-11-13; multiple combine, e.g. `[Vervallen] [Proefwerk] biologie`):
 
 | Condition | Prefix |
 |---|---|
 | Status 4 / 5 (vervallen handmatig / automatisch) | `[Vervallen]` |
-| InfoType 2 / 3 (proefwerk / tentamen) | `[Toets]` |
+| InfoType 2 / 3 | `[Proefwerk]` / `[Tentamen]` |
 | InfoType 4 / 5 (schriftelijke / mondelinge overhoring) | `[SO]` / `[MO]` |
-| InfoType 1 (huiswerk) | `[HW]` |
+| InfoType 6 | `[Informatie]` |
+| InfoType 1 | `[Huiswerk]` |
 | Status 3 / 9 / 10 (gewijzigd / verplaatst) | no prefix; a note in the description |
 
 Prefix texts are Dutch constants in `mapping.py` (the event text comes from Dutch data anyway).
@@ -171,7 +172,9 @@ lessons** (Status 5 items only appear without it). The integration therefore fet
 appointments **without** a status filter. Observed codes: Status 1, 3, 5, 7; InfoType 0, 1, 2, 4;
 Type 13 (lesuur) and 7 (keuzewerktijd-like, e.g. NT2). A cancelled lesson keeps its homework
 (`InfoType` 1 + `Inhoud`), and a replacement item (e.g. a z-uur) can appear in the same slot;
-both are shown. Codes not seen yet (4, 9, 10; InfoType 3, 5, 6) follow community knowledge.
+both are shown. A second school confirmed Status 5 = cancelled (5 items) and showed Type 2
+(school events, e.g. school photographer), empty `Vakken`, and school exams as `SE <VAK>` items
+with InfoType 0 (recognizable by title only). Codes not seen yet (4, 9, 10; InfoType 3, 5, 6) follow community knowledge.
 
 ## 8. Reliability, security and privacy
 
@@ -199,5 +202,5 @@ both are shown. Codes not seen yet (4, 9, 10; InfoType 3, 5, 6) follow community
 
 1. SSO/passkey accounts are out of scope for v1 (setup fails with a clear message). **Approved.**
 2. License: **MIT.**
-3. Prefix texts in §7: **approved as proposed.**
+3. Prefix texts in §7: approved, then changed on 2026-11-13 to Magister's own label words.
 4. Test accounts for Milestone 1: **parent accounts without 2FA** at two school tenants (details shared privately with the Architect). TOTP is covered by mocked tests only (not verified against a real account).
