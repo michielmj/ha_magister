@@ -37,6 +37,9 @@ Event titles come from Magister (in Dutch) and use Magister's own labels:
 Labels combine, for example `[Vervallen] [Huiswerk] scheikunde`. The description shows the
 lesson hour, a note for changed or cancelled lessons, the teachers and the homework text.
 
+After a password or 2FA change: remove and re-add the integration (a re-login form
+comes in a later version).
+
 Changing the children, the time window or the refresh interval after setup, and a re-login
 form after a password change, follow in a later version.
 

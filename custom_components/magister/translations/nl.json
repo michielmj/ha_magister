@@ -56,6 +56,9 @@
     },
     "api_error": {
       "message": "Magister gaf een onverwacht antwoord."
+    },
+    "login_blocked": {
+      "message": "Inloggen bij Magister is geblokkeerd na herhaalde fouten. Laad de integratie opnieuw of voeg haar opnieuw toe met nieuwe inloggegevens."
     }
   }
 }

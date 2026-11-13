@@ -10,6 +10,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from .api import Appointment, map_appointment
+from .api.mapping import CANCELLED_STATUSES
 from .const import CHILD_ID, CHILD_SHORT_NAME, CONF_CHILDREN, CONF_HOST
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
 from .entity import MagisterEntity
@@ -61,11 +62,18 @@ class MagisterCalendar(MagisterEntity, CalendarEntity):
         """Create the calendar."""
         super().__init__(coordinator, host, child_id, short_name)
         self._events: list[CalendarEvent] = []
+        self._current_candidates: list[CalendarEvent] = []
         self._build_events()
 
     def _build_events(self) -> None:
         appointments = (self.coordinator.data or {}).get(self._child_id, [])
         self._events = [to_calendar_event(item, self._host) for item in appointments]
+        # Cancelled lessons stay in the calendar but are not "current" or "next".
+        self._current_candidates = [
+            event
+            for event, item in zip(self._events, appointments, strict=True)
+            if item.status not in CANCELLED_STATUSES
+        ]
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -76,7 +84,7 @@ class MagisterCalendar(MagisterEntity, CalendarEntity):
     def event(self) -> CalendarEvent | None:
         """Return the current event, else the next one."""
         now = dt_util.now()
-        upcoming = (e for e in self._events if e.end_datetime_local > now)
+        upcoming = (e for e in self._current_candidates if e.end_datetime_local > now)
         return next(upcoming, None)
 
     async def async_get_events(

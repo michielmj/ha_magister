@@ -21,6 +21,7 @@ from .api import (
     MagisterClient,
     MagisterConnectionError,
 )
+from .api.auth import RETRY_AFTER_MAX
 from .api.mapping import LOCAL_TZ
 from .const import (
     CHILD_ID,
@@ -79,6 +80,7 @@ class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
         hass: HomeAssistant,
         entry: MagisterConfigEntry,
         client: MagisterClient,
+        auth: MagisterAuth,
     ) -> None:
         """Create the coordinator."""
         super().__init__(
@@ -89,6 +91,7 @@ class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
             update_interval=UPDATE_INTERVAL,
         )
         self._client = client
+        self._auth = auth
         self.child_ids: list[int] = [
             int(child[CHILD_ID]) for child in entry.data[CONF_CHILDREN]
         ]
@@ -107,15 +110,23 @@ class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
             raise ConfigEntryAuthFailed(
                 translation_domain=DOMAIN, translation_key="auth_failed"
             ) from err
-        except MagisterConnectionError as err:
-            raise UpdateFailed(
-                translation_domain=DOMAIN, translation_key="connection_failed"
-            ) from err
-        except MagisterApiError as err:
+        except (MagisterConnectionError, MagisterApiError) as err:
+            if self._auth.has_final_failure:
+                # A remembered failure after the password step is never retried.
+                raise ConfigEntryAuthFailed(
+                    translation_domain=DOMAIN, translation_key="auth_failed"
+                ) from err
+            if isinstance(err, MagisterConnectionError):
+                raise UpdateFailed(
+                    translation_domain=DOMAIN, translation_key="connection_failed"
+                ) from err
+            retry_after = err.retry_after
+            if retry_after is not None:
+                retry_after = min(retry_after, RETRY_AFTER_MAX)
             raise UpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="api_error",
-                retry_after=err.retry_after,
+                retry_after=retry_after,
             ) from err
         _LOGGER.debug(
             "Fetched %d appointments for %d children",

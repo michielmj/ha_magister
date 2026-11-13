@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 import pytest
 from aioresponses import aioresponses
@@ -18,9 +18,12 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.magister.api import (
     MagisterApiError,
+    MagisterAuth,
     MagisterAuthError,
     MagisterClient,
+    MagisterConnectionError,
 )
+from custom_components.magister.api.auth import RETRY_AFTER_MAX
 from custom_components.magister.api.mapping import LOCAL_TZ
 from custom_components.magister.const import UPDATE_INTERVAL
 from custom_components.magister.coordinator import fetch_window
@@ -213,3 +216,42 @@ async def test_no_secrets_in_coordinator_logs(
     secrets = (PASSWORD, TOKEN, "JBSWY3DPEHPK3PXP", "0123456789abcdef0123456789abcdef")
     for secret in secrets:
         assert secret not in caplog.text
+
+
+async def test_retry_after_is_capped(hass: HomeAssistant, mocked: aioresponses) -> None:
+    """A huge Retry-After is limited."""
+    FakeMagister(mocked)
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    coordinator = entry.runtime_data.coordinator
+    with patch.object(
+        MagisterClient,
+        "async_get_appointments",
+        side_effect=MagisterApiError("slow", status=429, retry_after=999999),
+    ):
+        await coordinator.async_refresh()
+    assert coordinator.last_exception.retry_after == RETRY_AFTER_MAX
+
+
+@pytest.mark.parametrize(
+    "error", [MagisterConnectionError("down"), MagisterApiError("odd", status=500)]
+)
+async def test_remembered_login_failure_is_auth_failed(
+    hass: HomeAssistant, mocked: aioresponses, error: Exception
+) -> None:
+    """A failure that is never retried is reported as auth failure while polling."""
+    FakeMagister(mocked)
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    coordinator = entry.runtime_data.coordinator
+    with (
+        patch.object(MagisterClient, "async_get_appointments", side_effect=error),
+        patch.object(
+            MagisterAuth, "has_final_failure", new_callable=PropertyMock
+        ) as final,
+    ):
+        final.return_value = True
+        await coordinator.async_refresh()
+    assert isinstance(coordinator.last_exception, ConfigEntryAuthFailed)

@@ -198,6 +198,11 @@ class MagisterAuth:
         return f"MagisterAuth(host={self._host!r})"
 
     @property
+    def has_final_failure(self) -> bool:
+        """Whether a failure is remembered that is never retried automatically."""
+        return self._failure is not None
+
+    @property
     def host(self) -> str:
         """The school host name."""
         return self._host

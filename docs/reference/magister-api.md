@@ -18,7 +18,7 @@ community-reported and unconfirmed. `tools/magister_cli.py --dump` writes
 | `GET /api/personen/{persoonId}/afspraken?van=<UTC>&tot=<UTC>[&status=1]` | `Items[]` of appointments; **do not send `status=1`** (hides cancelled lessons) |
 
 Behaviour of the client (`api/client.py`): 401 -> one forced token refresh and retry, a
-second 401 -> `MagisterAuthError(invalid_auth)`; 429 -> `MagisterApiError(status=429)`;
+second 401 -> `MagisterApiError(status=401)` (the coordinator turns it into `UpdateFailed`); 429 -> `MagisterApiError(status=429)`;
 5xx and network errors/timeouts (30 s) -> `MagisterConnectionError`; other statuses ->
 `MagisterApiError(status)`.
 

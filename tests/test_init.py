@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from aioresponses import aioresponses
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.magister.api import MagisterAuth, MagisterClient
 from custom_components.magister.const import DOMAIN
@@ -112,3 +117,86 @@ async def test_setup_retries_when_magister_is_down(
 def test_no_pending_login_without_unique_id(hass: HomeAssistant) -> None:
     """An entry without unique id never receives a pending login."""
     assert take_pending_login(hass, None) is None
+
+
+def _password_posts(fake: FakeMagister) -> int:
+    return [name for name, *_ in fake.login.posts].count("password")
+
+
+async def test_setup_retry_does_not_resend_the_password(
+    hass: HomeAssistant, mocked: aioresponses, freezer: FrozenDateTimeFactory
+) -> None:
+    """A 503 after the password step: the retry waits instead of posting again."""
+    fake = FakeMagister(
+        mocked,
+        challenges=[{"action": "username"}, {"action": "password"}, {"_status": 503}],
+    )
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert _password_posts(fake) == 1
+
+    for _ in range(3):
+        freezer.tick(timedelta(seconds=70))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+        assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert _password_posts(fake) == 1
+
+
+async def test_final_failure_stops_setup_retries(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A remembered login failure ends in ConfigEntryError, without new posts."""
+    fake = FakeMagister(
+        mocked,
+        challenges=[
+            {"action": "username"},
+            {"action": "password"},
+            {"error": "InvalidChallenge"},
+        ],
+    )
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    posts = len(fake.login.posts)
+
+    await hass.config_entries.async_reload(entry.entry_id)
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert "blocked" in (entry.reason or "")
+    assert len(fake.login.posts) == posts
+
+
+async def test_login_is_kept_across_reload_and_dropped_on_new_credentials(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Reload reuses the auth helper; changed credentials and removal release it."""
+    steps = [
+        {"action": "username"},
+        {"action": "password"},
+        {"redirectURL": RETURN_URL},
+    ]
+    FakeMagister(mocked, challenges=[*steps, *steps])
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    first = entry.runtime_data
+    assert not first.session.closed
+
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    assert entry.runtime_data.auth is first.auth
+    assert not first.session.closed
+
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_PASSWORD: "new-password"}
+    )
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    second = entry.runtime_data
+    assert second.auth is not first.auth
+    assert first.session.closed
+    assert not second.session.closed
+
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    assert second.session.closed

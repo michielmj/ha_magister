@@ -172,7 +172,7 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
         """Log in and read the account (and children); return an error key."""
         self._discard_login()
         # Own cookie jar: the login session cookies must not be shared.
-        session = async_create_clientsession(self.hass)
+        session = async_create_clientsession(self.hass, auto_cleanup=False)
         auth = MagisterAuth(
             session,
             host,

@@ -56,6 +56,9 @@
     },
     "api_error": {
       "message": "Magister returned an unexpected answer."
+    },
+    "login_blocked": {
+      "message": "Logging in to Magister is blocked after repeated failures. Reload the integration or re-add it with new credentials."
     }
   }
 }

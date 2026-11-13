@@ -239,3 +239,45 @@ def test_to_calendar_event_omits_empty_fields() -> None:
     assert event.description is None
     assert event.location is None
     assert event.uid == "magister-5@school.magister.net"
+
+
+async def test_cancelled_lessons_are_not_current_or_next(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """The entity state skips cancelled items, get_events still lists them."""
+    fake = FakeMagister(mocked)
+    base = {"Omschrijving": "x", "Type": 13, "InfoType": 0, "Vakken": []}
+    fake.appointments[CHILD_ID] = [
+        {
+            **base,
+            "Id": 1,
+            "Status": 5,
+            "Omschrijving": "gaat niet door",
+            "Start": "2026-11-13T09:00:00.0000000Z",
+            "Einde": "2026-11-13T10:00:00.0000000Z",
+        },
+        {
+            **base,
+            "Id": 2,
+            "Status": 1,
+            "Omschrijving": "gewone les",
+            "Start": "2026-11-13T11:00:00.0000000Z",
+            "Einde": "2026-11-13T12:00:00.0000000Z",
+        },
+    ]
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(ENTITY_ID)
+    assert state is not None
+    assert state.state == "off"
+    assert state.attributes["message"] == "gewone les"
+    events = await _events(
+        hass, "2026-11-13T00:00:00+00:00", "2026-11-14T00:00:00+00:00"
+    )
+    assert [e["summary"] for e in events] == [
+        "[Vervallen] gaat niet door",
+        "gewone les",
+    ]
