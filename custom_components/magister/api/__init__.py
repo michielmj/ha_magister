@@ -8,6 +8,7 @@ from .errors import (
     MagisterConnectionError,
     MagisterError,
 )
+from .mapping import CalendarFields, map_appointment
 from .models import Account, Appointment, AppointmentType, InfoType, Person
 from .utils import normalize_host
 
@@ -15,6 +16,7 @@ __all__ = [
     "Account",
     "Appointment",
     "AppointmentType",
+    "CalendarFields",
     "InfoType",
     "MagisterApiError",
     "MagisterAuth",
@@ -23,5 +25,6 @@ __all__ = [
     "MagisterConnectionError",
     "MagisterError",
     "Person",
+    "map_appointment",
     "normalize_host",
 ]

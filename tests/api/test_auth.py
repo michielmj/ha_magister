@@ -914,9 +914,11 @@ async def test_unknown_error_before_password_is_retryable(
             *_login_steps({"redirectURL": RETURN_URL}),
         ],
     )
-    auth = make_auth(session)
+    clock = Clock()
+    auth = make_auth(session, clock=clock)
     with pytest.raises(MagisterApiError):
         await auth.async_get_token()
+    clock.now = 31
     assert await auth.async_get_token() == TOKEN
     assert fake.posts[-1][0] == "password"
 
@@ -952,9 +954,125 @@ async def test_connection_error_after_password_backs_off(
         await auth.async_get_token()
     assert len(fake.posts) == posts
 
-    clock.now = 31
+    clock.now = 299
+    with pytest.raises(MagisterConnectionError, match="Waiting"):
+        await auth.async_get_token()
+    clock.now = 301
     fake._responses.extend(_login_steps({"redirectURL": RETURN_URL}))
     assert await auth.async_get_token() == TOKEN
+
+
+async def test_three_failures_after_password_block_until_new_credentials(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """Three 5xx/connection failures in a row after the password: stop trying."""
+    clock = Clock()
+    boom = {"_exception": aiohttp.ClientConnectionError("x")}
+    fake = FakeLogin(
+        mocked,
+        challenges=[
+            *_login_steps(boom),
+            *_login_steps({"_status": 503}),
+            *_login_steps(boom),
+        ],
+    )
+    auth = make_auth(session, clock=clock)
+    errors = []
+    for _ in range(3):
+        with pytest.raises(MagisterConnectionError) as err:
+            await auth.async_get_token()
+        errors.append(err.value)
+        clock.now += 301
+    posts = len(fake.posts)
+    with pytest.raises(MagisterConnectionError) as blocked:
+        await auth.async_get_token()
+    assert blocked.value is errors[-1]
+    assert len(fake.posts) == posts
+
+    auth.update_credentials("other")
+    fake._responses.extend(_login_steps({"redirectURL": RETURN_URL}))
+    assert await auth.async_get_token() == TOKEN
+
+
+async def test_success_resets_post_password_failures(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """Failures must be consecutive to block."""
+    clock = Clock()
+    boom = {"_exception": aiohttp.ClientConnectionError("x")}
+    fake = FakeLogin(
+        mocked,
+        expires_in=120,
+        challenges=[
+            *_login_steps(boom),
+            *_login_steps(boom),
+            *_login_steps({"redirectURL": RETURN_URL}),
+            *_login_steps(boom),
+            *_login_steps(boom),
+            *_login_steps({"redirectURL": RETURN_URL}),
+        ],
+    )
+    auth = make_auth(session, clock=clock)
+    for _ in range(2):
+        with pytest.raises(MagisterConnectionError):
+            await auth.async_get_token()
+        clock.now += 301
+    assert await auth.async_get_token() == TOKEN
+    clock.now += 301  # token expired
+    for _ in range(2):
+        with pytest.raises(MagisterConnectionError):
+            await auth.async_get_token()
+        clock.now += 301
+    assert await auth.async_get_token() == TOKEN
+    assert len(fake.posts) == 18
+
+
+@pytest.mark.parametrize(
+    ("retry_after", "wait"), [("7", 7), (None, 30)], ids=["retry-after", "backoff"]
+)
+async def test_api_error_before_password_honours_retry_after(
+    mocked: aioresponses,
+    session: aiohttp.ClientSession,
+    retry_after: str | None,
+    wait: int,
+) -> None:
+    """A 429 before the password step waits for Retry-After (or the backoff)."""
+    clock = Clock()
+    bad: dict[str, Any] = {"_status": 429}
+    if retry_after:
+        bad["_headers"] = {"Retry-After": retry_after}
+    fake = FakeLogin(
+        mocked,
+        challenges=[bad, *_login_steps({"redirectURL": RETURN_URL})],
+    )
+    auth = make_auth(session, clock=clock)
+    with pytest.raises(MagisterApiError):
+        await auth.async_get_token()
+    hits = fake.authorize_hits
+    clock.now = wait - 1
+    with pytest.raises(MagisterConnectionError, match="Waiting"):
+        await auth.async_get_token()
+    assert fake.authorize_hits == hits
+    clock.now = wait + 1
+    assert await auth.async_get_token() == TOKEN
+
+
+async def test_auth_code_rejected_twice_backs_off(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """Two authCode rejections end in a backoff, not an immediate new flow."""
+    clock = Clock()
+    fake = FakeLogin(
+        mocked,
+        challenges=[{"error": "AuthCodeValidation"}, {"error": "AuthCodeValidation"}],
+    )
+    auth = make_auth(session, clock=clock)
+    with pytest.raises(MagisterApiError):
+        await auth.async_get_token()
+    hits = fake.authorize_hits
+    with pytest.raises(MagisterConnectionError, match="Waiting"):
+        await auth.async_get_token()
+    assert fake.authorize_hits == hits
 
 
 @pytest.mark.parametrize(

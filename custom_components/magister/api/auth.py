@@ -58,6 +58,9 @@ TOKEN_MARGIN: Final = 60.0  # maximum; shortened for tokens living < 120 s
 TOTP_PERIOD: Final = 30
 CONNECTION_BACKOFF: Final = 30.0
 CONNECTION_BACKOFF_MAX: Final = 300.0
+POST_PASSWORD_BACKOFF: Final = 300.0
+POST_PASSWORD_MAX_FAILURES: Final = 3
+RETRY_AFTER_MAX: Final = 3600.0
 REQUEST_TIMEOUT: Final = aiohttp.ClientTimeout(total=30)
 MAX_REDIRECTS: Final = 10
 MAX_CHALLENGE_STEPS: Final = 8
@@ -184,6 +187,7 @@ class MagisterAuth:
         self._last_totp_step: int | None = None
         self._blocked_until = 0.0
         self._backoff = CONNECTION_BACKOFF
+        self._post_password_failures = 0
         self._valid_until = 0.0
         self.last_token_source: TokenSource | None = None
         self.last_silent_failure: str | None = None
@@ -209,6 +213,7 @@ class MagisterAuth:
         self._failure = None
         self._blocked_until = 0.0
         self._backoff = CONNECTION_BACKOFF
+        self._post_password_failures = 0
         self._token = None
         self._has_session = False
 
@@ -254,22 +259,45 @@ class MagisterAuth:
             self._failure = err
             self._token = None
             raise
-        except MagisterConnectionError:
-            # No usable answer: back off instead of hammering the login service.
-            self._blocked_until = self._clock() + self._backoff
-            self._backoff = min(self._backoff * 2, CONNECTION_BACKOFF_MAX)
+        except MagisterConnectionError as err:
             self._token = None
+            if self._password_sent:
+                # The password may or may not have been counted: back off for a
+                # long time and give up after a few such failures in a row.
+                self._post_password_failures += 1
+                if self._post_password_failures >= POST_PASSWORD_MAX_FAILURES:
+                    self._failure = err
+                else:
+                    self._blocked_until = self._clock() + POST_PASSWORD_BACKOFF
+            else:
+                # No usable answer: back off instead of hammering the login service.
+                self._block_for(None)
             raise
         except MagisterError as err:
             # Once the password was sent, any other failure may count towards a
             # lockout, so it is remembered and never retried automatically.
+            self._token = None
             if self._password_sent:
                 self._failure = err
-            self._token = None
+            else:
+                retry_after = (
+                    err.retry_after if isinstance(err, MagisterApiError) else None
+                )
+                self._block_for(retry_after)
             raise
         self._backoff = CONNECTION_BACKOFF
+        self._post_password_failures = 0
         self._has_session = True
         return self._store(result, "login")
+
+    def _block_for(self, retry_after: float | None) -> None:
+        """Do not start a full login again before ``retry_after`` or the backoff."""
+        if retry_after is not None:
+            delay = min(retry_after, RETRY_AFTER_MAX)
+        else:
+            delay = self._backoff
+            self._backoff = min(self._backoff * 2, CONNECTION_BACKOFF_MAX)
+        self._blocked_until = self._clock() + delay
 
     def _store(self, result: tuple[str, int], source: TokenSource) -> str:
         token, expires_in = result

@@ -149,6 +149,7 @@ class Appointment:
     info_type: int | None
     type: int | None
     afgerond: bool
+    has_attachments: bool = False
 
     @property
     def subject(self) -> str:
@@ -200,4 +201,5 @@ class Appointment:
             info_type=_opt_int(data.get("InfoType")),
             type=_opt_int(data.get("Type")),
             afgerond=bool(data.get("Afgerond")),
+            has_attachments=bool(data.get("HeeftBijlagen")),
         )
