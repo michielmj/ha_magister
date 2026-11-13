@@ -683,6 +683,28 @@ describe("failed subscribe, retry and entity change", () => {
     expect(root(card).querySelector('[aria-checked="true"]')?.textContent.trim()).toBe("0");
   });
 
+  it("moves Today to the new day when midnight passes (time zone of Home Assistant)", async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+    // 22:59 UTC on 13 Nov is 23:59 in Amsterdam; 23:01 UTC is already 14 Nov there.
+    vi.setSystemTime(new Date("2026-11-13T22:59:30Z"));
+    const { card, connection } = await mount();
+    connection.push(
+      payload([
+        item({ uid: "a", date: "2026-11-13", subject: "Vrijdag" }),
+        item({ uid: "b", date: "2026-11-14", subject: "Zaterdag" }),
+      ]),
+    );
+    await flush(card);
+    expect(texts(card, "h4")).toEqual(["Today", "Tomorrow"]);
+    expect(texts(card, ".subject")).toEqual(["Vrijdag", "Zaterdag"]);
+
+    vi.advanceTimersByTime(120_000); // past midnight in Amsterdam, two timer ticks
+    await flush(card);
+    expect(texts(card, "h4")).toEqual(["Today"]);
+    expect(texts(card, ".subject")).toEqual(["Zaterdag"]);
+  });
+
   it("does not re-render for a hass update that changes nothing relevant", async () => {
     const { card, connection, hass } = await mount();
     connection.push(payload([item()]));

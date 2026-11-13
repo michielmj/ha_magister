@@ -162,7 +162,7 @@ export class MagisterHomeworkCard extends LitElement {
     this._ensureSubscription();
     // Re-render when the day changes while the dashboard stays open.
     this._dayTimer = setInterval(() => {
-      if (this._today() !== this._shownDay) this.requestUpdate();
+      if (this._currentDay() !== this._shownDay) this.requestUpdate();
     }, 60_000);
   }
 
@@ -331,8 +331,14 @@ export class MagisterHomeworkCard extends LitElement {
     return textsFor(this._language());
   }
 
+  /** Today in the Home Assistant time zone; no side effects. */
+  private _currentDay(): string {
+    return todayIso(new Date(), this._hass?.config?.time_zone);
+  }
+
+  /** Today for rendering; remembers the day that is on screen. */
   private _today(): string {
-    this._shownDay = todayIso(new Date(), this._hass?.config?.time_zone);
+    this._shownDay = this._currentDay();
     return this._shownDay;
   }
 
