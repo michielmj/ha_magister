@@ -174,7 +174,7 @@ async def test_expiry_timer_reschedules_while_available(
     await _setup(hass, mocked)
     entity = hass.data["sensor"].get_entity(SENSOR_ID)
     assert entity is not None
-    entity._unsub_expiry = None
+    entity._cancel_expiry()  # the timer "fires": drop the pending one
     entity._handle_expiry(frozen_now())
     assert entity._unsub_expiry is not None
     entity._cancel_expiry()
