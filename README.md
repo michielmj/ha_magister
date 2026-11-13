@@ -138,7 +138,9 @@ Homework on a cancelled lesson is shown, marked `Les vervallen`.
 - **To-do list.** The title is `[Huiswerk] wiskunde`, the due date is the lesson, the description
   holds the homework text. Tick an item (in the to-do view, the mobile app, by voice or in an
   automation) to set it to 100 %; untick it to restore the last value below 100 %. Items cannot
-  be added, renamed or deleted: they come from Magister.
+  be added, renamed or deleted: they come from Magister. **The number Home Assistant shows for the
+  list counts only the open items due today or later.** Past homework stays in the list and on the
+  card, but is not counted. The count moves on at midnight (Europe/Amsterdam).
 - **Progress** is a percentage per item (0 to 100) and is stored in Home Assistant only. Nothing
   is written to Magister. It survives restarts and refreshes, and it is kept when Magister
   changes the homework text. Progress of items that left the fetched window is removed after
@@ -191,6 +193,9 @@ and tests of the child's Homework to-do list, grouped per day, with a progress c
 | `show_completed` | `false` | Also show completed items (they can be unticked) |
 | `show_past` | `false` | Also show days before today, in an "Earlier" section |
 | `days_ahead` | `7` | Show items up to this many days after today (that day included) |
+| `show_progress_tomorrow` | `false` | Bar with the progress for tomorrow above the homework |
+| `show_progress_week` | `false` | Bar with the progress for this week (Monday to Sunday) |
+| `show_progress_next_week` | `false` | Bar with the progress for next week |
 
 ```yaml
 type: custom:magister-homework-card
@@ -199,8 +204,15 @@ title: Homework Kind
 show_completed: false
 show_past: false
 days_ahead: 7
+show_progress_tomorrow: true
+show_progress_week: true
+show_progress_next_week: false
 ```
 
+- **Progress bars.** Each enabled bar shows the same value as the matching progress sensor (the
+  weighted average, whole percent), with "3 of 5 done" below it, or "no homework" at 100 % when
+  nothing is due. A bar shows "not available" while the sensor is unavailable (for instance next
+  week with 1 week ahead). The bars update as soon as you tick an item; they use your theme colours.
 - Per day: "Today", "Tomorrow", then the weekday and date. Tests (Proefwerk, Tentamen, SO, MO) are
   highlighted. Lessons that were cancelled are marked, and so is an attachment in Magister (the
   files themselves are not available here).

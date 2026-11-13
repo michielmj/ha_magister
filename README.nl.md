@@ -147,7 +147,9 @@ buiten beschouwing). Huiswerk bij een vervallen les wordt getoond, met de marker
 - **Takenlijst.** De titel is `[Huiswerk] wiskunde`, de einddatum is de les, de beschrijving bevat
   de huiswerktekst. Vink een item af (in de takenweergave, de mobiele app, met spraak of in een
   automatisering) om het op 100 % te zetten; haal het vinkje weg om de laatste waarde onder 100 %
-  terug te zetten. Items toevoegen, hernoemen of verwijderen kan niet: ze komen uit Magister.
+  terug te zetten. Items toevoegen, hernoemen of verwijderen kan niet: ze komen uit Magister. **Het getal dat Home Assistant bij de lijst toont telt alleen de open items
+  met een einddatum van vandaag of later.** Huiswerk uit het verleden blijft in de lijst en op de
+  kaart staan, maar telt niet mee. De teller schuift om middernacht (Europe/Amsterdam) op.
 - **Voortgang** is een percentage per item (0 tot 100) en wordt alleen in Home Assistant bewaard.
   Er wordt niets naar Magister geschreven. De voortgang blijft na herstarts en verversingen
   bestaan, ook als Magister de huiswerktekst wijzigt. Voortgang van items die uit het opgehaalde
@@ -204,6 +206,9 @@ het kind.
 | `show_completed` | `false` | Toon ook afgerond huiswerk (je kunt het weer openzetten) |
 | `show_past` | `false` | Toon ook dagen vóór vandaag, onder "Eerder" |
 | `days_ahead` | `7` | Toon items tot zoveel dagen na vandaag (die dag inbegrepen) |
+| `show_progress_tomorrow` | `false` | Balk met de voortgang van morgen boven het huiswerk |
+| `show_progress_week` | `false` | Balk met de voortgang van deze week (maandag tot zondag) |
+| `show_progress_next_week` | `false` | Balk met de voortgang van volgende week |
 
 ```yaml
 type: custom:magister-homework-card
@@ -212,8 +217,16 @@ title: Huiswerk Kind
 show_completed: false
 show_past: false
 days_ahead: 7
+show_progress_tomorrow: true
+show_progress_week: true
+show_progress_next_week: false
 ```
 
+- **Voortgangsbalken.** Elke ingeschakelde balk toont dezelfde waarde als de bijbehorende
+  voortgangssensor (gewogen gemiddelde, hele procenten), met "3 van 5 klaar" eronder, of "geen
+  huiswerk" bij 100 % als er niets op het programma staat. Een balk toont "niet beschikbaar" zolang
+  de sensor niet beschikbaar is (bijvoorbeeld volgende week bij 1 week vooruit). De balken werken
+  direct bij als je een item afvinkt; de kleuren volgen je thema.
 - Per dag: "Vandaag", "Morgen", daarna de weekdag en datum. Toetsen (Proefwerk, Tentamen, SO, MO)
   vallen extra op. Vervallen lessen zijn gemarkeerd, net als een bijlage in Magister (de bestanden
   zelf zijn hier niet beschikbaar).
