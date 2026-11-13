@@ -44,7 +44,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
             <span>${this._toast}</span>
             <button type="button" @click=${()=>{this._toast=``}}>${t.dismiss}</button>
           </div>`:L}
-    </ha-card>`}_renderBody(e){if(!this._config?.entity)return F`<p class="state">${e.choose_entity}</p>`;if(this._loadError)return F`<p class="state error">${e[this._loadError]}</p>`;if(!this._payload)return F`<p class="state">${e.loading}</p>`;let t=this._payload.available,n=t&&!this._offline,r=Te(this._visibleItems(),this._today()),i=F`${this._renderBars(e)}${t?L:F`<p class="banner" role="status">${e.unavailable}</p>`}${this._offline?F`<p class="banner" role="status">${e.offline}</p>`:L}`;if(r.length===0)return t?F`${i}<p class="state empty">${e.no_homework}</p>`:F`${i}`;let a=r.findIndex(e=>e.kind===`past`);return F`${i}<div class="days ${t?``:`stale`}">
+    </ha-card>`}_renderBody(e){if(!this._config?.entity)return F`<p class="state">${e.choose_entity}</p>`;if(this._loadError)return F`<p class="state error">${e[this._loadError]}</p>`;if(!this._payload)return F`<p class="state">${e.loading}</p>`;let t=this._payload.available,n=t&&!this._offline,r=Te(this._visibleItems(),this._today()),i=F`${this._renderBars(e,this._offline)}${t?L:F`<p class="banner" role="status">${e.unavailable}</p>`}${this._offline?F`<p class="banner" role="status">${e.offline}</p>`:L}`;if(r.length===0)return t?F`${i}<p class="state empty">${e.no_homework}</p>`:F`${i}`;let a=r.findIndex(e=>e.kind===`past`);return F`${i}<div class="days ${t?``:`stale`}">
         ${r.map((t,r)=>F`
             ${r===a?F`<h3 class="section">${e.earlier}</h3>`:L}
             <section class="day" aria-labelledby="day-${t.date}">
@@ -54,24 +54,24 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
               </ul>
             </section>
           `)}
-      </div>`}_renderBars(e){let t=this._config,n=this._payload?.progress,r=Z.filter(({option:e})=>t?.[e]);return r.length===0?L:F`<div class="bars">
-      ${r.map(({period:t})=>{let r=e.progress_label[t],i=n?.[t]??null;if(!i)return F`<div class="bar unavailable">
-            <div class="bar-head"><span>${r}</span></div>
+      </div>`}_renderBars(e,t){let n=this._config,r=this._payload?.progress,i=Z.filter(({option:e})=>n?.[e]);return i.length===0?L:F`<div class="bars ${t?`stale`:``}">
+      ${i.map(({period:t})=>{let n=e.progress_label[t],i=r?.[t]??null;if(!i)return F`<div class="bar unavailable">
+            <div class="bar-head"><span>${n}</span></div>
             <div
               class="track"
               role="progressbar"
-              aria-label=${r}
+              aria-label=${n}
               aria-valuemin="0"
               aria-valuemax="100"
               aria-valuetext=${e.progress_unavailable}
             ></div>
             <div class="bar-note">${e.progress_unavailable}</div>
           </div>`;let a=Oe(i),o=Q(e.percent,{n:a}),s=i.items===0?e.progress_empty:Q(e.progress_done,{completed:i.completed,items:i.items});return F`<div class="bar">
-          <div class="bar-head"><span>${r}</span><span class="bar-value">${o}</span></div>
+          <div class="bar-head"><span>${n}</span><span class="bar-value">${o}</span></div>
           <div
             class="track"
             role="progressbar"
-            aria-label=${r}
+            aria-label=${n}
             aria-valuemin="0"
             aria-valuemax="100"
             aria-valuenow=${a}
@@ -199,6 +199,9 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
     .bar-note {
       font-size: 0.8em;
       color: var(--secondary-text-color);
+    }
+    .bars.stale {
+      opacity: 0.55;
     }
     .bar.unavailable .bar-head {
       color: var(--secondary-text-color);

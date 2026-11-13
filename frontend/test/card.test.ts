@@ -857,4 +857,18 @@ describe("progress bars", () => {
     expect(texts(card, ".bar-note")).toEqual(["geen huiswerk", "3 van 8 klaar"]);
     expect(texts(card, ".bar-value")).toEqual(["100 %", "63 %"]);
   });
+
+  it("dims the bars while the connection is lost", async () => {
+    const { card, connection } = await mount({ show_progress_week: true });
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(root(card).querySelector(".bars.stale")).toBeNull();
+    connection.emit("disconnected");
+    await flush(card);
+    expect(root(card).querySelector(".bars.stale")).not.toBeNull();
+    connection.emit("ready");
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(root(card).querySelector(".bars.stale")).toBeNull();
+  });
 });

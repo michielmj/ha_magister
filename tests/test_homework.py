@@ -15,11 +15,13 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.setup import async_setup_component
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
 )
 
+from custom_components.magister.api.mapping import LOCAL_TZ
 from custom_components.magister.const import (
     CONF_INTERVAL,
     CONF_WEEKS_AHEAD,
@@ -666,16 +668,27 @@ async def test_count_rolls_over_at_midnight(
     on_friday = sum(1 for i in items if i.due_date.isoformat() == "2026-11-13")
     assert on_friday > 0
     assert sensor(hass, TODO_ID).state == "18"
-    frozen_now.move_to("2026-11-13 23:00:01+00:00")  # Saturday 00:00:01
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-    assert sensor(hass, TODO_ID).state == str(18 - on_friday)
-    # the schedule continues: the next midnight works too
-    frozen_now.move_to("2026-11-14 23:00:01+00:00")  # Sunday 00:00:01
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-    await entry.runtime_data.coordinator.async_refresh()  # data is over 24 h old
-    await hass.async_block_till_done()
-    assert sensor(hass, TODO_ID).state == str(
-        sum(1 for i in items if i.due_date.isoformat() >= "2026-11-15")
-    )
+    # Just before midnight nothing changes; the next step is under 30 minutes, so only
+    # the midnight timer (no coordinator refresh) can move the count.
+    for before, at in (
+        ("2026-11-13 22:45:00+00:00", "2026-11-13 23:00:01+00:00"),  # Fri to Sat
+        ("2026-11-14 22:45:00+00:00", "2026-11-14 23:00:01+00:00"),  # Sat to Sun
+    ):
+        frozen_now.move_to(before)
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+        day = (
+            (dt_util.parse_datetime(at) or dt_util.utcnow()).astimezone(LOCAL_TZ).date()
+        )
+        previous = str(day - timedelta(days=1))
+        due_before = sensor(hass, TODO_ID).state
+        assert due_before == str(
+            sum(1 for i in items if i.due_date.isoformat() >= previous)
+        )
+        frozen_now.move_to(at)
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+        assert sensor(hass, TODO_ID).state == str(
+            sum(1 for i in items if i.due_date.isoformat() >= str(day))
+        )
+    assert sensor(hass, TODO_ID).state != "18"

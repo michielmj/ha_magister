@@ -147,9 +147,11 @@ buiten beschouwing). Huiswerk bij een vervallen les wordt getoond, met de marker
 - **Takenlijst.** De titel is `[Huiswerk] wiskunde`, de einddatum is de les, de beschrijving bevat
   de huiswerktekst. Vink een item af (in de takenweergave, de mobiele app, met spraak of in een
   automatisering) om het op 100 % te zetten; haal het vinkje weg om de laatste waarde onder 100 %
-  terug te zetten. Items toevoegen, hernoemen of verwijderen kan niet: ze komen uit Magister. **Het getal dat Home Assistant bij de lijst toont telt alleen de open items
-  met een einddatum van vandaag of later.** Huiswerk uit het verleden blijft in de lijst en op de
-  kaart staan, maar telt niet mee. De teller schuift om middernacht (Europe/Amsterdam) op.
+  terug te zetten. Items toevoegen, hernoemen of verwijderen kan niet: ze komen uit Magister.
+  **Het getal dat Home Assistant bij de lijst toont telt alleen de open items met een einddatum
+  van vandaag of later.** Huiswerk uit het verleden blijft in de lijst en op de kaart staan, maar
+  telt niet mee. De teller schuift om middernacht (Europe/Amsterdam) op. Automatiseringen en
+  voorwaarden op de status van de lijst gebruiken dit getal (achterstallig huiswerk telt niet mee).
 - **Voortgang** is een percentage per item (0 tot 100) en wordt alleen in Home Assistant bewaard.
   Er wordt niets naar Magister geschreven. De voortgang blijft na herstarts en verversingen
   bestaan, ook als Magister de huiswerktekst wijzigt. Voortgang van items die uit het opgehaalde

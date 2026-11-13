@@ -140,7 +140,8 @@ Homework on a cancelled lesson is shown, marked `Les vervallen`.
   automation) to set it to 100 %; untick it to restore the last value below 100 %. Items cannot
   be added, renamed or deleted: they come from Magister. **The number Home Assistant shows for the
   list counts only the open items due today or later.** Past homework stays in the list and on the
-  card, but is not counted. The count moves on at midnight (Europe/Amsterdam).
+  card, but is not counted. The count moves on at midnight (Europe/Amsterdam). Automations and
+  conditions on the list's state use this count (overdue items are not counted).
 - **Progress** is a percentage per item (0 to 100) and is stored in Home Assistant only. Nothing
   is written to Magister. It survives restarts and refreshes, and it is kept when Magister
   changes the homework text. Progress of items that left the fetched window is removed after

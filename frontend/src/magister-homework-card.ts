@@ -387,7 +387,7 @@ export class MagisterHomeworkCard extends LitElement {
     const available = this._payload.available;
     const enabled = available && !this._offline;
     const groups = groupByDay(this._visibleItems(), this._today());
-    const bars = this._renderBars(texts);
+    const bars = this._renderBars(texts, this._offline);
     const banners = html`${bars}${!available
       ? html`<p class="banner" role="status">${texts.unavailable}</p>`
       : nothing}${this._offline
@@ -417,12 +417,12 @@ export class MagisterHomeworkCard extends LitElement {
   }
 
   /** The progress bars of the enabled periods (the values come from the progress sensors). */
-  private _renderBars(texts: Texts): TemplateResult | typeof nothing {
+  private _renderBars(texts: Texts, stale: boolean): TemplateResult | typeof nothing {
     const config = this._config;
     const progress = this._payload?.progress;
     const periods = PROGRESS_PERIODS.filter(({ option }) => config?.[option]);
     if (periods.length === 0) return nothing;
-    return html`<div class="bars">
+    return html`<div class="bars ${stale ? "stale" : ""}">
       ${periods.map(({ period }) => {
         const label = texts.progress_label[period];
         const entry = progress?.[period] ?? null;
@@ -652,6 +652,9 @@ export class MagisterHomeworkCard extends LitElement {
     .bar-note {
       font-size: 0.8em;
       color: var(--secondary-text-color);
+    }
+    .bars.stale {
+      opacity: 0.55;
     }
     .bar.unavailable .bar-head {
       color: var(--secondary-text-color);

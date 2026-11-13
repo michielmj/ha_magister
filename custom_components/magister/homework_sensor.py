@@ -3,22 +3,21 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, time, timedelta
+from datetime import timedelta
 from functools import partial
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
 from .api.homework import PeriodSummary, next_week_fits
 from .api.mapping import LOCAL_TZ
 from .const import DOMAIN
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
-from .entity import MagisterEntity
+from .entity import MagisterMidnightEntity
 from .homework import HomeworkManager
 
 
@@ -50,7 +49,7 @@ def async_sync_next_week_issue(hass: HomeAssistant, entry: MagisterConfigEntry) 
     )
 
 
-class MagisterHomeworkSensor(MagisterEntity, SensorEntity):
+class MagisterHomeworkSensor(MagisterMidnightEntity, SensorEntity):
     """Weighted homework progress of a child for tomorrow, this week or next week."""
 
     _attr_native_unit_of_measurement = PERCENTAGE
@@ -72,7 +71,6 @@ class MagisterHomeworkSensor(MagisterEntity, SensorEntity):
         self._period = period
         self._attr_unique_id = f"{host}:{child_id}:homework:{period}"
         self._attr_translation_key = f"homework_{period}"
-        self._unsub_midnight: CALLBACK_TYPE | None = None
         self._summary = PeriodSummary(100.0, 0, 0, 0, 0)
         self._attributes: dict[str, Any] = {}
         self._recompute()
@@ -102,33 +100,16 @@ class MagisterHomeworkSensor(MagisterEntity, SensorEntity):
         """Follow progress and weight changes and the day rolling over."""
         await super().async_added_to_hass()
         self.async_on_remove(self._manager.async_add_listener(self._handle_change))
-        self._schedule_midnight()
-        self.async_on_remove(self._cancel_midnight)
+        self._start_midnight()
+
+    @callback
+    def _on_new_day(self) -> None:
+        self._handle_change()
 
     @callback
     def _handle_change(self) -> None:
         self._recompute()
         self.async_write_ha_state()
-
-    @callback
-    def _schedule_midnight(self) -> None:
-        tomorrow = dt_util.now(LOCAL_TZ).date() + timedelta(days=1)
-        self._unsub_midnight = async_track_point_in_time(
-            self.hass,
-            self._handle_midnight,
-            datetime.combine(tomorrow, time.min, LOCAL_TZ),
-        )
-
-    @callback
-    def _cancel_midnight(self) -> None:
-        if self._unsub_midnight is not None:
-            self._unsub_midnight()
-            self._unsub_midnight = None
-
-    @callback
-    def _handle_midnight(self, _now: datetime) -> None:
-        self._handle_change()
-        self._schedule_midnight()
 
     @callback
     def _handle_coordinator_update(self) -> None:

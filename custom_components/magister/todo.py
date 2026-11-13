@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
-
 import probatio
 from homeassistant.components.todo.const import (
     DOMAIN as TODO_DOMAIN,
 )
 from homeassistant.components.todo.const import TodoItemStatus, TodoListEntityFeature
 from homeassistant.components.todo.entity import TodoItem, TodoListEntity
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import (
     AddConfigEntryEntitiesCallback,
 )
-from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.service import async_register_platform_entity_service
 from homeassistant.util import dt as dt_util
 
@@ -33,13 +30,12 @@ from .const import (
     SERVICE_SET_HOMEWORK_PROGRESS,
 )
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
-from .entity import MagisterEntity
+from .entity import MagisterMidnightEntity
 from .homework import (
     HomeworkManager,
     Payload,
     async_publish,
     build_payload,
-    progress_payload,
     service_progress,
 )
 
@@ -106,7 +102,7 @@ def to_todo_item(manager: HomeworkManager, item: HomeworkItem) -> TodoItem:
     )
 
 
-class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
+class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
     """The homework and tests of one child."""
 
     _attr_translation_key = "homework"
@@ -125,7 +121,6 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
         self._manager = manager
         self._attr_unique_id = f"{host}:{child_id}:homework"
         self._last_payload: Payload | None = None
-        self._unsub_midnight: CALLBACK_TYPE | None = None
         self._rebuild()
 
     @property
@@ -150,29 +145,7 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
         """Follow progress changes."""
         await super().async_added_to_hass()
         self.async_on_remove(self._manager.async_add_listener(self._handle_progress))
-        self._schedule_midnight()
-        self.async_on_remove(self._cancel_midnight)
-
-    @callback
-    def _schedule_midnight(self) -> None:
-        tomorrow = dt_util.now(LOCAL_TZ).date() + timedelta(days=1)
-        self._unsub_midnight = async_track_point_in_time(
-            self.hass,
-            self._handle_midnight,
-            datetime.combine(tomorrow, time.min, LOCAL_TZ),
-        )
-
-    @callback
-    def _cancel_midnight(self) -> None:
-        if self._unsub_midnight is not None:
-            self._unsub_midnight()
-            self._unsub_midnight = None
-
-    @callback
-    def _handle_midnight(self, _now: datetime) -> None:
-        """A new day: the count and the progress periods move on."""
-        self.async_write_ha_state()
-        self._schedule_midnight()
+        self._start_midnight()
 
     @callback
     def _handle_progress(self) -> None:
@@ -202,9 +175,7 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
             {
                 "available": False,
                 "items": items,
-                "progress": progress_payload(
-                    self._manager, self._child_id, available=False
-                ),
+                "progress": {"tomorrow": None, "week": None, "next_week": None},
             },
         )
         await super().async_will_remove_from_hass()

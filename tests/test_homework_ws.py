@@ -16,6 +16,7 @@ from pytest_homeassistant_custom_component.common import (
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 
 from custom_components.magister.const import CONF_WEEKS_AHEAD, CONF_WEIGHTS, DOMAIN
+from custom_components.magister.homework import async_subscribe
 
 from .ha_helpers import CHILD_ID, NOW
 from .test_homework import TODO_ID, set_progress, setup_homework, uid
@@ -359,11 +360,16 @@ async def test_progress_follows_weights_and_midnight(
     hass: HomeAssistant,
     mocked: aioresponses,
     hass_ws_client: WebSocketGenerator,
+    hass_admin_user: MockUser,
     frozen_now: FrozenDateTimeFactory,
 ) -> None:
     """A weight change and the midnight rollover push new progress values."""
+    frozen_now.move_to("2026-11-15 22:45:00+00:00")  # Sunday 23:45 in Amsterdam
     _, entry = await setup_homework(hass, mocked)
-    client = await hass_ws_client(hass)
+    # The fixture token was issued on Friday and has expired: issue a fresh one.
+    refresh = next(iter(hass_admin_user.refresh_tokens.values()))
+    token = hass.auth.async_create_access_token(refresh)
+    client = await hass_ws_client(hass, token)
     first = await _subscribe(client)
     await set_progress(hass, uid(100061), 100)
     before = (await client.receive_json())["event"]["progress"]
@@ -384,17 +390,25 @@ async def test_progress_follows_weights_and_midnight(
     assert pushed["week"]["value"] == float(weighted.state) != before["week"]["value"]
     assert first["progress"]["week"] is not None
 
-    frozen_now.move_to("2026-11-14 23:00:01+00:00")  # Sunday 00:00:01
+    # Sunday to Monday: "tomorrow" moves from Monday to Tuesday. The step is 15 minutes,
+    # so only the midnight timer (no coordinator refresh) can push the new values.
+    assert first["progress"]["tomorrow"]["items"] == 4  # Monday 16 Nov
+    # A collector next to the socket: a missing push then fails instead of waiting.
+    pushed_events: list[dict[str, Any]] = []
+    async_subscribe(hass, TODO_ID, pushed_events.append)
+    frozen_now.move_to("2026-11-15 23:00:01+00:00")
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    # The jump is more than 24 hours after the last refresh: refresh, then the midnight
-    # state is pushed with the new periods.
-    await entry.runtime_data.coordinator.async_refresh()
-    await hass.async_block_till_done()
-    event = (await client.receive_json())["event"]
-    while not event["available"]:
-        event = (await client.receive_json())["event"]
-    assert event["progress"]["tomorrow"]["items"] == 4  # Monday 16 Nov
+    assert len(pushed_events) == 1
+    event = pushed_events[0]
+    assert event == (await client.receive_json())["event"]
+    assert event["available"] is True
+    tuesday = sum(
+        1
+        for i in entry.runtime_data.homework.items(CHILD_ID)
+        if i.due_date.isoformat() == "2026-11-17"
+    )
+    assert event["progress"]["tomorrow"]["items"] == tuesday != 4
 
 
 async def test_progress_is_null_where_unavailable(
