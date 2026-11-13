@@ -8,6 +8,8 @@ from unittest.mock import Mock
 import aiohttp
 import pytest
 from aioresponses import aioresponses, core
+from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
+from homeassistant.core import HomeAssistant
 
 
 @pytest.fixture(autouse=True)
@@ -16,6 +18,18 @@ def auto_enable_custom_integrations(
 ) -> Generator[None]:
     """Enable loading of custom integrations in all tests."""
     yield
+
+
+@pytest.fixture(autouse=True)
+def frontend_stub(hass: HomeAssistant) -> None:
+    """Stand in for the ``frontend`` dependency of the integration.
+
+    The real component needs the home-assistant-frontend package. The stub provides
+    what the integration uses: the frontend's list of extra module URLs. The ``http``
+    dependency is set up for real (it serves the card in ``test_card``).
+    """
+    hass.config.components.add("frontend")
+    hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(lambda change, url: None, [])
 
 
 class _CompatClientResponse(aiohttp.ClientResponse):

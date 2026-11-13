@@ -360,7 +360,7 @@ def async_subscribe(
     def remove() -> None:
         if subscriber in subscribers:
             subscribers.remove(subscriber)
-        if not subscribers:
+        if not subscribers and _subscribers(hass).get(entity_id) is subscribers:
             _subscribers(hass).pop(entity_id, None)
 
     return remove

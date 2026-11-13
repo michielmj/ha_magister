@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
+import probatio
 import pytest
 from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
@@ -26,6 +27,11 @@ from custom_components.magister.const import (
     DOMAIN,
 )
 from custom_components.magister.diagnostics import async_get_config_entry_diagnostics
+from custom_components.magister.homework import (
+    async_publish,
+    async_subscribe,
+    service_progress,
+)
 from custom_components.magister.homework_sensor import next_week_issue_id
 
 from .ha_helpers import CHILD_ID, NOW, FakeMagister, make_entry
@@ -579,3 +585,50 @@ async def test_diagnostics_have_homework_statistics_only(
     assert CONF_WEIGHTS not in diagnostics["entry"]["options"]
     text = str(diagnostics)
     assert "Duitse" not in text and "wiskunde" not in text and "1001" not in text
+
+
+@pytest.mark.parametrize("value", [None, "abc", [], {}])
+def test_service_progress_rejects_non_numbers(value: Any) -> None:
+    """Values that are no number at all are invalid (TypeError/ValueError path)."""
+    with pytest.raises(probatio.Invalid, match="integer"):
+        service_progress(value)
+
+
+async def test_same_progress_is_a_no_op(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Setting the stored value again changes nothing and notifies nobody."""
+    _, entry = await setup_homework(hass, mocked)
+    homework = entry.runtime_data.homework
+    await set_progress(hass, uid(100065), 50)
+    calls: list[dict[str, Any]] = []
+    remove = async_subscribe(hass, TODO_ID, calls.append)
+    await set_progress(hass, uid(100065), 50)
+    assert calls == []
+    assert homework.progress(uid(100065)) == 50
+    remove()
+
+
+async def test_prune_without_data_does_nothing(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Before the first refresh there is nothing to prune."""
+    _, entry = await setup_homework(hass, mocked)
+    homework = entry.runtime_data.homework
+    entry.runtime_data.coordinator.data = None
+    homework.async_prune()
+    assert homework.progress(uid(100065)) == 0
+
+
+async def test_unsubscribing_keeps_a_newer_subscriber_list(hass: HomeAssistant) -> None:
+    """A stale remove callback must not drop the list of a newer subscription."""
+    first = async_subscribe(hass, TODO_ID, lambda _: None)
+    first()  # the list is empty and removed
+    calls: list[dict[str, Any]] = []
+    second = async_subscribe(hass, TODO_ID, calls.append)
+    first()  # stale: the subscriber is already gone, the new list stays
+    async_publish(hass, TODO_ID, {"x": 1})
+    assert calls == [{"x": 1}]
+    second()
+    async_publish(hass, TODO_ID, {"x": 2})
+    assert calls == [{"x": 1}]

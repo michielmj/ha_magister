@@ -16,6 +16,7 @@ from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.typing import ConfigType
 
 from .api import MagisterAuth, MagisterClient
+from .card import async_register_card
 from .const import (
     CHILD_ID,
     CHILD_SHORT_NAME,
@@ -56,6 +57,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_register_shutdown(hass)
     async_register_websocket_api(hass)
     async_register_homework_service(hass)
+    await async_register_card(hass)
     return True
 
 
