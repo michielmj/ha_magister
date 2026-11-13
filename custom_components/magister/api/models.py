@@ -152,8 +152,14 @@ class Appointment:
 
     @property
     def subject(self) -> str:
-        """Subject names joined with a comma."""
-        return ", ".join(self.subjects)
+        """Subject names joined with a comma.
+
+        Some schools leave ``Vakken`` empty; then the subject is the first
+        `` - `` segment of ``Omschrijving`` (e.g. ``wisB - K4wisB_1 - D1 - ...``).
+        """
+        if self.subjects:
+            return ", ".join(self.subjects)
+        return self.description.split(" - ", 1)[0].strip()
 
     @property
     def info_type_enum(self) -> InfoType | None:

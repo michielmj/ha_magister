@@ -95,7 +95,7 @@ lesson).
 | 13 | 136 (**confirmed**) | lesson |
 | 7 | 4 (**confirmed** present) | observed for an "NT2" item; likely KWT / keuzewerktijd (choice hour) |
 | 1 | not observed | personal appointment, community, unconfirmed |
-| 2 | not observed | general, community, unconfirmed |
+| 2 | 2 (**confirmed** at school B) | general; e.g. "Schoolfotograaf", "Voorlichting PTA en PTD" |
 | 3 | not observed | school-wide, community, unconfirmed |
 | 4 | not observed | internship, community, unconfirmed |
 | 5 | not observed | intake, community, unconfirmed |
@@ -112,3 +112,26 @@ lesson).
   `Aantekening`. In this data set `HeeftBijlagen` (always false), `Bijlagen`, `Opmerking`
   and `Aantekening` (always null) never carried data; `Subtype`, `IsOnlineDeelname`,
   `WeergaveType`, `HerhaalStatus` and `Herhaling` were constant. None are modelled.
+
+### School B observations (second school, 94 items / 89 with `status=1`)
+
+Fixtures: `tests/fixtures/school_b/`.
+
+* **`Vakken` is empty for every item.** The subject is only available as the first
+  `" - "` segment of `Omschrijving` (`wisB`, `SE NAT`, `Schoolfotograaf`). Omschrijving
+  here looks like `<subject> - <group(s)> - <teacher code(s)> - <group(s)>`, and can
+  contain things like `10 docenten - 10 groepen` or `26 leerlingen`.
+  `Appointment.subject` therefore falls back to that first segment when `Vakken` is
+  empty and keeps the `Vakken` name when present.
+* **Status 5 = cancelled is confirmed at a second school:** `status=1` hides exactly the
+  5 Status 5 items. Other codes: Status 1 (36), 7 (53); InfoType 0, 1, 2; Type 13 and 2.
+* **Type 2 is confirmed in data** (general items such as a school photographer and an
+  information evening, not lessons).
+* **`SE <VAK>` items are school exams** (e.g. `SE NAT`, `SE WISB`) and have InfoType 0,
+  so they are not recognizable as tests via InfoType; the `SE ` prefix is the only hint.
+* **Multi-hour items exist** (`LesuurVan` 4, `LesuurTotMet` 5, up to 3 hours).
+* **A teacher's text can signal a cancellation the status does not show:** one Status 1
+  lesson has Inhoud "les gaat niet door ivm ...". The integration only marks Status 4/5
+  as cancelled; this text is shown as normal homework/description.
+* No item had `DuurtHeleDag` true; `HeeftBijlagen`, `Bijlagen`, `Opmerking` and
+  `Aantekening` were again always empty.

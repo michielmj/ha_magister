@@ -153,3 +153,20 @@ def test_person_and_account_errors() -> None:
         Person.from_json({"Roepnaam": "x"})
     with pytest.raises(MagisterApiError):
         Account.from_json({"Groep": []})
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected"),
+    [
+        ({}, "Wiskunde"),  # Vakken present: keep its name
+        ({"Vakken": [], "Omschrijving": "wisB - K4wisB_1 - D1 - K4wisB_1"}, "wisB"),
+        ({"Vakken": [], "Omschrijving": "SE NAT - K4nat_2 - D24"}, "SE NAT"),
+        ({"Vakken": [], "Omschrijving": "  Schoolfotograaf  "}, "Schoolfotograaf"),
+        ({"Vakken": [], "Omschrijving": ""}, ""),
+    ],
+)
+def test_subject_falls_back_to_description(
+    overrides: dict[str, Any], expected: str
+) -> None:
+    """An empty Vakken list falls back to the first Omschrijving segment."""
+    assert Appointment.from_json(lesson(**overrides)).subject == expected

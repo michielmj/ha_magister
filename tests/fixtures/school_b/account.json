@@ -1,0 +1,240 @@
+{
+  "Persoon": {
+    "Achternaam": "",
+    "Id": 1000,
+    "Roepnaam": "Ouder",
+    "Tussenvoegsel": "",
+    "Voorletters": "O."
+  },
+  "Groep": [
+    {
+      "Naam": "Ouder",
+      "Privileges": [
+        {
+          "Naam": "Cijfers",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Aanmeldingen",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "WachtwoordWijzigen",
+          "AccessType": [
+            "Create",
+            "Read",
+            "Update",
+            "Delete"
+          ]
+        },
+        {
+          "Naam": "ProfielEmail",
+          "AccessType": [
+            "Read",
+            "Update"
+          ]
+        },
+        {
+          "Naam": "Berichten",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Profiel",
+          "AccessType": [
+            "Read",
+            "Update"
+          ]
+        },
+        {
+          "Naam": "ProfielMobiel",
+          "AccessType": [
+            "Read",
+            "Update"
+          ]
+        },
+        {
+          "Naam": "Absenties",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Afspraken",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Roosterwijzigingen",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Kinderen",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Instellingen",
+          "AccessType": [
+            "Create",
+            "Read",
+            "Delete"
+          ]
+        },
+        {
+          "Naam": "Ouderavond",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Logboeken",
+          "AccessType": [
+            "Create",
+            "Read",
+            "Update",
+            "Delete"
+          ]
+        },
+        {
+          "Naam": "Lesperioden",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "LOOfficielePersoonsgegevens",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Examenresultaten",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Terugkommaatregelen",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Leerlingen",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Vakken",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "ExamenAfnamemomenten",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Mededelingen",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Keuzelijsten",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Administratieve eenheid",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Contactsoorten",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Absentiemeldingen",
+          "AccessType": [
+            "Create",
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Overeenkomsten",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Toetsen",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Magister.me",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Toestemmingen",
+          "AccessType": [
+            "Create",
+            "Read",
+            "Update"
+          ]
+        },
+        {
+          "Naam": "BerichtenNotificatie",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "Geboortegegevens",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "OPP",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "LeerlingFoto",
+          "AccessType": [
+            "Read"
+          ]
+        },
+        {
+          "Naam": "AfwezigheidLO",
+          "AccessType": [
+            "Read"
+          ]
+        }
+      ]
+    }
+  ]
+}
