@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-13)** |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | Implementation plan (M4) · HLD §8–§9 |
 
@@ -76,7 +76,11 @@ Findings are fixed before tagging.
 - [ ] **PM:** after the merge, the Architect pushes tag `v1.0.0`; the release appears on GitHub; HACS on HAOS
       offers 1.0.0 as an update; install it and the calendars and sensors keep working.
 
-## Open points for the PM
+## PM decisions (2026-11-13)
+
+The PM answered "Yes" to the scope and the three points below. They are recorded as: (1) the repository is/becomes **public** at 1.0, (2) **no** HACS default-store submission now, revisit after 1.0, (3) maintainer shown as the GitHub handle `michielmj` only.
+
+### Original open points
 1. **Repository visibility:** HACS can only install for other people if the repository is **public**.
    Is it public, or should it become public at 1.0?
 2. **HACS default store:** submit to HACS's default repository list after 1.0, so others can
