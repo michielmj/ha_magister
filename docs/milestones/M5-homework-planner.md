@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-13)**, with the open points answered |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | HLD §4–§8 · PM survey 2026-11-13 |
 
@@ -24,6 +24,9 @@ parents and children can work through. Progress is tracked in percent, shown on 
 | 6 | Ships after 1.0, as **1.1**. |
 | 7 | **Progress in percent** (0–100) per item. Marking an item done sets it to 100 %. |
 | 8 | **Progress sensors per child**: average completion for **tomorrow**, **this week** and **next week**. |
+| 9 | Empty period → **100 %** (attribute `items: 0`). |
+| 10 | Progress control in **steps of 0/25/50/75/100**. |
+| 11 | **Weighted average**, with weights configurable **per child per type** (Huiswerk, Proefwerk, Tentamen, SO, MO) **and per subject**. The default is 1. |
 
 ## Out of scope
 
@@ -64,13 +67,28 @@ Writing to Magister, archiving older homework, editing homework text, adding cus
 - **Progress sensors per child** (3, created automatically with the to-do entity): "Huiswerk morgen",
   "Huiswerk deze week", "Huiswerk volgende week".
   - Unit %, state class measurement.
-  - Value = the plain average of the progress of the items due in that period. Tomorrow = the local date + 1.
+  - Value = the **weighted** average of the progress of the items due in that period:
+    Σ(w·p)/Σ(w), with w(item) = type_weight(child, type) × subject_weight(child, subject).
+    The default weight is 1. A weight of 0 excludes the item from the average (it is still shown on the card).
+    If every item in the period has weight 0, the value is 100 % (same as an empty period). Tomorrow = the local date + 1.
     This week = Mon–Sun of the current week, including the days already past. Next week = the following Mon–Sun.
   - No items in the period → **100 %** (nothing left to do). The attribute `items: 0` tells "nothing to do" apart from "all done". *(Open point 1.)*
   - Attributes: `items`, `completed`, `open`, `tests` (count of InfoType 2–5).
   - Recalculated on progress changes, on coordinator updates and at Amsterdam midnight.
   - Next week must fit in the fetch window: weeks ahead ≥ 2 (the default is 3). If it doesn't, the sensor is unavailable and a repair issue is raised.
 - Both the to-do entity and the sensors follow the 24 h availability rule.
+
+### Weights (options flow)
+- A new options-menu step **"Huiswerkgewichten / Homework weights"**: choose a child, then
+  - **per type**: 5 number fields (Huiswerk, Proefwerk, Tentamen, SO, MO), 0–10 in steps of 0.5, default 1;
+  - **per subject**: one number field per subject currently in that child's homework data (`Appointment.subject`,
+    e.g. "Duitse taal", "wisB"), 0–10 in steps of 0.5, default 1. Weights saved for subjects that are no longer in the data
+    are kept, so they reappear when the subject comes back.
+- Only values ≠ 1 are stored, in the entry options under `weights[child_id] = {"types": {...}, "subjects": {...}}`.
+  Subject matching is exact and case-insensitive (like the sensor exclusions).
+- Changing weights recomputes the sensors **without a reload or an API call** (no extra Magister traffic).
+- The sensor attributes show the effective weights used (types and the subjects present in the period).
+- The options flow becomes a menu: "General settings" (the existing options) and "Homework weights".
 
 ### Homework planner card (frontend)
 - **Tech**: TypeScript + Lit (the HA standard), built with Vite into one ES module
@@ -112,7 +130,7 @@ Writing to Magister, archiving older homework, editing homework text, adding cus
   - check that cancelled-lesson homework is marked
   - check the progress survives an HA restart
 
-## Open points for the PM
+## Open points for the PM (answered 2026-11-13, see decisions 9–11)
 1. **Empty period**: with no homework tomorrow, should the progress sensor show **100 %** (proposed: nothing left to do;
    the attribute says 0 items) or **unknown**?
 2. **Progress control**: a free **slider** (0–100) or **steps** of 0/25/50/75/100 (proposed: steps, easier on a phone)?

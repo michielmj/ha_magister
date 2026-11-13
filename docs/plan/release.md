@@ -36,3 +36,8 @@ tag that already has a published release; bump to the next patch version instead
   integrations); the source is `docs/assets/icon.svg`.
 - The repository is public at 1.0. Submission to the HACS default store is not planned; revisit
   after 1.0 has run for a while.
+
+## Note: creating the tag
+The cloud development session cannot push tags. The maintainer creates the release in the GitHub UI:
+Releases → Draft a new release → tag `vX.Y.Z` on `main` (create on publish) → title `X.Y.Z` → notes from
+CHANGELOG → Publish. The release workflow then runs on the new tag (tests, version check) and fills in the same release.
