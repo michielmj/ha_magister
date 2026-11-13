@@ -14,15 +14,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from .api.homework import (
-    PERIOD_NEXT_WEEK,
-    PeriodSummary,
-    effective_weights,
-    homework_periods,
-    items_in_period,
-    next_week_fits,
-    summarize,
-)
+from .api.homework import PeriodSummary, next_week_fits
 from .api.mapping import LOCAL_TZ
 from .const import DOMAIN
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
@@ -88,26 +80,22 @@ class MagisterHomeworkSensor(MagisterEntity, SensorEntity):
     @property
     def available(self) -> bool:
         """Also unavailable while next week does not fit the fetch window."""
-        if self._period == PERIOD_NEXT_WEEK and not next_week_fits(
-            self.coordinator.weeks_ahead
-        ):
+        if not self._manager.period_fits(self._period):
             return False
         return super().available
 
     def _recompute(self) -> None:
         today = dt_util.now(LOCAL_TZ).date()
-        first, end = homework_periods(today)[self._period]
-        items = items_in_period(self._manager.items(self._child_id), (first, end))
-        weights = self._manager.weights(self._child_id)
-        self._summary = summarize(items, self._manager.progress, weights)
+        data = self._manager.period(self._child_id, self._period, today)
+        self._summary = data.summary
         self._attributes = {
             "items": self._summary.items,
             "completed": self._summary.completed,
             "open": self._summary.open,
             "tests": self._summary.tests,
-            "period_start": first.isoformat(),
-            "period_end": (end - timedelta(days=1)).isoformat(),
-            "weights": effective_weights(items, weights),
+            "period_start": data.first.isoformat(),
+            "period_end": (data.end - timedelta(days=1)).isoformat(),
+            "weights": data.effective_weights,
         }
 
     async def async_added_to_hass(self) -> None:

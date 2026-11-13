@@ -9,12 +9,15 @@ import pytest
 from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockUser
+from pytest_homeassistant_custom_component.common import (
+    MockUser,
+    async_fire_time_changed,
+)
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 
-from custom_components.magister.const import DOMAIN
+from custom_components.magister.const import CONF_WEEKS_AHEAD, CONF_WEIGHTS, DOMAIN
 
-from .ha_helpers import NOW
+from .ha_helpers import CHILD_ID, NOW
 from .test_homework import TODO_ID, set_progress, setup_homework, uid
 
 SUBSCRIBE = "magister/homework/subscribe"
@@ -314,3 +317,96 @@ async def test_permissions(
     hass_admin_user.mock_policy({"entities": {"entity_ids": {"todo.other": True}}})
     await client.send_json_auto_id({"type": SUBSCRIBE, "entity_id": TODO_ID})
     assert (await client.receive_json())["error"]["code"] == "unauthorized"
+
+
+async def _subscribe(client: Any) -> dict[str, Any]:
+    await client.send_json_auto_id({"type": SUBSCRIBE, "entity_id": TODO_ID})
+    assert (await client.receive_json())["success"]
+    event: dict[str, Any] = (await client.receive_json())["event"]
+    return event
+
+
+async def test_progress_matches_the_sensors(
+    hass: HomeAssistant, mocked: aioresponses, hass_ws_client: WebSocketGenerator
+) -> None:
+    """The payload holds the sensor values; ticking pushes new numbers."""
+    await setup_homework(hass, mocked)
+    client = await hass_ws_client(hass)
+    progress = (await _subscribe(client))["progress"]
+    assert set(progress) == {"tomorrow", "week", "next_week"}
+    for key, entity in (
+        ("tomorrow", "sensor.kind_school_homework_tomorrow"),
+        ("week", "sensor.kind_school_homework_this_week"),
+        ("next_week", "sensor.kind_school_homework_next_week"),
+    ):
+        state = hass.states.get(entity)
+        assert state is not None
+        assert progress[key] == {
+            "value": float(state.state),
+            "items": state.attributes["items"],
+            "completed": state.attributes["completed"],
+        }
+    assert progress["tomorrow"] == {"value": 100.0, "items": 0, "completed": 0}
+
+    await set_progress(hass, uid(100061), 100)  # Friday, this week
+    after = (await client.receive_json())["event"]["progress"]
+    assert after["week"]["completed"] == progress["week"]["completed"] + 1
+    assert after["week"]["value"] > progress["week"]["value"]
+    assert after["next_week"] == progress["next_week"]
+
+
+async def test_progress_follows_weights_and_midnight(
+    hass: HomeAssistant,
+    mocked: aioresponses,
+    hass_ws_client: WebSocketGenerator,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    """A weight change and the midnight rollover push new progress values."""
+    _, entry = await setup_homework(hass, mocked)
+    client = await hass_ws_client(hass)
+    first = await _subscribe(client)
+    await set_progress(hass, uid(100061), 100)
+    before = (await client.receive_json())["event"]["progress"]
+
+    subject = entry.runtime_data.homework.find_item(CHILD_ID, uid(100061))
+    assert subject is not None
+    hass.config_entries.async_update_entry(
+        entry,
+        options={
+            **entry.options,
+            CONF_WEIGHTS: {str(CHILD_ID): {"subjects": {subject.subject: 0}}},
+        },
+    )
+    await hass.async_block_till_done()
+    weighted = hass.states.get("sensor.kind_school_homework_this_week")
+    assert weighted is not None
+    pushed = (await client.receive_json())["event"]["progress"]
+    assert pushed["week"]["value"] == float(weighted.state) != before["week"]["value"]
+    assert first["progress"]["week"] is not None
+
+    frozen_now.move_to("2026-11-14 23:00:01+00:00")  # Sunday 00:00:01
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    # The jump is more than 24 hours after the last refresh: refresh, then the midnight
+    # state is pushed with the new periods.
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    event = (await client.receive_json())["event"]
+    while not event["available"]:
+        event = (await client.receive_json())["event"]
+    assert event["progress"]["tomorrow"]["items"] == 4  # Monday 16 Nov
+
+
+async def test_progress_is_null_where_unavailable(
+    hass: HomeAssistant, mocked: aioresponses, hass_ws_client: WebSocketGenerator
+) -> None:
+    """Next week is null outside the window; everything is null when unavailable."""
+    _, entry = await setup_homework(hass, mocked, options={CONF_WEEKS_AHEAD: 1})
+    client = await hass_ws_client(hass)
+    progress = (await _subscribe(client))["progress"]
+    assert progress["next_week"] is None
+    assert progress["week"] is not None and progress["tomorrow"] is not None
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    event = (await client.receive_json())["event"]
+    assert event["available"] is False
+    assert event["progress"] == {"tomorrow": None, "week": None, "next_week": None}

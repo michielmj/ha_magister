@@ -8,6 +8,7 @@ Magister API.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final
 
@@ -16,7 +17,19 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .api.homework import HomeworkItem, Weights, extract_homework
+from .api.homework import (
+    PERIOD_NEXT_WEEK,
+    PERIODS,
+    HomeworkItem,
+    PeriodSummary,
+    Weights,
+    effective_weights,
+    extract_homework,
+    homework_periods,
+    items_in_period,
+    next_week_fits,
+    summarize,
+)
 from .api.mapping import LOCAL_TZ
 from .const import CONF_HOST, CONF_WEIGHTS, DOMAIN
 
@@ -34,6 +47,23 @@ UPDATED: Final = "updated"
 GONE: Final = "gone"
 
 _SUBSCRIBERS: Final = f"{DOMAIN}_homework_subscribers"
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodData:
+    """One progress period of a child: the single source for sensors and payload."""
+
+    first: date
+    end: date
+    items: list[HomeworkItem]
+    weights: Weights
+    summary: PeriodSummary
+
+    @property
+    def effective_weights(self) -> dict[str, Any]:
+        """The weights in use for the items of the period."""
+        return effective_weights(self.items, self.weights)
+
 
 type Payload = dict[str, Any]
 type Subscriber = Callable[[Payload], None]
@@ -139,6 +169,31 @@ class HomeworkManager:
     def find_item(self, child_id: int, uid: str) -> HomeworkItem | None:
         """The item of ``child_id`` with ``uid``, ``None`` when unknown."""
         return next((i for i in self.items(child_id) if i.uid == uid), None)
+
+    # -- periods ------------------------------------------------------------
+
+    def period_fits(self, period: str) -> bool:
+        """Whether a period lies within the fetch window (only next week can not)."""
+        return period != PERIOD_NEXT_WEEK or next_week_fits(
+            self._coordinator.weeks_ahead
+        )
+
+    def period(self, child_id: int, period: str, today: date) -> PeriodData:
+        """Items, weights and weighted progress of a child for a period."""
+        first, end = homework_periods(today)[period]
+        items = items_in_period(self.items(child_id), (first, end))
+        weights = self.weights(child_id)
+        return PeriodData(
+            first, end, items, weights, summarize(items, self.progress, weights)
+        )
+
+    def due_open_count(self, child_id: int, today: date) -> int:
+        """Open items due today or later (the number shown for the to-do list)."""
+        return sum(
+            1
+            for item in self.items(child_id)
+            if item.due_date >= today and self.progress(item.uid) < 100
+        )
 
     # -- progress -----------------------------------------------------------
 
@@ -330,6 +385,25 @@ def item_to_dict(manager: HomeworkManager, item: HomeworkItem) -> Payload:
     }
 
 
+def progress_payload(
+    manager: HomeworkManager, child_id: int, *, available: bool
+) -> Payload:
+    """The values of the progress sensors; ``None`` where a sensor is unavailable."""
+    today = dt_util.now(LOCAL_TZ).date()
+    result: Payload = {}
+    for period in PERIODS:
+        if not available or not manager.period_fits(period):
+            result[period] = None
+            continue
+        summary = manager.period(child_id, period, today).summary
+        result[period] = {
+            "value": summary.value,
+            "items": summary.items,
+            "completed": summary.completed,
+        }
+    return result
+
+
 def build_payload(
     manager: HomeworkManager, child_id: int, *, available: bool
 ) -> Payload:
@@ -337,6 +411,7 @@ def build_payload(
     return {
         "available": available,
         "items": [item_to_dict(manager, i) for i in manager.items(child_id)],
+        "progress": progress_payload(manager, child_id, available=available),
     }
 
 

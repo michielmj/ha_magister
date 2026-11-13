@@ -135,8 +135,9 @@ async def test_todo_items(hass: HomeAssistant, mocked: aioresponses) -> None:
     # Homework on a cancelled lesson is marked.
     cancelled = items[uid(100131)]
     assert "Les vervallen" in cancelled["description"].splitlines()
-    # open items are counted as the state
-    assert sensor(hass, TODO_ID).state == "53"
+    # only open items due today (Fri 13 Nov) or later are counted, not all 53
+    due = [i for i in handler.items(CHILD_ID) if i.due_date.isoformat() >= "2026-11-13"]
+    assert sensor(hass, TODO_ID).state == str(len(due)) == "18"
 
 
 async def test_tick_untick_restores_last_partial(
@@ -161,7 +162,7 @@ async def test_tick_untick_restores_last_partial(
     assert "%" not in items[item]["description"]
     assert items[item]["completed"] is not None
     assert entry.runtime_data.homework.progress(item) == 100
-    assert sensor(hass, TODO_ID).state == "52"
+    assert sensor(hass, TODO_ID).state == "17"  # due 16 Nov, so counted before
 
     await hass.services.async_call(
         "todo",
@@ -632,3 +633,49 @@ async def test_unsubscribing_keeps_a_newer_subscriber_list(hass: HomeAssistant) 
     second()
     async_publish(hass, TODO_ID, {"x": 2})
     assert calls == [{"x": 1}]
+
+
+async def test_count_ignores_past_and_completed_items(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Past open items stay in the list but do not count; completed ones neither."""
+    _, entry = await setup_homework(hass, mocked)
+    items = entry.runtime_data.homework.items(CHILD_ID)
+    past = next(i for i in items if i.due_date.isoformat() < "2026-11-13")
+    today = next(i for i in items if i.due_date.isoformat() == "2026-11-13")
+    assert sensor(hass, TODO_ID).state == "18"
+    # the list itself is unchanged
+    assert past.uid in await todo_items(hass)
+    assert (await todo_items(hass))[past.uid]["status"] == "needs_action"
+    # ticking a past item does not change the count
+    await set_progress(hass, past.uid, 100)
+    assert sensor(hass, TODO_ID).state == "18"
+    # an item due today is counted, and drops out when completed
+    await set_progress(hass, today.uid, 100)
+    assert sensor(hass, TODO_ID).state == "17"
+    await set_progress(hass, today.uid, 50)
+    assert sensor(hass, TODO_ID).state == "18"
+
+
+async def test_count_rolls_over_at_midnight(
+    hass: HomeAssistant, mocked: aioresponses, frozen_now: FrozenDateTimeFactory
+) -> None:
+    """Items due Friday stop counting once Amsterdam midnight passes."""
+    _, entry = await setup_homework(hass, mocked)
+    items = entry.runtime_data.homework.items(CHILD_ID)
+    on_friday = sum(1 for i in items if i.due_date.isoformat() == "2026-11-13")
+    assert on_friday > 0
+    assert sensor(hass, TODO_ID).state == "18"
+    frozen_now.move_to("2026-11-13 23:00:01+00:00")  # Saturday 00:00:01
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert sensor(hass, TODO_ID).state == str(18 - on_friday)
+    # the schedule continues: the next midnight works too
+    frozen_now.move_to("2026-11-14 23:00:01+00:00")  # Sunday 00:00:01
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    await entry.runtime_data.coordinator.async_refresh()  # data is over 24 h old
+    await hass.async_block_till_done()
+    assert sensor(hass, TODO_ID).state == str(
+        sum(1 for i in items if i.due_date.isoformat() >= "2026-11-15")
+    )
