@@ -1,4 +1,4 @@
-import type { CardConfig, HomeworkItem } from "./types";
+import type { CardConfig, HomeworkItem, PeriodProgress, ProgressPeriod } from "./types";
 
 /** The progress steps of the card (PM decision). */
 export const STEPS = [0, 25, 50, 75, 100] as const;
@@ -166,7 +166,23 @@ export interface NormalizedConfig {
   show_completed: boolean;
   show_past: boolean;
   days_ahead: number;
+  show_progress_tomorrow: boolean;
+  show_progress_week: boolean;
+  show_progress_next_week: boolean;
   title: string;
+}
+
+/** The progress periods, in display order, with the config option that shows each. */
+export const PROGRESS_PERIODS = [
+  { period: "tomorrow", option: "show_progress_tomorrow" },
+  { period: "week", option: "show_progress_week" },
+  { period: "next_week", option: "show_progress_next_week" },
+] as const satisfies readonly { period: ProgressPeriod; option: keyof NormalizedConfig }[];
+
+/** The value of a bar as a whole percentage within 0-100. */
+export function barPercent(progress: PeriodProgress): number {
+  const value = Number.isFinite(progress.value) ? progress.value : 0;
+  return Math.min(Math.max(Math.round(value), 0), 100);
 }
 
 /** Validate a card config and fill in the defaults. An empty entity is allowed (the card then asks for one). */
@@ -190,6 +206,9 @@ export function normalizeConfig(config: Partial<CardConfig> | undefined): Normal
     show_completed: config.show_completed === true,
     show_past: config.show_past === true,
     days_ahead: Math.min(Math.floor(raw), MAX_DAYS_AHEAD),
+    show_progress_tomorrow: config.show_progress_tomorrow === true,
+    show_progress_week: config.show_progress_week === true,
+    show_progress_next_week: config.show_progress_next_week === true,
     title: typeof config.title === "string" ? config.title : "",
   };
 }

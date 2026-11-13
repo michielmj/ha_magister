@@ -5,6 +5,8 @@ import {
   filterItems,
   formatDay,
   groupByDay,
+  PROGRESS_PERIODS,
+  barPercent,
   normalizeConfig,
   optimisticOverlay,
   snapToStep,
@@ -385,7 +387,8 @@ export class MagisterHomeworkCard extends LitElement {
     const available = this._payload.available;
     const enabled = available && !this._offline;
     const groups = groupByDay(this._visibleItems(), this._today());
-    const banners = html`${!available
+    const bars = this._renderBars(texts);
+    const banners = html`${bars}${!available
       ? html`<p class="banner" role="status">${texts.unavailable}</p>`
       : nothing}${this._offline
       ? html`<p class="banner" role="status">${texts.offline}</p>`
@@ -411,6 +414,55 @@ export class MagisterHomeworkCard extends LitElement {
           `,
         )}
       </div>`;
+  }
+
+  /** The progress bars of the enabled periods (the values come from the progress sensors). */
+  private _renderBars(texts: Texts): TemplateResult | typeof nothing {
+    const config = this._config;
+    const progress = this._payload?.progress;
+    const periods = PROGRESS_PERIODS.filter(({ option }) => config?.[option]);
+    if (periods.length === 0) return nothing;
+    return html`<div class="bars">
+      ${periods.map(({ period }) => {
+        const label = texts.progress_label[period];
+        const entry = progress?.[period] ?? null;
+        if (!entry) {
+          return html`<div class="bar unavailable">
+            <div class="bar-head"><span>${label}</span></div>
+            <div
+              class="track"
+              role="progressbar"
+              aria-label=${label}
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuetext=${texts.progress_unavailable}
+            ></div>
+            <div class="bar-note">${texts.progress_unavailable}</div>
+          </div>`;
+        }
+        const percent = barPercent(entry);
+        const value = format(texts.percent, { n: percent });
+        const note =
+          entry.items === 0
+            ? texts.progress_empty
+            : format(texts.progress_done, { completed: entry.completed, items: entry.items });
+        return html`<div class="bar">
+          <div class="bar-head"><span>${label}</span><span class="bar-value">${value}</span></div>
+          <div
+            class="track"
+            role="progressbar"
+            aria-label=${label}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow=${percent}
+            aria-valuetext="${value}, ${note}"
+          >
+            <div class="fill" style="width: ${percent}%"></div>
+          </div>
+          <div class="bar-note">${note}</div>
+        </div>`;
+      })}
+    </div>`;
   }
 
   private _renderItem(item: HomeworkItem, texts: Texts, enabled: boolean): TemplateResult {
@@ -564,6 +616,45 @@ export class MagisterHomeworkCard extends LitElement {
       background: color-mix(in srgb, var(--warning-color, #ffa600) 20%, transparent);
       color: var(--primary-text-color);
       font-size: 0.9em;
+    }
+    .bars {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 0 0 12px;
+    }
+    .titled .bars {
+      margin-top: 12px;
+    }
+    .bar-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.9em;
+      font-weight: 500;
+      color: var(--primary-text-color);
+    }
+    .bar-value {
+      font-variant-numeric: tabular-nums;
+    }
+    .track {
+      height: 8px;
+      margin: 4px 0 2px;
+      border-radius: 4px;
+      overflow: hidden;
+      background: var(--divider-color);
+    }
+    .fill {
+      height: 100%;
+      border-radius: 4px;
+      background: var(--primary-color);
+    }
+    .bar-note {
+      font-size: 0.8em;
+      color: var(--secondary-text-color);
+    }
+    .bar.unavailable .bar-head {
+      color: var(--secondary-text-color);
     }
     .days.stale {
       opacity: 0.55;

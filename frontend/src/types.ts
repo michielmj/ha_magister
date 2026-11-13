@@ -23,9 +23,23 @@ export interface HomeworkItem {
   last_partial: number;
 }
 
+/** The value of one progress sensor (since 1.2.0); null when that sensor is unavailable. */
+export interface PeriodProgress {
+  /** 0-100 */
+  value: number;
+  items: number;
+  completed: number;
+}
+
+export type ProgressPeriod = "tomorrow" | "week" | "next_week";
+
+export type ProgressMap = Record<ProgressPeriod, PeriodProgress | null>;
+
 export interface HomeworkPayload {
   available: boolean;
   items: HomeworkItem[];
+  /** Absent when the backend predates 1.2.0. */
+  progress?: ProgressMap;
 }
 
 export interface SetProgressResult {
@@ -39,6 +53,9 @@ export interface CardConfig {
   show_completed?: boolean;
   show_past?: boolean;
   days_ahead?: number;
+  show_progress_tomorrow?: boolean;
+  show_progress_week?: boolean;
+  show_progress_next_week?: boolean;
   title?: string;
 }
 

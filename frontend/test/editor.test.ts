@@ -12,6 +12,9 @@ describe("editor schema", () => {
       "show_completed",
       "show_past",
       "days_ahead",
+      "show_progress_tomorrow",
+      "show_progress_week",
+      "show_progress_next_week",
     ]);
     expect(schema[0]).toMatchObject({
       required: true,
@@ -21,6 +24,7 @@ describe("editor schema", () => {
     expect(schema[2]?.selector).toHaveProperty("boolean");
     expect(schema[3]?.selector).toHaveProperty("boolean");
     expect(schema[4]?.selector).toHaveProperty("number");
+    for (const field of schema.slice(5)) expect(field.selector).toHaveProperty("boolean");
   });
 });
 
@@ -32,6 +36,31 @@ describe("form <-> config", () => {
       show_completed: false,
       show_past: false,
       days_ahead: 7,
+      show_progress_tomorrow: false,
+      show_progress_week: false,
+      show_progress_next_week: false,
+    });
+  });
+
+  it("maps the three progress toggles and keeps unknown keys", () => {
+    const previous = { type: "custom:x", entity: "todo.a", card_mod: { style: "x" }, show_progress_week: true };
+    expect(
+      configFromForm(previous, {
+        entity: "todo.a",
+        show_progress_tomorrow: true,
+        show_progress_week: false,
+        show_progress_next_week: true,
+      }),
+    ).toEqual({
+      type: "custom:x",
+      entity: "todo.a",
+      card_mod: { style: "x" },
+      show_progress_tomorrow: true,
+      show_progress_next_week: true,
+    });
+    expect(formData(previous)).toMatchObject({
+      show_progress_tomorrow: false,
+      show_progress_week: true,
     });
   });
 
@@ -121,6 +150,9 @@ describe("editor element", () => {
     expect(form?.schema).toEqual(editorSchema());
     expect(form?.data).toMatchObject({ entity: "todo.a", days_ahead: 7 });
     expect(form?.computeLabel({ name: "show_past" })).toBe("Toon eerdere dagen");
+    expect(form?.computeLabel({ name: "show_progress_next_week" })).toBe(
+      "Toon voortgang van volgende week",
+    );
 
     const changes: unknown[] = [];
     editor.addEventListener("config-changed", (event) => {
