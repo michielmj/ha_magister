@@ -25,6 +25,14 @@ const nl = {
   percent: "{n} %",
   expand: "Toon de volledige tekst",
   collapse: "Toon minder",
+  progress_label: {
+    tomorrow: "Morgen",
+    week: "Deze week",
+    next_week: "Volgende week",
+  },
+  progress_done: "{completed} van {items} klaar",
+  progress_empty: "geen huiswerk",
+  progress_unavailable: "niet beschikbaar",
   type: {
     1: "Huiswerk",
     2: "Proefwerk",
@@ -38,6 +46,9 @@ const nl = {
     show_completed: "Toon afgerond huiswerk",
     show_past: "Toon eerdere dagen",
     days_ahead: "Dagen vooruit",
+    show_progress_tomorrow: "Toon voortgang van morgen",
+    show_progress_week: "Toon voortgang van deze week",
+    show_progress_next_week: "Toon voortgang van volgende week",
   },
 };
 
@@ -68,6 +79,14 @@ const en: Texts = {
   percent: "{n}%",
   expand: "Show the full text",
   collapse: "Show less",
+  progress_label: {
+    tomorrow: "Tomorrow",
+    week: "This week",
+    next_week: "Next week",
+  },
+  progress_done: "{completed} of {items} done",
+  progress_empty: "no homework",
+  progress_unavailable: "not available",
   type: {
     1: "Homework",
     2: "Test",
@@ -81,6 +100,9 @@ const en: Texts = {
     show_completed: "Show completed homework",
     show_past: "Show earlier days",
     days_ahead: "Days ahead",
+    show_progress_tomorrow: "Show progress for tomorrow",
+    show_progress_week: "Show progress for this week",
+    show_progress_next_week: "Show progress for next week",
   },
 };
 

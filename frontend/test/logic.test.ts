@@ -166,6 +166,9 @@ describe("normalizeConfig", () => {
       show_completed: false,
       show_past: false,
       days_ahead: 7,
+      show_progress_tomorrow: false,
+      show_progress_week: false,
+      show_progress_next_week: false,
       title: "",
     });
   });
@@ -179,7 +182,14 @@ describe("normalizeConfig", () => {
         days_ahead: 3.8,
         title: "Anna",
       }),
-    ).toEqual({ entity: "todo.a", show_completed: true, show_past: true, days_ahead: 3, title: "Anna" });
+    ).toMatchObject({ entity: "todo.a", show_completed: true, show_past: true, days_ahead: 3, title: "Anna" });
+    expect(
+      normalizeConfig({ entity: "todo.a", show_progress_week: true, show_progress_next_week: "yes" as never }),
+    ).toMatchObject({
+      show_progress_tomorrow: false,
+      show_progress_week: true,
+      show_progress_next_week: false,
+    });
   });
 
   it("allows an empty entity (the card asks for one) but rejects wrong ones", () => {

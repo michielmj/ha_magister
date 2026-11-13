@@ -1,5 +1,5 @@
 import { LitElement, html, nothing, type TemplateResult } from "lit";
-import { DEFAULT_DAYS_AHEAD, MAX_DAYS_AHEAD } from "./logic";
+import { DEFAULT_DAYS_AHEAD, MAX_DAYS_AHEAD, PROGRESS_PERIODS } from "./logic";
 import { textsFor, type Texts } from "./translations";
 import type { CardConfig, Hass } from "./types";
 
@@ -24,6 +24,7 @@ export function editorSchema(): FormSchema[] {
       name: "days_ahead",
       selector: { number: { min: 0, max: MAX_DAYS_AHEAD, step: 1, mode: "box" } },
     },
+    ...PROGRESS_PERIODS.map(({ option }) => ({ name: option, selector: { boolean: {} } })),
   ];
 }
 
@@ -35,11 +36,14 @@ export function formData(config: Partial<CardConfig>): Record<string, unknown> {
     show_completed: config.show_completed ?? false,
     show_past: config.show_past ?? false,
     days_ahead: config.days_ahead ?? DEFAULT_DAYS_AHEAD,
+    show_progress_tomorrow: config.show_progress_tomorrow ?? false,
+    show_progress_week: config.show_progress_week ?? false,
+    show_progress_next_week: config.show_progress_next_week ?? false,
   };
 }
 
 /**
- * The config after a form change. Only the five managed keys change (defaults and empty
+ * The config after a form change. Only the managed keys change (defaults and empty
  * values are removed, so the YAML stays short); every other key (grid_options,
  * visibility, view_layout, card_mod, ...) is kept.
  */
@@ -59,6 +63,12 @@ export function configFromForm(
   else delete config.show_completed;
   if (value["show_past"] === true) config.show_past = true;
   else delete config.show_past;
+  const toggles: Record<string, unknown> = config;
+  for (const { option } of PROGRESS_PERIODS) {
+    if (value[option] === true) toggles[option] = true;
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- the three known toggle keys
+    else delete toggles[option];
+  }
   const raw = value["days_ahead"];
   const days = raw === "" || raw === undefined || raw === null ? Number.NaN : Number(raw);
   if (Number.isFinite(days) && days >= 0 && days !== DEFAULT_DAYS_AHEAD) {

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 1.2.0
+
+Progress bars on the card and a to-do count that ignores past homework.
+
+- The **number shown for the Homework to-do list** now counts only the open items due **today or
+  later** (Europe/Amsterdam). Past homework stays in the list and on the card but is no longer
+  counted. The count moves on at midnight. Automations and conditions on the list's state use this
+  count (overdue items are not counted).
+- The **Homework planner card** can show the progress sensors as horizontal bars above the
+  homework: tomorrow, this week and next week, each with its own option
+  (`show_progress_tomorrow`, `show_progress_week`, `show_progress_next_week`, all off by default;
+  also in the visual editor, Dutch and English).
+- WebSocket API: the `magister/homework/subscribe` event gains a `progress` object with the
+  values of the three progress sensors (`docs/reference/homework-websocket.md`). Older clients
+  ignore it.
+
 ## 1.1.0
 
 Homework planner.

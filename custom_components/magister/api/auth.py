@@ -66,7 +66,7 @@ REQUEST_TIMEOUT: Final = aiohttp.ClientTimeout(total=30)
 MAX_REDIRECTS: Final = 10
 MAX_CHALLENGE_STEPS: Final = 8
 DEFAULT_EXPIRES_IN: Final = 3600
-USER_AGENT: Final = "ha-magister/1.1.0 (+https://github.com/michielmj/ha_magister)"
+USER_AGENT: Final = "ha-magister/1.2.0 (+https://github.com/michielmj/ha_magister)"
 
 TokenSource = Literal["cached", "silent", "login"]
 

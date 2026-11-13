@@ -15,6 +15,7 @@ from homeassistant.helpers.entity_platform import (
     AddConfigEntryEntitiesCallback,
 )
 from homeassistant.helpers.service import async_register_platform_entity_service
+from homeassistant.util import dt as dt_util
 
 from .api.homework import HomeworkItem
 from .api.mapping import ATTACHMENTS_LINE, LOCAL_TZ
@@ -29,7 +30,7 @@ from .const import (
     SERVICE_SET_HOMEWORK_PROGRESS,
 )
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
-from .entity import MagisterEntity
+from .entity import MagisterMidnightEntity
 from .homework import (
     HomeworkManager,
     Payload,
@@ -101,7 +102,7 @@ def to_todo_item(manager: HomeworkManager, item: HomeworkItem) -> TodoItem:
     )
 
 
-class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
+class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
     """The homework and tests of one child."""
 
     _attr_translation_key = "homework"
@@ -122,6 +123,17 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
         self._last_payload: Payload | None = None
         self._rebuild()
 
+    @property
+    def state(self) -> int | None:
+        """The open items due today or later.
+
+        HA counts every ``needs_action`` item; past homework stays in the list but
+        is not counted. Recomputed on each state write, including at midnight.
+        """
+        return self._manager.due_open_count(
+            self._child_id, dt_util.now(LOCAL_TZ).date()
+        )
+
     @callback
     def _rebuild(self) -> None:
         self._attr_todo_items = [
@@ -133,6 +145,7 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
         """Follow progress changes."""
         await super().async_added_to_hass()
         self.async_on_remove(self._manager.async_add_listener(self._handle_progress))
+        self._start_midnight()
 
     @callback
     def _handle_progress(self) -> None:
@@ -156,7 +169,15 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
     async def async_will_remove_from_hass(self) -> None:
         """Tell the card that the list is gone (the last items stay in the payload)."""
         items = self._last_payload["items"] if self._last_payload else []
-        async_publish(self.hass, self.entity_id, {"available": False, "items": items})
+        async_publish(
+            self.hass,
+            self.entity_id,
+            {
+                "available": False,
+                "items": items,
+                "progress": {"tomorrow": None, "week": None, "next_week": None},
+            },
+        )
         await super().async_will_remove_from_hass()
 
     @callback

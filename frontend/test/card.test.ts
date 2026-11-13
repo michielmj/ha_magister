@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../src/index";
 import type { MagisterHomeworkCard } from "../src/magister-homework-card";
-import type { Hass, HomeworkItem, HomeworkPayload } from "../src/types";
+import type { Hass, HomeworkItem, HomeworkPayload, ProgressMap } from "../src/types";
 import { TODAY, item } from "./fixtures";
 
 const ENTITY = "todo.kind_myschool_homework";
@@ -86,9 +86,19 @@ const root = (card: MagisterHomeworkCard): ShadowRoot => {
 const texts = (card: MagisterHomeworkCard, selector: string): string[] =>
   [...root(card).querySelectorAll(selector)].map((node) => node.textContent.trim());
 
-function payload(items: HomeworkItem[], available = true): HomeworkPayload {
-  return { available, items };
+function payload(
+  items: HomeworkItem[],
+  available = true,
+  progress?: ProgressMap,
+): HomeworkPayload {
+  return progress ? { available, items, progress } : { available, items };
 }
+
+const PROGRESS: ProgressMap = {
+  tomorrow: { value: 100, items: 0, completed: 0 },
+  week: { value: 62.5, items: 8, completed: 3 },
+  next_week: null,
+};
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
@@ -724,5 +734,141 @@ describe("failed subscribe, retry and entity change", () => {
     card.remove();
     await flush(card);
     expect(connection.unsubscribe).toHaveBeenCalled();
+  });
+});
+
+
+describe("progress bars", () => {
+  const bars = (card: MagisterHomeworkCard): Element[] => [
+    ...root(card).querySelectorAll('[role="progressbar"]'),
+  ];
+
+  it("shows no bars by default, whatever the payload holds", async () => {
+    const { card, connection } = await mount();
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(root(card).querySelector(".bars")).toBeNull();
+    expect(bars(card)).toHaveLength(0);
+  });
+
+  it("shows one bar per enabled period, in the order tomorrow, week, next week", async () => {
+    const { card, connection } = await mount({
+      show_progress_next_week: true,
+      show_progress_tomorrow: true,
+      show_progress_week: true,
+    });
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(texts(card, ".bar-head > span:first-child")).toEqual([
+      "Tomorrow",
+      "This week",
+      "Next week",
+    ]);
+    // the bars come before the homework list
+    const block = root(card).querySelector(".bars");
+    expect(block?.compareDocumentPosition(root(card).querySelector(".days") as Node)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("shows only the enabled periods", async () => {
+    const { card, connection } = await mount({ show_progress_week: true });
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(bars(card)).toHaveLength(1);
+    expect(texts(card, ".bar-head > span:first-child")).toEqual(["This week"]);
+  });
+
+  it("renders the value rounded, the fill, the count text and the aria values", async () => {
+    const { card, connection } = await mount({ show_progress_week: true });
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    const bar = bars(card)[0];
+    expect(bar?.getAttribute("aria-valuemin")).toBe("0");
+    expect(bar?.getAttribute("aria-valuemax")).toBe("100");
+    expect(bar?.getAttribute("aria-valuenow")).toBe("63");
+    expect(bar?.getAttribute("aria-label")).toBe("This week");
+    expect(bar?.getAttribute("aria-valuetext")).toBe("63%, 3 of 8 done");
+    expect(texts(card, ".bar-value")).toEqual(["63%"]);
+    expect(texts(card, ".bar-note")).toEqual(["3 of 8 done"]);
+    expect(root(card).querySelector<HTMLElement>(".fill")?.style.width).toBe("63%");
+  });
+
+  it("shows 'no homework' at 100 % for an empty period", async () => {
+    const { card, connection } = await mount({ show_progress_tomorrow: true });
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(texts(card, ".bar-value")).toEqual(["100%"]);
+    expect(texts(card, ".bar-note")).toEqual(["no homework"]);
+    expect(bars(card)[0]?.getAttribute("aria-valuenow")).toBe("100");
+  });
+
+  it("shows 'not available' for a null period, without a value", async () => {
+    const { card, connection } = await mount({ show_progress_next_week: true });
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(texts(card, ".bar-note")).toEqual(["not available"]);
+    expect(texts(card, ".bar-value")).toEqual([]);
+    const bar = bars(card)[0];
+    expect(bar?.hasAttribute("aria-valuenow")).toBe(false);
+    expect(bar?.getAttribute("aria-valuetext")).toBe("not available");
+    expect(root(card).querySelector(".fill")).toBeNull();
+  });
+
+  it("treats a payload without progress (an older backend) as not available", async () => {
+    const { card, connection } = await mount({ show_progress_week: true });
+    connection.push(payload([item()]));
+    await flush(card);
+    expect(texts(card, ".bar-note")).toEqual(["not available"]);
+  });
+
+  it("keeps the bars when there is no homework or the data is unavailable", async () => {
+    const { card, connection } = await mount({ show_progress_week: true });
+    connection.push(payload([], true, PROGRESS));
+    await flush(card);
+    expect(bars(card)).toHaveLength(1);
+    expect(texts(card, ".state.empty")).toEqual(["No homework"]);
+    connection.push(
+      payload([], false, { tomorrow: null, week: null, next_week: null }),
+    );
+    await flush(card);
+    expect(texts(card, ".bar-note")).toEqual(["not available"]);
+  });
+
+  it("updates the bar when a new payload is pushed", async () => {
+    const { card, connection } = await mount({ show_progress_week: true });
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    connection.push(
+      payload([item()], true, { ...PROGRESS, week: { value: 75, items: 8, completed: 4 } }),
+    );
+    await flush(card);
+    expect(texts(card, ".bar-value")).toEqual(["75%"]);
+    expect(texts(card, ".bar-note")).toEqual(["4 of 8 done"]);
+  });
+
+  it("is Dutch in a Dutch Home Assistant", async () => {
+    const connection = new FakeConnection();
+    const hass = { ...makeHass(connection), language: "nl" };
+    const { card } = await mount({ show_progress_week: true, show_progress_tomorrow: true }, hass, connection);
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(texts(card, ".bar-head > span:first-child")).toEqual(["Morgen", "Deze week"]);
+    expect(texts(card, ".bar-note")).toEqual(["geen huiswerk", "3 van 8 klaar"]);
+    expect(texts(card, ".bar-value")).toEqual(["100 %", "63 %"]);
+  });
+
+  it("dims the bars while the connection is lost", async () => {
+    const { card, connection } = await mount({ show_progress_week: true });
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(root(card).querySelector(".bars.stale")).toBeNull();
+    connection.emit("disconnected");
+    await flush(card);
+    expect(root(card).querySelector(".bars.stale")).not.toBeNull();
+    connection.emit("ready");
+    connection.push(payload([item()], true, PROGRESS));
+    await flush(card);
+    expect(root(card).querySelector(".bars.stale")).toBeNull();
   });
 });

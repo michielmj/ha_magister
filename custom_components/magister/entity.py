@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
-from homeassistant.helpers.event import async_track_point_in_utc_time
+from homeassistant.helpers.event import (
+    async_track_point_in_time,
+    async_track_point_in_utc_time,
+)
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
+from .api.mapping import LOCAL_TZ
 from .const import DATA_MAX_AGE, DOMAIN, MANUFACTURER, host_prefix
 from .coordinator import MagisterCoordinator
 
@@ -97,3 +101,51 @@ class MagisterEntity(CoordinatorEntity[MagisterCoordinator]):
     def _handle_coordinator_update(self) -> None:
         self._schedule_expiry()
         super()._handle_coordinator_update()
+
+
+class MagisterMidnightEntity(MagisterEntity):
+    """A Magister entity that writes its state again at Amsterdam midnight.
+
+    Subclasses start it in ``async_added_to_hass`` with ``_start_midnight`` and may
+    override ``_on_new_day`` (the default writes the state).
+    """
+
+    def __init__(
+        self,
+        coordinator: MagisterCoordinator,
+        host: str,
+        child_id: int,
+        short_name: str,
+    ) -> None:
+        """Create the entity."""
+        super().__init__(coordinator, host, child_id, short_name)
+        self._unsub_midnight: CALLBACK_TYPE | None = None
+
+    @callback
+    def _start_midnight(self) -> None:
+        self._schedule_midnight()
+        self.async_on_remove(self._cancel_midnight)
+
+    @callback
+    def _schedule_midnight(self) -> None:
+        tomorrow = dt_util.now(LOCAL_TZ).date() + timedelta(days=1)
+        self._unsub_midnight = async_track_point_in_time(
+            self.hass,
+            self._handle_midnight,
+            datetime.combine(tomorrow, time.min, LOCAL_TZ),
+        )
+
+    @callback
+    def _cancel_midnight(self) -> None:
+        if self._unsub_midnight is not None:
+            self._unsub_midnight()
+            self._unsub_midnight = None
+
+    @callback
+    def _handle_midnight(self, _now: datetime) -> None:
+        self._on_new_day()
+        self._schedule_midnight()
+
+    @callback
+    def _on_new_day(self) -> None:
+        self.async_write_ha_state()
