@@ -1,0 +1,61 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Magister",
+        "description": "Log in with the Magister account of a parent or student. Accounts that sign in through school SSO or a passkey are not supported.",
+        "data": {
+          "school": "School",
+          "username": "Username",
+          "password": "Password",
+          "totp_secret": "Authenticator secret (optional)"
+        },
+        "data_description": {
+          "school": "The school name (for example `myschool`), its Magister host name (`myschool.magister.net`) or the web address.",
+          "username": "The username you use to log in to Magister.",
+          "password": "The password of this account.",
+          "totp_secret": "Only for accounts with two-step verification: the secret (base32 text) shown when the authenticator app was set up."
+        }
+      },
+      "children": {
+        "title": "Choose children",
+        "description": "Each selected child gets a calendar.",
+        "data": {
+          "children": "Children"
+        }
+      }
+    },
+    "error": {
+      "invalid_school": "This is not a valid Magister school name.",
+      "invalid_auth": "The username or password is not correct.",
+      "totp_required": "This account requires two-step verification. Enter the authenticator secret.",
+      "invalid_totp": "The authenticator secret is not valid or the code was rejected.",
+      "unsupported_login": "This school or account uses a login method that is not supported (school SSO or passkey).",
+      "cannot_connect": "Could not connect to Magister. Try again later.",
+      "unknown": "An unexpected error occurred. See the log for details.",
+      "no_children_selected": "Select at least one child."
+    },
+    "abort": {
+      "already_configured": "This Magister account is already configured.",
+      "no_children": "No children were found on this account."
+    }
+  },
+  "entity": {
+    "calendar": {
+      "agenda": {
+        "name": "Agenda"
+      }
+    }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "Logging in to Magister failed. Check the credentials."
+    },
+    "connection_failed": {
+      "message": "Could not connect to Magister."
+    },
+    "api_error": {
+      "message": "Magister returned an unexpected answer."
+    }
+  }
+}
