@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.3.0
+
+Summary of M2, M3 and the follow-up since 0.0.1:
+
+- Calendars per child (M2) and the options, re-authentication, reconfigure, diagnostics,
+  repair and first-appointment sensor features (M3), listed below.
+- Calendars and sensors now stay available on the last good data for up to 24 hours
+  when a refresh fails, so Time triggers on the sensor are not cancelled by an outage.
+  Diagnostics show the age of the last successful refresh.
+- The version in the manifest is now 0.3.0 (it was still 0.0.1).
+- README: a section on using the sensor in automations.
+
+Details:
+
 - Repository foundation: integration stub, tooling, tests and CI workflows.
 - Test baseline: Home Assistant 2026.10.4 on Python 3.14.
 - M1: Home-Assistant-independent API package (`custom_components/magister/api/`:
