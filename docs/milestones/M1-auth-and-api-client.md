@@ -105,3 +105,14 @@ bot protection), the Architect brings options back to the PM before M2 starts.
    re-run the login flow immediately.
 3. **Git history hygiene**: an early commit contains an expired, anonymous pre-login
    `XSRF-TOKEN` value in a test fixture. Merge the branch to `main` with a **squash merge**.
+
+## PM verification results
+
+**School 1 (2026-11-13): GO.** Parent account, no 2FA.
+- Full login OK; week matches the Magister website; **silent renew worked**.
+- Anonymized dumps shared (1 child) and checked by the Architect: no person names found.
+- **`status=1` hides cancelled lessons:** 140 items without the filter vs 130 with it. The 10
+  missing items are all Status 5 (vervallen automatisch). Decision recorded in HLD §7: fetch
+  without a status filter.
+
+**School 2:** pending.

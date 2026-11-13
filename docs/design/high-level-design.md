@@ -36,7 +36,7 @@ simple and Bearer-token based:
 ```
 GET /api/account                                   -> Persoon.Id, Groep[] ("Ouder"?)
 GET /api/personen/{ouderId}/kinderen               -> Items[] (children)
-GET /api/personen/{persoonId}/afspraken?status=1&van=<UTC>&tot=<UTC>
+GET /api/personen/{persoonId}/afspraken?van=<UTC>&tot=<UTC>      (NO status filter, see §7)
 ```
 
 The **hard part is getting the token**. Magister uses OpenID Connect at
@@ -159,15 +159,19 @@ Title prefixes (multiple combine, e.g. `[Vervallen] [Toets] Wiskunde`):
 
 | Condition | Prefix |
 |---|---|
-| Status vervallen (manual/automatic) | `[Vervallen]` |
-| InfoType test / proefwerk / tentamen | `[Toets]` |
-| InfoType schriftelijke / mondelinge overhoring | `[SO]` / `[MO]` |
-| InfoType huiswerk | `[HW]` |
-| Status gewijzigd / verplaatst | no prefix; a note in the description |
+| Status 4 / 5 (vervallen handmatig / automatisch) | `[Vervallen]` |
+| InfoType 2 / 3 (proefwerk / tentamen) | `[Toets]` |
+| InfoType 4 / 5 (schriftelijke / mondelinge overhoring) | `[SO]` / `[MO]` |
+| InfoType 1 (huiswerk) | `[HW]` |
+| Status 3 / 9 / 10 (gewijzigd / verplaatst) | no prefix; a note in the description |
 
 Prefix texts are Dutch constants in `mapping.py` (the event text comes from Dutch data anyway).
-The exact `Status`/`InfoType`/`Type` codes and whether the `status=1` query parameter
-filters out cancelled lessons **must be confirmed in Milestone 1** from real responses.
+**Confirmed in M1 (PM run, 2026-11-13):** the `status=1` query parameter **hides cancelled
+lessons** (Status 5 items only appear without it). The integration therefore fetches
+appointments **without** a status filter. Observed codes: Status 1, 3, 5, 7; InfoType 0, 1, 2, 4;
+Type 13 (lesuur) and 7 (keuzewerktijd-like, e.g. NT2). A cancelled lesson keeps its homework
+(`InfoType` 1 + `Inhoud`), and a replacement item (e.g. a z-uur) can appear in the same slot;
+both are shown. Codes not seen yet (4, 9, 10; InfoType 3, 5, 6) follow community knowledge.
 
 ## 8. Reliability, security and privacy
 
