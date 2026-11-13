@@ -139,8 +139,8 @@ invalid). Asks for password (+ TOTP secret) again.
 
 | Item | Value |
 |---|---|
-| Device | one per child: name `<Roepnaam> (<tenant>)`, manufacturer "Iddink / Magister", entry_type service |
-| Entity | `calendar.magister_<roepnaam>_<tenant>` (via has_entity_name; name "Agenda") |
+| Device | one per child: name `<Roepnaam> (<school prefix>)`, manufacturer "Magister", entry_type service |
+| Entity | `calendar.<roepnaam>_<school prefix>_agenda` (has_entity_name with translation key; name "Agenda"). `event`/state skips cancelled items (Architect decision, M2 review); `async_get_events` includes them |
 | unique_id | `<host>:<childPersonId>` — stable across renames and re-setup |
 
 Removing a child in the options removes its entity/device (registry cleanup).
