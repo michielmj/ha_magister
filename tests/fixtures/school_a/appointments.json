@@ -23,7 +23,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -75,7 +75,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -122,7 +122,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -169,7 +169,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -216,7 +216,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -263,7 +263,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -310,7 +310,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -357,7 +357,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -404,7 +404,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 36,
+          "Id": 503,
           "Naam": "economie"
         }
       ],
@@ -451,7 +451,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -498,7 +498,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 125,
+          "Id": 511,
           "Naam": "tekenen"
         }
       ],
@@ -545,7 +545,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -592,7 +592,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -639,7 +639,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1146,
+          "Id": 513,
           "Naam": "studieles"
         }
       ],
@@ -686,7 +686,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -733,7 +733,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -780,7 +780,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 36,
+          "Id": 503,
           "Naam": "economie"
         }
       ],
@@ -827,7 +827,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -879,7 +879,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -926,7 +926,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -973,7 +973,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -1020,7 +1020,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -1067,7 +1067,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -1119,7 +1119,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -1166,7 +1166,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 125,
+          "Id": 511,
           "Naam": "tekenen"
         }
       ],
@@ -1213,7 +1213,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -1260,7 +1260,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -1307,7 +1307,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -1354,7 +1354,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1178,
+          "Id": 514,
           "Naam": "z-uur"
         }
       ],
@@ -1401,7 +1401,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -1448,7 +1448,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -1495,7 +1495,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 81,
+          "Id": 507,
           "Naam": "lichamelijke opvoeding"
         }
       ],
@@ -1538,7 +1538,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 81,
+          "Id": 507,
           "Naam": "lichamelijke opvoeding"
         }
       ],
@@ -1581,7 +1581,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -1633,7 +1633,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -1680,7 +1680,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -1727,7 +1727,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -1774,7 +1774,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1178,
+          "Id": 514,
           "Naam": "z-uur"
         }
       ],
@@ -1821,7 +1821,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -1868,7 +1868,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -1915,7 +1915,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1283,
+          "Id": 515,
           "Naam": "NT2"
         }
       ],
@@ -1963,7 +1963,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -2010,7 +2010,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -2057,7 +2057,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 36,
+          "Id": 503,
           "Naam": "economie"
         }
       ],
@@ -2104,7 +2104,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -2151,7 +2151,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 125,
+          "Id": 511,
           "Naam": "tekenen"
         }
       ],
@@ -2198,7 +2198,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -2245,7 +2245,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -2292,7 +2292,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1146,
+          "Id": 513,
           "Naam": "studieles"
         }
       ],
@@ -2339,7 +2339,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -2386,7 +2386,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -2433,7 +2433,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 36,
+          "Id": 503,
           "Naam": "economie"
         }
       ],
@@ -2480,7 +2480,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -2523,7 +2523,7 @@
       "Subtype": 1,
       "IsOnlineDeelname": false,
       "WeergaveType": 0,
-      "Inhoud": "<p>Leren woorden Kapitel 2 Lektion 3 NL-D (HH) afmaken Blz. 105 Aufgaben 20+21 (alleen A+B)</p>",
+      "Inhoud": "<p>Leren woorden Kapitel 2 Lektion 3 NL-D (XX) afmaken Blz. 105 Aufgaben 20+21 (alleen A+B)</p>",
       "Opmerking": null,
       "InfoType": 1,
       "Aantekening": null,
@@ -2532,7 +2532,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -2579,7 +2579,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -2626,7 +2626,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -2673,7 +2673,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -2720,7 +2720,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -2772,7 +2772,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -2819,7 +2819,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 125,
+          "Id": 511,
           "Naam": "tekenen"
         }
       ],
@@ -2866,7 +2866,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -2913,7 +2913,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -2960,7 +2960,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -3007,7 +3007,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -3054,7 +3054,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -3101,7 +3101,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 81,
+          "Id": 507,
           "Naam": "lichamelijke opvoeding"
         }
       ],
@@ -3144,7 +3144,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 81,
+          "Id": 507,
           "Naam": "lichamelijke opvoeding"
         }
       ],
@@ -3187,7 +3187,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -3239,7 +3239,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -3286,7 +3286,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -3333,7 +3333,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -3380,7 +3380,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -3427,7 +3427,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -3474,7 +3474,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1283,
+          "Id": 515,
           "Naam": "NT2"
         }
       ],
@@ -3522,7 +3522,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -3569,7 +3569,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -3616,7 +3616,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 36,
+          "Id": 503,
           "Naam": "economie"
         }
       ],
@@ -3663,7 +3663,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -3710,7 +3710,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 125,
+          "Id": 511,
           "Naam": "tekenen"
         }
       ],
@@ -3757,7 +3757,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -3804,7 +3804,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -3851,7 +3851,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1146,
+          "Id": 513,
           "Naam": "studieles"
         }
       ],
@@ -3898,7 +3898,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -3945,7 +3945,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -3992,7 +3992,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 36,
+          "Id": 503,
           "Naam": "economie"
         }
       ],
@@ -4039,7 +4039,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -4091,7 +4091,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -4138,7 +4138,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -4185,7 +4185,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -4232,7 +4232,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -4284,7 +4284,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -4331,7 +4331,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -4378,7 +4378,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -4425,7 +4425,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 125,
+          "Id": 511,
           "Naam": "tekenen"
         }
       ],
@@ -4472,7 +4472,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -4519,7 +4519,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -4566,7 +4566,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -4613,7 +4613,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -4660,7 +4660,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 81,
+          "Id": 507,
           "Naam": "lichamelijke opvoeding"
         }
       ],
@@ -4703,7 +4703,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 81,
+          "Id": 507,
           "Naam": "lichamelijke opvoeding"
         }
       ],
@@ -4746,7 +4746,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -4798,7 +4798,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -4845,7 +4845,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -4892,7 +4892,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -4939,7 +4939,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -4986,7 +4986,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -5033,7 +5033,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1283,
+          "Id": 515,
           "Naam": "NT2"
         }
       ],
@@ -5081,7 +5081,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -5128,7 +5128,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -5175,7 +5175,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 36,
+          "Id": 503,
           "Naam": "economie"
         }
       ],
@@ -5222,7 +5222,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -5269,7 +5269,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 125,
+          "Id": 511,
           "Naam": "tekenen"
         }
       ],
@@ -5316,7 +5316,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -5363,7 +5363,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -5410,7 +5410,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1146,
+          "Id": 513,
           "Naam": "studieles"
         }
       ],
@@ -5457,7 +5457,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -5504,7 +5504,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -5551,7 +5551,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 36,
+          "Id": 503,
           "Naam": "economie"
         }
       ],
@@ -5598,7 +5598,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -5650,7 +5650,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -5697,7 +5697,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],
@@ -5744,7 +5744,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -5791,7 +5791,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -5838,7 +5838,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -5890,7 +5890,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -5937,7 +5937,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 125,
+          "Id": 511,
           "Naam": "tekenen"
         }
       ],
@@ -5984,7 +5984,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -6031,7 +6031,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 96,
+          "Id": 508,
           "Naam": "Nederlandse taal"
         }
       ],
@@ -6078,7 +6078,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -6125,7 +6125,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 40,
+          "Id": 504,
           "Naam": "Engelse taal"
         }
       ],
@@ -6172,7 +6172,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 48,
+          "Id": 506,
           "Naam": "geschiedenis"
         }
       ],
@@ -6219,7 +6219,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 81,
+          "Id": 507,
           "Naam": "lichamelijke opvoeding"
         }
       ],
@@ -6262,7 +6262,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 81,
+          "Id": 507,
           "Naam": "lichamelijke opvoeding"
         }
       ],
@@ -6305,7 +6305,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1145,
+          "Id": 512,
           "Naam": "natuurkunde"
         }
       ],
@@ -6357,7 +6357,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 119,
+          "Id": 510,
           "Naam": "wiskunde"
         }
       ],
@@ -6404,7 +6404,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1,
+          "Id": 501,
           "Naam": "aardrijkskunde"
         }
       ],
@@ -6451,7 +6451,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 103,
+          "Id": 509,
           "Naam": "scheikunde"
         }
       ],
@@ -6498,7 +6498,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 33,
+          "Id": 502,
           "Naam": "Duitse taal"
         }
       ],
@@ -6545,7 +6545,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 1283,
+          "Id": 515,
           "Naam": "NT2"
         }
       ],
@@ -6593,7 +6593,7 @@
       "Herhaling": null,
       "Vakken": [
         {
-          "Id": 42,
+          "Id": 505,
           "Naam": "Franse taal"
         }
       ],

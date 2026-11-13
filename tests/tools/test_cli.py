@@ -314,4 +314,6 @@ def test_cancelled_items_are_marked() -> None:
     """Status 4/5 lines carry a visible [VERVALLEN] marker."""
     cancelled = {**ITEMS[0], "Status": 5}
     assert "[VERVALLEN] Wiskunde" in cli.format_appointment(cancelled, TZ)
+    status4 = {**ITEMS[0], "Status": 4}
+    assert "[VERVALLEN] Wiskunde" in cli.format_appointment(status4, TZ)
     assert "[VERVALLEN]" not in cli.format_appointment(ITEMS[0], TZ)

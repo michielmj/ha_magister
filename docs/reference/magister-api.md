@@ -60,10 +60,14 @@ defaults to `status=None` since M1) to be able to show `[Vervallen]` items.
 | Code | Observed count | Meaning |
 |---|---|---|
 | 1 | 72 (**confirmed** present) | normal scheduled item (shown by `status=1`) |
-| 3 | 10 (**confirmed** present) | shown by `status=1`; meaning not determined (possibly a changed item, all are lessons of one subject) |
+| 3 | 10 (**confirmed** present) | shown by `status=1`; meaning not determined (possibly a changed item); mostly natuurkunde (8 of 10, also 1x du, 1x en); all are lessons |
 | 5 | 10 (**confirmed** present) | **cancelled** (hidden by `status=1`); all 10 are lessons |
-| 7 | 48 (**confirmed** present) | shown by `status=1`; exact meaning not determined (probably another scheduling state) |
+| 7 | 48 (**confirmed** present) | shown by `status=1`; exact meaning not determined |
 | 0, 2, 4, 6, 8+ | not observed | community, unconfirmed (4 is expected to be a second "cancelled" variant, manual vs. automatic) |
+
+Observed date pattern (**unconfirmed hypothesis**): Status 7 occurs only on dates up to the
+dump date (2026-11-02..2026-11-13), possibly meaning "closed / past"; Status 1 occurs on
+2026-11-03..2026-11-30 and Status 3 on 2026-11-12..2026-11-30.
 
 The CLI marks Status 4 and 5 as `[VERVALLEN]`. Meanings of 1/3/7 beyond "not cancelled" are
 open; none of the observed items had `Afgerond` set.
@@ -104,5 +108,7 @@ lesson).
 * No item had `DuurtHeleDag` true, so all-day behaviour is still unconfirmed.
 * `Omschrijving` of lessons looks like `<subject code> - <teacher code(s)> - <class code>`.
 * Each item also has `Subtype`, `IsOnlineDeelname`, `WeergaveType`, `HerhaalStatus`,
-  `Herhaling`, `Groepen[{Code}]`, `HeeftBijlagen`, `Bijlagen`, `Opmerking`, `Aantekening`;
-  in this data set the last five were null/empty or constant and are not modelled.
+  `Herhaling`, `Groepen[{Code}]`, `HeeftBijlagen`, `Bijlagen`, `Opmerking` and
+  `Aantekening`. In this data set `HeeftBijlagen` (always false), `Bijlagen`, `Opmerking`
+  and `Aantekening` (always null) never carried data; `Subtype`, `IsOnlineDeelname`,
+  `WeergaveType`, `HerhaalStatus` and `Herhaling` were constant. None are modelled.
