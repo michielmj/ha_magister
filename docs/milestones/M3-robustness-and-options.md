@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-13)** |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | HLD §5 (options, reauth), §8 (reliability, privacy) · M2 review notes |
 
