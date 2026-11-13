@@ -1,0 +1,848 @@
+[
+ {
+  "uid": "magister-100000@school.magister.net",
+  "summary": "[Huiswerk] wisB",
+  "location": "0.02",
+  "start": "2026-11-02T09:10:00+00:00",
+  "end": "2026-11-02T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1\n\nHoofdstuk: 3\nMaken: 46,47,48,49,53"
+ },
+ {
+  "uid": "magister-100001@school.magister.net",
+  "summary": "maat",
+  "location": "2.01",
+  "start": "2026-11-02T10:20:00+00:00",
+  "end": "2026-11-02T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nmaat - K4maat_2 - D2 - K4maat_2\nDocent: Docent 2"
+ },
+ {
+  "uid": "magister-100002@school.magister.net",
+  "summary": "[Huiswerk] lv",
+  "location": "2.30",
+  "start": "2026-11-02T11:10:00+00:00",
+  "end": "2026-11-02T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nlv - K4b - D3 - K4b\nDocent: Docent 3\n\nTer voorbereiding van deze les:\n- Lees op pagina 16 paragraaf 2.1 Mozes.\n- Bestudeer de eindtermen 1 t/m 4 (zie bijlage).\n\nBijlagen in Magister"
+ },
+ {
+  "uid": "magister-100003@school.magister.net",
+  "summary": "[Proefwerk] entl",
+  "location": "2.34",
+  "start": "2026-11-02T12:30:00+00:00",
+  "end": "2026-11-02T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nentl - K4b - D4 - K4b\nDocent: Docent 4\n\nToetsstof: alle grammatica van unit 1 en unit 2 (bestudeer dus de grammatica-items uit je reference book goed en zorg dat je je onregelmatige ww kent (page 96 of your reference book))\n\nVocabulary:\nProductief 1 – 85\nReceptief 1 – 165\n\nGrammar:\nAdjectives and Adverbs (obvious vs. obviously)\nComparisons (comical – more comical than – the most comical)\nTenses:\n- Past simple (I walked)\n- Present perfect (I have walked)\n- Past continuous (I was walking)\n- Past perfect (I had walked)"
+ },
+ {
+  "uid": "magister-100004@school.magister.net",
+  "summary": "[Huiswerk] schk",
+  "location": "3.16",
+  "start": "2026-11-02T13:20:00+00:00",
+  "end": "2026-11-02T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5\n\no LD 2.22 t/m 2.24\no LD 2.25, 2,26\no Lr basiskennis, H1, §2.1 t/m §2.4\no Mn §2.3 opdr 1, 2, 6, 7\no Mn §2.3 opdr 4, 5, 9\no Mn Uitwerken practicum 2.3a"
+ },
+ {
+  "uid": "magister-100005@school.magister.net",
+  "summary": "[Huiswerk] nat",
+  "location": "3.02",
+  "start": "2026-11-02T14:10:00+00:00",
+  "end": "2026-11-02T15:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 8\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6\n\nmaken 74 t/m 79\n\nBedenk een vraag over de stof of het huiswerk en schrijf die in je schrift."
+ },
+ {
+  "uid": "magister-100006@school.magister.net",
+  "summary": "[Huiswerk] netl",
+  "location": "1.12",
+  "start": "2026-11-02T15:00:00+00:00",
+  "end": "2026-11-02T15:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 9\nnetl - K4b - D7 - K4b\nDocent: Docent 7\n\nSchrijfvaardigheid: les 8: voorbeelden ingezonden brieven.\n\nMeenemen: materiaal schrijfvaardigheid ingezonden brief (mindmap, versie 1 (met de hand geschreven) en versie 2 (getypt)), opgeladen laptop en je schrift en etui."
+ },
+ {
+  "uid": "magister-100007@school.magister.net",
+  "summary": "[Proefwerk] biol",
+  "location": "3.03",
+  "start": "2026-11-03T07:30:00+00:00",
+  "end": "2026-11-03T08:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8\n\nPW H2 cel en leven"
+ },
+ {
+  "uid": "magister-100008@school.magister.net",
+  "summary": "sl",
+  "location": "3.02",
+  "start": "2026-11-03T08:20:00+00:00",
+  "end": "2026-11-03T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nsl - K4sl_1 - D6 - K4sl_1\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100009@school.magister.net",
+  "summary": "wisB",
+  "location": "0.02",
+  "start": "2026-11-03T09:10:00+00:00",
+  "end": "2026-11-03T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1"
+ },
+ {
+  "uid": "magister-100010@school.magister.net",
+  "summary": "schk",
+  "location": "3.16",
+  "start": "2026-11-03T10:20:00+00:00",
+  "end": "2026-11-03T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100011@school.magister.net",
+  "summary": "nat",
+  "location": "3.01",
+  "start": "2026-11-03T11:10:00+00:00",
+  "end": "2026-11-03T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100012@school.magister.net",
+  "summary": "sptl",
+  "location": "1.02",
+  "start": "2026-11-03T13:20:00+00:00",
+  "end": "2026-11-03T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nsptl - K4sptl_2 - D9 - K4sptl_2\nDocent: Docent 9"
+ },
+ {
+  "uid": "magister-100013@school.magister.net",
+  "summary": "[Huiswerk] ce",
+  "location": "2.35",
+  "start": "2026-11-03T14:10:00+00:00",
+  "end": "2026-11-03T15:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 8\nce - K4ce_1 - D10 - K4ce_1\nDocent: Docent 10\n\nles gaat niet door ivm met PWS begeleiding"
+ },
+ {
+  "uid": "magister-100014@school.magister.net",
+  "summary": "[Huiswerk] netl",
+  "location": "1.12",
+  "start": "2026-11-04T07:30:00+00:00",
+  "end": "2026-11-04T08:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nnetl - K4b - D7 - K4b\nDocent: Docent 7\n\nLeesvaardigheid: je werkt deze les aan twee teksten. Dit is wederom een oefening in leesvaardigheid. Zorg dat je je materiaal leesvaardigheid bij je hebt.\n\nMeenemen: boekje leesvaardigheid, je leesboek en je schrift en etui"
+ },
+ {
+  "uid": "magister-100015@school.magister.net",
+  "summary": "[Huiswerk] lv",
+  "location": "2.30",
+  "start": "2026-11-04T08:20:00+00:00",
+  "end": "2026-11-04T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nlv - K4b - D3 - K4b\nDocent: Docent 3\n\nDe vorige les hebben jullie het verhaal over Mozes (Exodus Deel I) zelfstandig gelezen. De opdracht hierbij was eindterm 1 t/m 4 uitwerken (zie eindtermen H2 - paragraaf 2.1 Mozes --> zie bijlage).\n\nIndien het je niet gelukt is deze opdracht (lezen en uitwerken eindtermen) tijdens de les af te ronden, doe je dit alsnog thuis (en is het dus huiswerk). Mocht je schrift nog op school liggen, maak je huiswerk dan op een los papier (voorzien van je naam en klas).\n\nHuiswerk voor iedereen:\nLees nogmaals paragraaf 2.1 (pagina 16+17) en bekijk de eindtermen 5 t/m 10 (bij LES 07A - paragraaf 2.1 Mozes). Je kunt deze eindtermen vinden in Magister.learn (LES 07) en in de bijlage van dit schrijven.\n\nBijlagen in Magister"
+ },
+ {
+  "uid": "magister-100016@school.magister.net",
+  "summary": "[Huiswerk] nat",
+  "location": "3.02",
+  "start": "2026-11-04T10:20:00+00:00",
+  "end": "2026-11-04T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6\n\nt/m 85"
+ },
+ {
+  "uid": "magister-100017@school.magister.net",
+  "summary": "[Huiswerk] lop",
+  "location": "0.52",
+  "start": "2026-11-04T11:10:00+00:00",
+  "end": "2026-11-04T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nlop - K4lo_3 - D11,D12 - K4lo_3\nDocenten: Docent 11, Docent 12\n\nLaptop meenemen! opgeladen of met oplader!"
+ },
+ {
+  "uid": "magister-100018@school.magister.net",
+  "summary": "[Huiswerk] maat",
+  "location": "2.02",
+  "start": "2026-11-04T13:20:00+00:00",
+  "end": "2026-11-04T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nmaat - K4maat_2 - D2 - K4maat_2\nDocent: Docent 2\n\nWe gaan de stof, PTA 2, afronden"
+ },
+ {
+  "uid": "magister-100019@school.magister.net",
+  "summary": "Schoolfotograaf",
+  "location": "HAL",
+  "start": "2026-11-04T13:40:00+00:00",
+  "end": "2026-11-04T13:55:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nSchoolfotograaf - K4b - D2 - K4b\nDocent: Docent 2"
+ },
+ {
+  "uid": "magister-100020@school.magister.net",
+  "summary": "[Huiswerk] netl",
+  "location": "1.12",
+  "start": "2026-11-04T14:10:00+00:00",
+  "end": "2026-11-04T15:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 8\nnetl - K4b - D7 - K4b\nDocent: Docent 7\n\nLiteratuur: je hebt je leesboek uitgelezen! Je neemt dit boek mee en maakt in deze les verwerkingsopdracht A uit je literatuurdossier (je krijgt hier op 11 november nogmaals de tijd voor). Dit dossier lever je uiterlijk 16 november vóór 16.00 uur in Magister.Learn in: dit is je check 1 en dat is onderdeel van je literatuurcijfer in periode 3.\n\nInhoud check 1 literatuurdossier:\n- Deel 1 (vraag 1 t/m 4),\n- Deel 2 (dat wat door de docent besproken/ gedaan is aan poëzie en korte verhalen)\n- Deel 4 verwerkingsopdracht A (boek 1)\n\nMeenemen: je opgeladen laptop en je leesboek"
+ },
+ {
+  "uid": "magister-100021@school.magister.net",
+  "summary": "[Huiswerk] wisB",
+  "location": "0.02",
+  "start": "2026-11-05T09:10:00+00:00",
+  "end": "2026-11-05T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1\n\nHoofdstuk: 3\nMaken: 54,55,58,60,61"
+ },
+ {
+  "uid": "magister-100022@school.magister.net",
+  "summary": "schk",
+  "location": "3.16",
+  "start": "2026-11-05T10:20:00+00:00",
+  "end": "2026-11-05T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100023@school.magister.net",
+  "summary": "[Huiswerk] sptl",
+  "location": "1.02",
+  "start": "2026-11-05T11:10:00+00:00",
+  "end": "2026-11-05T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsptl - K4sptl_2 - D9 - K4sptl_2\nDocent: Docent 9\n\nmaak opdracht 1 tm 4 pagina 22 werkboek."
+ },
+ {
+  "uid": "magister-100024@school.magister.net",
+  "summary": "entl",
+  "location": "2.31",
+  "start": "2026-11-05T12:30:00+00:00",
+  "end": "2026-11-05T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nentl - K4b - D4 - K4b\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100025@school.magister.net",
+  "summary": "biol",
+  "location": "3.04",
+  "start": "2026-11-06T08:20:00+00:00",
+  "end": "2026-11-06T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100026@school.magister.net",
+  "summary": "ckv",
+  "location": "2.31",
+  "start": "2026-11-06T09:10:00+00:00",
+  "end": "2026-11-06T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nckv - K4ckv_5 - D13 - K4ckv_5\nDocent: Docent 13"
+ },
+ {
+  "uid": "magister-100027@school.magister.net",
+  "summary": "[Huiswerk] mu",
+  "location": "0.30",
+  "start": "2026-11-06T10:20:00+00:00",
+  "end": "2026-11-06T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nmu - K4mu_1 - D14 - K4mu_1\nDocent: Docent 14\n\nPTD opdracht:\nUitvoering spreekkoor per groepje. Het hoeft niet voor de hele klas.\n\nInleveren:\n-musescore compositie van het spreekkoor, PDF print\n-filmje/audio opname"
+ },
+ {
+  "uid": "magister-100028@school.magister.net",
+  "summary": "sptl",
+  "location": "1.02",
+  "start": "2026-11-06T11:10:00+00:00",
+  "end": "2026-11-06T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsptl - K4sptl_2 - D9 - K4sptl_2\nDocent: Docent 9"
+ },
+ {
+  "uid": "magister-100029@school.magister.net",
+  "summary": "biol",
+  "location": "3.17",
+  "start": "2026-11-06T12:30:00+00:00",
+  "end": "2026-11-06T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100030@school.magister.net",
+  "summary": "wisB",
+  "location": "0.02",
+  "start": "2026-11-09T09:10:00+00:00",
+  "end": "2026-11-09T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1"
+ },
+ {
+  "uid": "magister-100031@school.magister.net",
+  "summary": "[Proefwerk] maat",
+  "location": "2.01",
+  "start": "2026-11-09T10:20:00+00:00",
+  "end": "2026-11-09T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nmaat - K4maat_2 - D2 - K4maat_2\nDocent: Docent 2\n\nPresentaties autoritaire Staten\n\nBij afwezigheid van een of meer groepsleden, moeten de anderen dat onderdeel verplicht uitvoeren.\n\nRandom: iedere groep kan dus aan de beurt zijn"
+ },
+ {
+  "uid": "magister-100032@school.magister.net",
+  "summary": "[Huiswerk] lv",
+  "location": "2.30",
+  "start": "2026-11-09T11:10:00+00:00",
+  "end": "2026-11-09T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nlv - K4b - D3 - K4b\nDocent: Docent 3\n\nZie bijlage (Huiswerk LES 07B).\n\nBijlagen in Magister"
+ },
+ {
+  "uid": "magister-100033@school.magister.net",
+  "summary": "entl",
+  "location": "2.34",
+  "start": "2026-11-09T12:30:00+00:00",
+  "end": "2026-11-09T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nentl - K4b - D4 - K4b\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100034@school.magister.net",
+  "summary": "[Huiswerk] schk",
+  "location": "3.16",
+  "start": "2026-11-09T13:20:00+00:00",
+  "end": "2026-11-09T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5\n\no Lr basiskennis, H1, H2\no Mn §2.4 opdr 1 t/m 7"
+ },
+ {
+  "uid": "magister-100035@school.magister.net",
+  "summary": "[Huiswerk] nat",
+  "location": "3.02",
+  "start": "2026-11-09T14:10:00+00:00",
+  "end": "2026-11-09T15:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 8\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6\n\n86 t/m 89"
+ },
+ {
+  "uid": "magister-100036@school.magister.net",
+  "summary": "[Huiswerk] netl",
+  "location": "1.12",
+  "start": "2026-11-09T15:00:00+00:00",
+  "end": "2026-11-09T15:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 9\nnetl - K4b - D7 - K4b\nDocent: Docent 7\n\nIngezonden brief: test Woots\nSpelling en formuleren: LessonUples\n\nMeenemen: je schrift en etui\n\nTip: het nieuws (geen fake-nieuws!) écht willen volgen via Instagram of TikTok? Bekijk Homepage - Druk Nieuws"
+ },
+ {
+  "uid": "magister-100037@school.magister.net",
+  "summary": "biol",
+  "location": "3.03",
+  "start": "2026-11-10T07:30:00+00:00",
+  "end": "2026-11-10T08:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100038@school.magister.net",
+  "summary": "sl",
+  "location": "3.02",
+  "start": "2026-11-10T08:20:00+00:00",
+  "end": "2026-11-10T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nsl - K4sl_1 - D6 - K4sl_1\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100039@school.magister.net",
+  "summary": "wisB",
+  "location": "0.02",
+  "start": "2026-11-10T09:10:00+00:00",
+  "end": "2026-11-10T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1"
+ },
+ {
+  "uid": "magister-100040@school.magister.net",
+  "summary": "schk",
+  "location": "3.16",
+  "start": "2026-11-10T10:20:00+00:00",
+  "end": "2026-11-10T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100041@school.magister.net",
+  "summary": "[Huiswerk] nat",
+  "location": "3.01",
+  "start": "2026-11-10T11:10:00+00:00",
+  "end": "2026-11-10T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6\n\n90 t/m 94"
+ },
+ {
+  "uid": "magister-100042@school.magister.net",
+  "summary": "[Huiswerk] sptl",
+  "location": "1.02",
+  "start": "2026-11-10T13:20:00+00:00",
+  "end": "2026-11-10T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nsptl - K4sptl_2 - D9 - K4sptl_2\nDocent: Docent 9\n\nMaak opdracht 8, 9 en 10 pagina 24 en 25 werkboek"
+ },
+ {
+  "uid": "magister-100043@school.magister.net",
+  "summary": "ce",
+  "location": "2.35",
+  "start": "2026-11-10T14:10:00+00:00",
+  "end": "2026-11-10T15:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 8\nce - K4ce_1 - D10 - K4ce_1\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100044@school.magister.net",
+  "summary": "[Huiswerk] netl",
+  "location": "1.12",
+  "start": "2026-11-11T07:30:00+00:00",
+  "end": "2026-11-11T08:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nnetl - K4b - D7 - K4b\nDocent: Docent 7\n\nLeesvaardigheid: je werkt deze les aan twee teksten. Dit is wederom een oefening in leesvaardigheid. Zorg dat je je materiaal leesvaardigheid bij je hebt.\n\nMeenemen: boekje leesvaardigheid, je leesboek en je schrift en etui"
+ },
+ {
+  "uid": "magister-100045@school.magister.net",
+  "summary": "[Huiswerk] lv",
+  "location": "2.30",
+  "start": "2026-11-11T08:20:00+00:00",
+  "end": "2026-11-11T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nlv - K4b - D3 - K4b\nDocent: Docent 3\n\nDeze les krijgen jullie een oefentoets. Het doel van deze oefentoets is jullie inzicht te geven in wat voor soort vragen je tijdens de proefwerkweek kunt verwachten.\n\nZorg dat je jezelf voorbereidt. Dit betekent: Bekijk de eindtermen (zie Magister.learn) en controleer of je deze eindtermen inhoudelijk onder de knie hebt.\n\nMocht je bepaalde eindtermen niet beheersen, bestudeer dan de lesstof (boek, verhalen en/of PowerPoints) nogmaals."
+ },
+ {
+  "uid": "magister-100046@school.magister.net",
+  "summary": "nat",
+  "location": "3.02",
+  "start": "2026-11-11T10:20:00+00:00",
+  "end": "2026-11-11T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100047@school.magister.net",
+  "summary": "[Huiswerk] lop",
+  "location": "GYMA",
+  "start": "2026-11-11T11:10:00+00:00",
+  "end": "2026-11-11T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5–6\nlop - K4lo_3 - D11,D12 - K4lo_3\nDocenten: Docent 11, Docent 12\n\nLever je rubric in via magister learn voor je beoordeling van periode 1!\n\nOnderdelen die we hebben gedaan in periode 1:\nSpeerwerpen\nVoetbal\nSprinten\nHockey\nSoftbal\nBoksen\nMultibal"
+ },
+ {
+  "uid": "magister-100048@school.magister.net",
+  "summary": "[Proefwerk] maat",
+  "location": "2.02",
+  "start": "2026-11-11T13:20:00+00:00",
+  "end": "2026-11-11T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nmaat - K4maat_2 - D2 - K4maat_2\nDocent: Docent 2\n\nPresentaties ‘ Autoritaire leiders’\n\nBij afwezigheid van groepsleden, moeten de anderen dat deel voor hun rekening nemen"
+ },
+ {
+  "uid": "magister-100049@school.magister.net",
+  "summary": "[Huiswerk] netl",
+  "location": "1.12",
+  "start": "2026-11-11T14:10:00+00:00",
+  "end": "2026-11-11T15:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 8\nnetl - K4b - D7 - K4b\nDocent: Docent 7\n\nLiteratuur: je hebt je leesboek uitgelezen! Je neemt dit boek mee en maakt in deze les verwerkingsopdracht A uit je literatuurdossier. Dit dossier lever je uiterlijk 16 november vóór 16.00 uur in Magister.Learn in: dit is je check 1 en dat is onderdeel van je literatuurcijfer in periode 3.\n\nInhoud check 1 literatuurdossier:\n- Deel 1 (vraag 1 t/m 4),\n- Deel 2 (dat wat door de docent besproken/ gedaan is aan poëzie en korte verhalen)\n- Deel 4 verwerkingsopdracht A (boek 1)\n\nMeenemen: je opgeladen laptop en je leesboek"
+ },
+ {
+  "uid": "magister-100050@school.magister.net",
+  "summary": "wisB",
+  "location": "0.02",
+  "start": "2026-11-12T09:10:00+00:00",
+  "end": "2026-11-12T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1"
+ },
+ {
+  "uid": "magister-100051@school.magister.net",
+  "summary": "schk",
+  "location": "3.16",
+  "start": "2026-11-12T10:20:00+00:00",
+  "end": "2026-11-12T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100052@school.magister.net",
+  "summary": "sptl",
+  "location": "1.02",
+  "start": "2026-11-12T11:10:00+00:00",
+  "end": "2026-11-12T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsptl - K4sptl_2 - D9 - K4sptl_2\nDocent: Docent 9"
+ },
+ {
+  "uid": "magister-100053@school.magister.net",
+  "summary": "entl",
+  "location": "2.31",
+  "start": "2026-11-12T12:30:00+00:00",
+  "end": "2026-11-12T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nentl - K4b - D4 - K4b\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100089@school.magister.net",
+  "summary": "[Vervallen] [Huiswerk] biol",
+  "location": "3.04",
+  "start": "2026-11-13T08:20:00+00:00",
+  "end": "2026-11-13T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nVervallen\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8\n\nLeerstof PWW:\nH1 en H2\nmeenemen Binas en rekenmachine"
+ },
+ {
+  "uid": "magister-100054@school.magister.net",
+  "summary": "[Huiswerk] ckv",
+  "location": "2.49",
+  "start": "2026-11-13T09:10:00+00:00",
+  "end": "2026-11-13T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nckv - K4ckv_5 - D13 - K4ckv_5\nDocent: Docent 13\n\nLever via Magister Learn je document in met de uitwerking van de lesodprachten.\nIn het lesmateriaal van les 5 discipline beeldend staat het overzicht met de lesopdrachten.\n\nNeem tijdens de les een opgeladen laptop mee!"
+ },
+ {
+  "uid": "magister-100055@school.magister.net",
+  "summary": "[Huiswerk] mu",
+  "location": "0.30",
+  "start": "2026-11-13T10:20:00+00:00",
+  "end": "2026-11-13T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nmu - K4mu_1 - D14 - K4mu_1\nDocent: Docent 14\n\nOpdracht spreekkoor klaar? Muziek maken dan! :)\n\nNog niet klaar? Lees hieronder\n\nVandaag is de uiterste inleverdatum waarop je het spreekkoor kunt inleveren.\nInleveren doe je in de aangemaakte mapjes in Magister.learn. (Zie: PTD PO1 improviseren, componeren, vocaal).\nHierin stopt 1 persoon per groepje:\n-PDF (van jullie spreekkoor in Musescore)\n-audio opname van jullie spreekkoor.\n\nVerwerk de tips die je tijdens de laatste les hebt gekregen en verwerk deze in jullie opdracht. Succes met de afronding, als je dat nog niet hebt gedaan."
+ },
+ {
+  "uid": "magister-100056@school.magister.net",
+  "summary": "[Huiswerk] sptl",
+  "location": "1.02",
+  "start": "2026-11-13T11:10:00+00:00",
+  "end": "2026-11-13T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsptl - K4sptl_2 - D9 - K4sptl_2\nDocent: Docent 9\n\nvandaag geen boeken nodig, we hebben leesvaardigheid."
+ },
+ {
+  "uid": "magister-100090@school.magister.net",
+  "summary": "[Vervallen] biol",
+  "location": "3.17",
+  "start": "2026-11-13T12:30:00+00:00",
+  "end": "2026-11-13T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nVervallen\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100057@school.magister.net",
+  "summary": "wisB",
+  "location": "0.02",
+  "start": "2026-11-16T09:10:00+00:00",
+  "end": "2026-11-16T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1"
+ },
+ {
+  "uid": "magister-100058@school.magister.net",
+  "summary": "maat",
+  "location": "2.01",
+  "start": "2026-11-16T10:20:00+00:00",
+  "end": "2026-11-16T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nmaat - K4maat_2 - D2 - K4maat_2\nDocent: Docent 2"
+ },
+ {
+  "uid": "magister-100059@school.magister.net",
+  "summary": "[Huiswerk] lv",
+  "location": "2.30",
+  "start": "2026-11-16T11:10:00+00:00",
+  "end": "2026-11-16T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nlv - K4b - D3 - K4b\nDocent: Docent 3\n\nDe stof voor de proefwerkweek (Periode I) bestaat uit:\n\nUit het boek Vrij zicht op jodendom:\n- Voorwoord (Pagina 5-6)\n- H1. Leer, leven en identiteit (Pagina 8 -12)\n- H2. Een blik op de geschiedenis t/m paragraaf 2.2 (pagina 14-18).\n\n- Gemaakte aantekeningen in je schrift.\n- Alle PowerPoints (zoals gebruikt tijdens de lessen).\n\nDe eindtermen dienen als leidraad bij het bestuderen van de stof.\n\nAlle Powerpoints en eindtermen zijn te vinden in Magister.learn (les 1 t/m 8)"
+ },
+ {
+  "uid": "magister-100060@school.magister.net",
+  "summary": "entl",
+  "location": "2.34",
+  "start": "2026-11-16T12:30:00+00:00",
+  "end": "2026-11-16T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nentl - K4b - D4 - K4b\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100061@school.magister.net",
+  "summary": "[Huiswerk] schk",
+  "location": "3.16",
+  "start": "2026-11-16T13:20:00+00:00",
+  "end": "2026-11-16T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5\n\nToetsstof PWW1: Toets 2-K41 (50 minuten)\n- H1 Chemisch rekenen + molair volume\n- H2 Chemische bindingen"
+ },
+ {
+  "uid": "magister-100062@school.magister.net",
+  "summary": "[Huiswerk] nat",
+  "location": "3.02",
+  "start": "2026-11-16T14:10:00+00:00",
+  "end": "2026-11-16T15:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 8\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6\n\n1 t/m 6 stencil krachten"
+ },
+ {
+  "uid": "magister-100063@school.magister.net",
+  "summary": "[Huiswerk] netl",
+  "location": "1.12",
+  "start": "2026-11-16T15:00:00+00:00",
+  "end": "2026-11-16T15:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 9\nnetl - K4b - D7 - K4b\nDocent: Docent 7\n\nIn deze les kun je studeren voor pwwk1. Dat mag ook voor een ander vak zijn. Zorg dat je materiaal meeneemt. Het is niet de bedoeling dat je niets gaat doen. Is dat wel het geval, dan heb ik een opdracht voor je.\n\nLiteratuurdossier: inleveren uiterlijk 18 november in Magister.Learn vóór 16.00 uur\n\nEventueel nog een keertje testen met Woots\n\nMeenemen: opgeladen laptop, schrift en etui, leesboek en eventueel materiaal van een ander vak"
+ },
+ {
+  "uid": "magister-100064@school.magister.net",
+  "summary": "biol",
+  "location": "3.03",
+  "start": "2026-11-17T07:30:00+00:00",
+  "end": "2026-11-17T08:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100091@school.magister.net",
+  "summary": "[Vervallen] sl",
+  "location": "3.02",
+  "start": "2026-11-17T08:20:00+00:00",
+  "end": "2026-11-17T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nVervallen\nsl - K4sl_1 - D6 - K4sl_1\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100065@school.magister.net",
+  "summary": "Voorlichting PTA en PTD",
+  "location": "HAL",
+  "start": "2026-11-17T08:20:00+00:00",
+  "end": "2026-11-17T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nVoorlichting PTA en PTD - K4sl_10,K4sl_9,K4sl_8,K4sl_7,K4sl_6,K4sl_5,K4sl_4,K4sl_3,K4sl_2,K4sl_1 - 10 docenten - 10 groepen\nDocenten: Docent 15, Docent 16, Docent 6, Docent 17, Docent 18, Docent 19, Docent 20, Docent 21, Docent 22, Docent 23"
+ },
+ {
+  "uid": "magister-100092@school.magister.net",
+  "summary": "[Vervallen] wisB",
+  "location": "0.02",
+  "start": "2026-11-17T09:10:00+00:00",
+  "end": "2026-11-17T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nVervallen\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1"
+ },
+ {
+  "uid": "magister-100066@school.magister.net",
+  "summary": "schk",
+  "location": "3.16",
+  "start": "2026-11-17T10:20:00+00:00",
+  "end": "2026-11-17T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100067@school.magister.net",
+  "summary": "nat",
+  "location": "3.01",
+  "start": "2026-11-17T11:10:00+00:00",
+  "end": "2026-11-17T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100068@school.magister.net",
+  "summary": "[Huiswerk] sptl",
+  "location": "1.02",
+  "start": "2026-11-17T13:20:00+00:00",
+  "end": "2026-11-17T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nsptl - K4sptl_2 - D9 - K4sptl_2\nDocent: Docent 9\n\nvandaag heb je een opgeladen laptop nodig, de d toets staat op het programma."
+ },
+ {
+  "uid": "magister-100069@school.magister.net",
+  "summary": "SE SPTL",
+  "location": "GYMC",
+  "start": "2026-11-19T08:40:00+00:00",
+  "end": "2026-11-19T09:30:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2–3\nSE SPTL - K4sptl_2,K4sptl_1x - D9 - K4sptl_1x,K4sptl_2\nDocent: Docent 9"
+ },
+ {
+  "uid": "magister-100070@school.magister.net",
+  "summary": "SE NAT",
+  "location": "GYMC",
+  "start": "2026-11-20T11:00:00+00:00",
+  "end": "2026-11-20T11:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4–5\nSE NAT - K4nat_2 - D24 - K4nat_2\nDocent: Docent 24"
+ },
+ {
+  "uid": "magister-100071@school.magister.net",
+  "summary": "SE NETL",
+  "location": "GYMC",
+  "start": "2026-11-20T12:10:00+00:00",
+  "end": "2026-11-20T13:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5–7\nSE NETL - K4b - D25 - K4b\nDocent: Docent 25"
+ },
+ {
+  "uid": "magister-100072@school.magister.net",
+  "summary": "SE WISB",
+  "location": "GYMC",
+  "start": "2026-11-23T09:50:00+00:00",
+  "end": "2026-11-23T11:30:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3–5\nSE WISB - K4wisB_1 - D1 - 26 leerlingen\nDocent: Docent 1"
+ },
+ {
+  "uid": "magister-100073@school.magister.net",
+  "summary": "SE MAAT",
+  "location": "GYMC",
+  "start": "2026-11-23T12:10:00+00:00",
+  "end": "2026-11-23T13:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5–6\nSE MAAT - K4maat_2 - D2 - K4maat_2\nDocent: Docent 2"
+ },
+ {
+  "uid": "magister-100074@school.magister.net",
+  "summary": "SE ENTL",
+  "location": "GYMC",
+  "start": "2026-11-24T11:00:00+00:00",
+  "end": "2026-11-24T11:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4–5\nSE ENTL - K4b - D21 - K4b\nDocent: Docent 21"
+ },
+ {
+  "uid": "magister-100075@school.magister.net",
+  "summary": "SE LV",
+  "location": "GYMC",
+  "start": "2026-11-24T12:10:00+00:00",
+  "end": "2026-11-24T13:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5–6\nSE LV - K4b - D21 - K4b\nDocent: Docent 21"
+ },
+ {
+  "uid": "magister-100076@school.magister.net",
+  "summary": "SE BIOL",
+  "location": "GYMB",
+  "start": "2026-11-25T11:00:00+00:00",
+  "end": "2026-11-25T11:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4–5\nSE BIOL - K4biol_2 - D17 - K4biol_2\nDocent: Docent 17"
+ },
+ {
+  "uid": "magister-100077@school.magister.net",
+  "summary": "SE SCHK",
+  "location": "GYMC",
+  "start": "2026-11-26T08:40:00+00:00",
+  "end": "2026-11-26T09:30:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2–3\nSE SCHK - K4schk_2 - D26 - K4schk_2\nDocent: Docent 26"
+ },
+ {
+  "uid": "magister-100078@school.magister.net",
+  "summary": "biol",
+  "location": "3.04",
+  "start": "2026-11-27T08:20:00+00:00",
+  "end": "2026-11-27T09:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100079@school.magister.net",
+  "summary": "ckv",
+  "location": "2.49",
+  "start": "2026-11-27T09:10:00+00:00",
+  "end": "2026-11-27T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nckv - K4ckv_5 - D13 - K4ckv_5\nDocent: Docent 13"
+ },
+ {
+  "uid": "magister-100080@school.magister.net",
+  "summary": "mu",
+  "location": "0.30",
+  "start": "2026-11-27T10:20:00+00:00",
+  "end": "2026-11-27T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nmu - K4mu_1 - D14 - K4mu_1\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100081@school.magister.net",
+  "summary": "sptl",
+  "location": "1.02",
+  "start": "2026-11-27T11:10:00+00:00",
+  "end": "2026-11-27T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsptl - K4sptl_2 - D9 - K4sptl_2\nDocent: Docent 9"
+ },
+ {
+  "uid": "magister-100082@school.magister.net",
+  "summary": "biol",
+  "location": "3.03",
+  "start": "2026-11-27T12:30:00+00:00",
+  "end": "2026-11-27T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nbiol - K4biol_2 - D8 - K4biol_2\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100083@school.magister.net",
+  "summary": "wisB",
+  "location": "0.02",
+  "start": "2026-11-30T09:10:00+00:00",
+  "end": "2026-11-30T10:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwisB - K4wisB_1 - D1 - K4wisB_1\nDocent: Docent 1"
+ },
+ {
+  "uid": "magister-100084@school.magister.net",
+  "summary": "maat",
+  "location": "2.01",
+  "start": "2026-11-30T10:20:00+00:00",
+  "end": "2026-11-30T11:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nmaat - K4maat_2 - D2 - K4maat_2\nDocent: Docent 2"
+ },
+ {
+  "uid": "magister-100085@school.magister.net",
+  "summary": "lv",
+  "location": "2.30",
+  "start": "2026-11-30T11:10:00+00:00",
+  "end": "2026-11-30T12:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nlv - K4b - D3 - K4b\nDocent: Docent 3"
+ },
+ {
+  "uid": "magister-100086@school.magister.net",
+  "summary": "entl",
+  "location": "2.34",
+  "start": "2026-11-30T12:30:00+00:00",
+  "end": "2026-11-30T13:20:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nentl - K4b - D4 - K4b\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100087@school.magister.net",
+  "summary": "schk",
+  "location": "3.16",
+  "start": "2026-11-30T13:20:00+00:00",
+  "end": "2026-11-30T14:10:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nschk - K4schk_2 - D5 - K4schk_2\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100088@school.magister.net",
+  "summary": "nat",
+  "location": "3.02",
+  "start": "2026-11-30T14:10:00+00:00",
+  "end": "2026-11-30T15:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 8\nnat - K4nat_2 - D6 - K4nat_2\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100093@school.magister.net",
+  "summary": "[Vervallen] netl",
+  "location": "1.12",
+  "start": "2026-11-30T15:00:00+00:00",
+  "end": "2026-11-30T15:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 9\nVervallen\nnetl - K4b - D7 - K4b\nDocent: Docent 7"
+ }
+]

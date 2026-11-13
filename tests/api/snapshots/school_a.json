@@ -1,0 +1,1262 @@
+[
+ {
+  "uid": "magister-100000@school.magister.net",
+  "summary": "natuurkunde",
+  "location": "020",
+  "start": "2026-11-02T08:15:00+00:00",
+  "end": "2026-11-02T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nna - D2,D1 - k1a\nDocenten: Docent 1, Docent 2"
+ },
+ {
+  "uid": "magister-100001@school.magister.net",
+  "summary": "[Huiswerk] wiskunde",
+  "location": "235",
+  "start": "2026-11-02T09:00:00+00:00",
+  "end": "2026-11-02T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwi - D3 - k1a\nDocent: Docent 3\n\nmaken: H1, opgave 73,74,75,76,77,78,79"
+ },
+ {
+  "uid": "magister-100002@school.magister.net",
+  "summary": "aardrijkskunde",
+  "location": "226",
+  "start": "2026-11-02T10:05:00+00:00",
+  "end": "2026-11-02T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nak - D4 - k1a\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100003@school.magister.net",
+  "summary": "scheikunde",
+  "location": "017",
+  "start": "2026-11-02T10:50:00+00:00",
+  "end": "2026-11-02T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsk - D5 - k1a\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100004@school.magister.net",
+  "summary": "[Huiswerk] Duitse taal",
+  "location": "123",
+  "start": "2026-11-02T12:05:00+00:00",
+  "end": "2026-11-02T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\ndu - D6 - k1a\nDocent: Docent 6\n\nLeren woorden Kapitel 2-2 (D-NL) en afmaken 8+9"
+ },
+ {
+  "uid": "magister-100005@school.magister.net",
+  "summary": "[Huiswerk] Franse taal",
+  "location": "121",
+  "start": "2026-11-02T12:50:00+00:00",
+  "end": "2026-11-02T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nfa - D7 - k1a\nDocent: Docent 7\n\nApprendre 1 p.81 leren"
+ },
+ {
+  "uid": "magister-100006@school.magister.net",
+  "summary": "[Huiswerk] Engelse taal",
+  "location": "125",
+  "start": "2026-11-03T07:30:00+00:00",
+  "end": "2026-11-03T08:15:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nen - D8 - k1a\nDocent: Docent 8\n\nMentorles!\nNeem een opgeladen laptop mee. Decaan komt langs voor vragen + profielkeuze uitleg."
+ },
+ {
+  "uid": "magister-100007@school.magister.net",
+  "summary": "[Huiswerk] aardrijkskunde",
+  "location": "221",
+  "start": "2026-11-03T08:15:00+00:00",
+  "end": "2026-11-03T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nak - D4 - k1a\nDocent: Docent 4\n\nLees 2.1, maak 2 + 3"
+ },
+ {
+  "uid": "magister-100008@school.magister.net",
+  "summary": "[Huiswerk] economie",
+  "location": "227",
+  "start": "2026-11-03T09:00:00+00:00",
+  "end": "2026-11-03T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nec - D9 - k1a\nDocent: Docent 9\n\nmaken: opg. 2.21 (en huiswerk vorige week woensdag ook afhebben opg. 2.20)"
+ },
+ {
+  "uid": "magister-100009@school.magister.net",
+  "summary": "[Huiswerk] wiskunde",
+  "location": "235",
+  "start": "2026-11-03T10:05:00+00:00",
+  "end": "2026-11-03T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nwi - D3 - k1a\nDocent: Docent 3\n\nmaken: H1, opgave 84,85,86,88,89,91"
+ },
+ {
+  "uid": "magister-100010@school.magister.net",
+  "summary": "tekenen",
+  "location": "052",
+  "start": "2026-11-03T10:50:00+00:00",
+  "end": "2026-11-03T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nte - D10 - k1a\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100011@school.magister.net",
+  "summary": "[SO] geschiedenis",
+  "location": "225",
+  "start": "2026-11-03T12:05:00+00:00",
+  "end": "2026-11-03T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\ngs - D11 - k1a\nDocent: Docent 11\n\nSchriftcontrole hoofdstuk 1"
+ },
+ {
+  "uid": "magister-100012@school.magister.net",
+  "summary": "Franse taal",
+  "location": "222",
+  "start": "2026-11-03T12:50:00+00:00",
+  "end": "2026-11-03T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nfa - D7 - k1a\nDocent: Docent 7"
+ },
+ {
+  "uid": "magister-100013@school.magister.net",
+  "summary": "[Huiswerk] studieles",
+  "location": "127",
+  "start": "2026-11-04T08:15:00+00:00",
+  "end": "2026-11-04T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nsl - D8 - k1a\nDocent: Docent 8\n\nBRING your LAPTOP +headphones/earbuds. (We wisselen mentorles en de les Engels om)\nHomework: Unit 2 lesson 2 exc: 2-5-8-9-10-11 and bring headphones/earbuds.\n\n(Study irregular verbs p.286)"
+ },
+ {
+  "uid": "magister-100014@school.magister.net",
+  "summary": "[Huiswerk] geschiedenis",
+  "location": "226",
+  "start": "2026-11-04T09:00:00+00:00",
+  "end": "2026-11-04T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\ngs - D11 - k1a\nDocent: Docent 11\n\nMaken introductie 1 t/m 5"
+ },
+ {
+  "uid": "magister-100015@school.magister.net",
+  "summary": "Nederlandse taal",
+  "location": "231",
+  "start": "2026-11-04T10:05:00+00:00",
+  "end": "2026-11-04T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nne - D12 - k1a\nDocent: Docent 12"
+ },
+ {
+  "uid": "magister-100016@school.magister.net",
+  "summary": "[Huiswerk] economie",
+  "location": "227",
+  "start": "2026-11-04T10:50:00+00:00",
+  "end": "2026-11-04T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nec - D9 - k1a\nDocent: Docent 9\n\nafmaken: opg. 2.23 financieringsbegroting"
+ },
+ {
+  "uid": "magister-100017@school.magister.net",
+  "summary": "natuurkunde",
+  "location": "019",
+  "start": "2026-11-04T12:05:00+00:00",
+  "end": "2026-11-04T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nna - D2,D1 - k1a\nDocenten: Docent 1, Docent 2"
+ },
+ {
+  "uid": "magister-100018@school.magister.net",
+  "summary": "[Huiswerk] Duitse taal",
+  "location": "123",
+  "start": "2026-11-04T12:50:00+00:00",
+  "end": "2026-11-04T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\ndu - D6 - k1a\nDocent: Docent 6\n\nWoorden Kapitel 2 Lektion 2 herhalen D-NL"
+ },
+ {
+  "uid": "magister-100019@school.magister.net",
+  "summary": "Franse taal",
+  "location": "222",
+  "start": "2026-11-05T07:30:00+00:00",
+  "end": "2026-11-05T08:15:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nfa - D7 - k1a\nDocent: Docent 7"
+ },
+ {
+  "uid": "magister-100020@school.magister.net",
+  "summary": "[Huiswerk] Nederlandse taal",
+  "location": "133",
+  "start": "2026-11-05T08:15:00+00:00",
+  "end": "2026-11-05T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nne - D12 - k1a\nDocent: Docent 12\n\nCursus spelling\nmaken online:\n- paragraaf 9, opdr. 2, 3 en 5 (herhaling ww-spelling leerjaar 2)\n- paragraaf 10, opdr. 1, 2, 3, 4, 6b en 7b (homofone werkwoordsvormen)\n\nGebruik indien nodig het schema ww-spelling op blz. 296."
+ },
+ {
+  "uid": "magister-100021@school.magister.net",
+  "summary": "[Huiswerk] Engelse taal",
+  "location": "125",
+  "start": "2026-11-05T09:00:00+00:00",
+  "end": "2026-11-05T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nen - D8 - k1a\nDocent: Docent 8\n\nHomework: Unit 2 lesson 2 listening exc: 1+3-4+7 You can leave your book at home."
+ },
+ {
+  "uid": "magister-100022@school.magister.net",
+  "summary": "[Huiswerk] natuurkunde",
+  "location": "020",
+  "start": "2026-11-05T10:05:00+00:00",
+  "end": "2026-11-05T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nna - D2,D1 - k1a\nDocenten: Docent 1, Docent 2\n\nMaak de eerste 5 opdr van par 2.1"
+ },
+ {
+  "uid": "magister-100023@school.magister.net",
+  "summary": "[Huiswerk] wiskunde",
+  "location": "235",
+  "start": "2026-11-05T10:50:00+00:00",
+  "end": "2026-11-05T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nwi - D3 - k1a\nDocent: Docent 3\n\nmaken: H3, opgave 2,3,5,6,7"
+ },
+ {
+  "uid": "magister-100024@school.magister.net",
+  "summary": "tekenen",
+  "location": "052",
+  "start": "2026-11-05T12:05:00+00:00",
+  "end": "2026-11-05T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nte - D10 - k1a\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100025@school.magister.net",
+  "summary": "[Huiswerk] Duitse taal",
+  "location": "123",
+  "start": "2026-11-05T12:50:00+00:00",
+  "end": "2026-11-05T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\ndu - D6 - k1a\nDocent: Docent 6\n\nHerhalen woorden Kapitel 2 Lektionen 1+2"
+ },
+ {
+  "uid": "magister-100026@school.magister.net",
+  "summary": "[Huiswerk] Nederlandse taal",
+  "location": "019",
+  "start": "2026-11-06T08:15:00+00:00",
+  "end": "2026-11-06T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nne - D12 - k1a\nDocent: Docent 12\n\nmaken opdr. 1 tot en met 5 van cursus Spelling."
+ },
+ {
+  "uid": "magister-100130@school.magister.net",
+  "summary": "[Vervallen] scheikunde",
+  "location": "017",
+  "start": "2026-11-06T09:00:00+00:00",
+  "end": "2026-11-06T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nVervallen\nsk - D5 - k1a\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100027@school.magister.net",
+  "summary": "z-uur",
+  "location": "116",
+  "start": "2026-11-06T09:00:00+00:00",
+  "end": "2026-11-06T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nZ - D13 - k1a\nDocent: Docent 13"
+ },
+ {
+  "uid": "magister-100028@school.magister.net",
+  "summary": "Engelse taal",
+  "location": "125",
+  "start": "2026-11-06T10:05:00+00:00",
+  "end": "2026-11-06T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nen - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100029@school.magister.net",
+  "summary": "[Huiswerk] geschiedenis",
+  "location": "226",
+  "start": "2026-11-06T10:50:00+00:00",
+  "end": "2026-11-06T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\ngs - D11 - k1a\nDocent: Docent 11\n\nMaken 2.1 1 t/m 2"
+ },
+ {
+  "uid": "magister-100030@school.magister.net",
+  "summary": "lichamelijke opvoeding",
+  "location": "003",
+  "start": "2026-11-06T12:05:00+00:00",
+  "end": "2026-11-06T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nlo - D14 - k1a\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100031@school.magister.net",
+  "summary": "lichamelijke opvoeding",
+  "location": "003",
+  "start": "2026-11-06T12:50:00+00:00",
+  "end": "2026-11-06T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nlo - D14 - k1a\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100032@school.magister.net",
+  "summary": "[Huiswerk] natuurkunde",
+  "location": "020",
+  "start": "2026-11-09T08:15:00+00:00",
+  "end": "2026-11-09T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nna - D1,D2 - k1a\nDocenten: Docent 1, Docent 2\n\nMaak de opdrachten van het stencil krachten tekenen af en de opdrachten van par 1.1."
+ },
+ {
+  "uid": "magister-100033@school.magister.net",
+  "summary": "[Huiswerk] wiskunde",
+  "location": "235",
+  "start": "2026-11-09T09:00:00+00:00",
+  "end": "2026-11-09T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwi - D3 - k1a\nDocent: Docent 3\n\nmaken: H3, opgave 10,11,13,14,15"
+ },
+ {
+  "uid": "magister-100034@school.magister.net",
+  "summary": "[Huiswerk] aardrijkskunde",
+  "location": "226",
+  "start": "2026-11-09T10:05:00+00:00",
+  "end": "2026-11-09T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nak - D4 - k1a\nDocent: Docent 4\n\nLees 2.1 > maak 4 + 5 (en zorg ervoor dat 2 + 3 van de vorige les ook af zijn)"
+ },
+ {
+  "uid": "magister-100131@school.magister.net",
+  "summary": "[Vervallen] [Huiswerk] scheikunde",
+  "location": "017",
+  "start": "2026-11-09T10:50:00+00:00",
+  "end": "2026-11-09T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nVervallen\nsk - D5 - k1a\nDocent: Docent 5\n\nHuiswerk:\nMaken paragraaf 2.1 opdrachten 1 t/m 11\n\nIn de les:\nVerder met opdracht 12 t/m 16 en uitleg 2.2"
+ },
+ {
+  "uid": "magister-100035@school.magister.net",
+  "summary": "z-uur",
+  "location": "017",
+  "start": "2026-11-09T10:50:00+00:00",
+  "end": "2026-11-09T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nZ - D15 - k1a\nDocent: Docent 15"
+ },
+ {
+  "uid": "magister-100036@school.magister.net",
+  "summary": "Duitse taal",
+  "location": "123",
+  "start": "2026-11-09T12:05:00+00:00",
+  "end": "2026-11-09T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\ndu - D6 - k1a\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100132@school.magister.net",
+  "summary": "[Vervallen] [Huiswerk] Franse taal",
+  "location": "121",
+  "start": "2026-11-09T12:50:00+00:00",
+  "end": "2026-11-09T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nVervallen\nfa - D7 - k1a\nDocent: Docent 7\n\nVocabulaire Apprendre 1 en 2 p.81"
+ },
+ {
+  "uid": "magister-100037@school.magister.net",
+  "summary": "NT2",
+  "location": "120",
+  "start": "2026-11-09T12:50:00+00:00",
+  "end": "2026-11-09T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nnt2\nDocenten: Docent 16, Docent 17"
+ },
+ {
+  "uid": "magister-100038@school.magister.net",
+  "summary": "Engelse taal",
+  "location": "125",
+  "start": "2026-11-10T07:30:00+00:00",
+  "end": "2026-11-10T08:15:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nen - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100039@school.magister.net",
+  "summary": "aardrijkskunde",
+  "location": "221",
+  "start": "2026-11-10T08:15:00+00:00",
+  "end": "2026-11-10T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nak - D4 - k1a\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100040@school.magister.net",
+  "summary": "[Huiswerk] economie",
+  "location": "227",
+  "start": "2026-11-10T09:00:00+00:00",
+  "end": "2026-11-10T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nec - D9 - k1a\nDocent: Docent 9\n\nmaken: opg. 2.25 Casus blz. 175"
+ },
+ {
+  "uid": "magister-100041@school.magister.net",
+  "summary": "[Huiswerk] wiskunde",
+  "location": "235",
+  "start": "2026-11-10T10:05:00+00:00",
+  "end": "2026-11-10T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nwi - D3 - k1a\nDocent: Docent 3\n\nmaken: H3, opgave 16,17,18,20"
+ },
+ {
+  "uid": "magister-100042@school.magister.net",
+  "summary": "tekenen",
+  "location": "052",
+  "start": "2026-11-10T10:50:00+00:00",
+  "end": "2026-11-10T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nte - D10 - k1a\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100043@school.magister.net",
+  "summary": "[Huiswerk] geschiedenis",
+  "location": "225",
+  "start": "2026-11-10T12:05:00+00:00",
+  "end": "2026-11-10T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\ngs - D11 - k1a\nDocent: Docent 11\n\nMaken 2.1 3 t/m 7"
+ },
+ {
+  "uid": "magister-100044@school.magister.net",
+  "summary": "[Huiswerk] Franse taal",
+  "location": "222",
+  "start": "2026-11-10T12:50:00+00:00",
+  "end": "2026-11-10T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nfa - D7 - k1a\nDocent: Docent 7\n\nVocabulaire Apprendre 1 en 2 leren"
+ },
+ {
+  "uid": "magister-100045@school.magister.net",
+  "summary": "studieles",
+  "location": "127",
+  "start": "2026-11-11T08:15:00+00:00",
+  "end": "2026-11-11T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nsl - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100046@school.magister.net",
+  "summary": "[Huiswerk] geschiedenis",
+  "location": "226",
+  "start": "2026-11-11T09:00:00+00:00",
+  "end": "2026-11-11T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\ngs - D11 - k1a\nDocent: Docent 11\n\nMaken 2.1 7 t/m 9"
+ },
+ {
+  "uid": "magister-100047@school.magister.net",
+  "summary": "Nederlandse taal",
+  "location": "231",
+  "start": "2026-11-11T10:05:00+00:00",
+  "end": "2026-11-11T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nne - D12 - k1a\nDocent: Docent 12"
+ },
+ {
+  "uid": "magister-100048@school.magister.net",
+  "summary": "[Huiswerk] economie",
+  "location": "227",
+  "start": "2026-11-11T10:50:00+00:00",
+  "end": "2026-11-11T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nec - D9 - k1a\nDocent: Docent 9\n\nmaken: opg. 2.26 Het resultaat blz. 176"
+ },
+ {
+  "uid": "magister-100049@school.magister.net",
+  "summary": "[Huiswerk] natuurkunde",
+  "location": "019",
+  "start": "2026-11-11T12:05:00+00:00",
+  "end": "2026-11-11T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nna - D1,D2 - k1a\nDocenten: Docent 1, Docent 2\n\neerste 4 opgaven van paragraaf 2.2"
+ },
+ {
+  "uid": "magister-100050@school.magister.net",
+  "summary": "[Huiswerk] Duitse taal",
+  "location": "123",
+  "start": "2026-11-11T12:50:00+00:00",
+  "end": "2026-11-11T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\ndu - D6 - k1a\nDocent: Docent 6\n\nLeren woorden Kapitel 2 Lektion 3 NL-D (XX) afmaken Blz. 105 Aufgaben 20+21 (alleen A+B)"
+ },
+ {
+  "uid": "magister-100051@school.magister.net",
+  "summary": "Franse taal",
+  "location": "222",
+  "start": "2026-11-12T07:30:00+00:00",
+  "end": "2026-11-12T08:15:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nfa - D7 - k1a\nDocent: Docent 7"
+ },
+ {
+  "uid": "magister-100052@school.magister.net",
+  "summary": "[Huiswerk] Nederlandse taal",
+  "location": "133",
+  "start": "2026-11-12T08:15:00+00:00",
+  "end": "2026-11-12T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nne - D12 - k1a\nDocent: Docent 12\n\ndoornemen de ppt over de samentrekking. Je kunt ook de video-uitleg bekijken.\nCursus Formuleren, paragraaf 2 (samentrekking controleren): maken opdr. 1, 2 en 3"
+ },
+ {
+  "uid": "magister-100053@school.magister.net",
+  "summary": "Engelse taal",
+  "location": "125",
+  "start": "2026-11-12T09:00:00+00:00",
+  "end": "2026-11-12T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nen - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100054@school.magister.net",
+  "summary": "natuurkunde",
+  "location": "020",
+  "start": "2026-11-12T10:05:00+00:00",
+  "end": "2026-11-12T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nGewijzigd\nna - D1,D2 - k1a\nDocenten: Docent 1, Docent 2"
+ },
+ {
+  "uid": "magister-100055@school.magister.net",
+  "summary": "[Huiswerk] wiskunde",
+  "location": "235",
+  "start": "2026-11-12T10:50:00+00:00",
+  "end": "2026-11-12T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nwi - D3 - k1a\nDocent: Docent 3\n\nmaken: H3, opgave 22,23,25,27,28"
+ },
+ {
+  "uid": "magister-100056@school.magister.net",
+  "summary": "tekenen",
+  "location": "052",
+  "start": "2026-11-12T12:05:00+00:00",
+  "end": "2026-11-12T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nte - D10 - k1a\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100057@school.magister.net",
+  "summary": "[Huiswerk] Duitse taal",
+  "location": "123",
+  "start": "2026-11-12T12:50:00+00:00",
+  "end": "2026-11-12T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\ndu - D6 - k1a\nDocent: Docent 6\n\nHerhalen woorden Kapitel 2 Lektion 3 NL-D!"
+ },
+ {
+  "uid": "magister-100058@school.magister.net",
+  "summary": "[Huiswerk] Nederlandse taal",
+  "location": "019",
+  "start": "2026-11-13T08:15:00+00:00",
+  "end": "2026-11-13T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nne - D12 - k1a\nDocent: Docent 12\n\nBekijk de instructievideo van Cursus Formuleren, paragraaf 3 (fouten met verwijswoorden).\nMaken opdr. 1 tot en met 4 online"
+ },
+ {
+  "uid": "magister-100059@school.magister.net",
+  "summary": "scheikunde",
+  "location": "017",
+  "start": "2026-11-13T09:00:00+00:00",
+  "end": "2026-11-13T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nsk - D5 - k1a\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100060@school.magister.net",
+  "summary": "Engelse taal",
+  "location": "125",
+  "start": "2026-11-13T10:05:00+00:00",
+  "end": "2026-11-13T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nen - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100061@school.magister.net",
+  "summary": "[Huiswerk] geschiedenis",
+  "location": "226",
+  "start": "2026-11-13T10:50:00+00:00",
+  "end": "2026-11-13T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\ngs - D11 - k1a\nDocent: Docent 11\n\nMaken 2.2 1 t/m 5"
+ },
+ {
+  "uid": "magister-100062@school.magister.net",
+  "summary": "lichamelijke opvoeding",
+  "location": "003",
+  "start": "2026-11-13T12:05:00+00:00",
+  "end": "2026-11-13T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nlo - D14 - k1a\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100063@school.magister.net",
+  "summary": "lichamelijke opvoeding",
+  "location": "003",
+  "start": "2026-11-13T12:50:00+00:00",
+  "end": "2026-11-13T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nlo - D14 - k1a\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100064@school.magister.net",
+  "summary": "[Huiswerk] natuurkunde",
+  "location": "020",
+  "start": "2026-11-16T08:15:00+00:00",
+  "end": "2026-11-16T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nGewijzigd\nna - D2,D1 - k1a\nDocenten: Docent 1, Docent 2\n\nMaak de excel opdracht af."
+ },
+ {
+  "uid": "magister-100065@school.magister.net",
+  "summary": "[Huiswerk] wiskunde",
+  "location": "235",
+  "start": "2026-11-16T09:00:00+00:00",
+  "end": "2026-11-16T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwi - D3 - k1a\nDocent: Docent 3\n\nmaken: H3, opgave 31,32,33,34"
+ },
+ {
+  "uid": "magister-100066@school.magister.net",
+  "summary": "[Huiswerk] aardrijkskunde",
+  "location": "226",
+  "start": "2026-11-16T10:05:00+00:00",
+  "end": "2026-11-16T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nak - D4 - k1a\nDocent: Docent 4\n\nlees 2.2, maak 2 + 3"
+ },
+ {
+  "uid": "magister-100067@school.magister.net",
+  "summary": "scheikunde",
+  "location": "017",
+  "start": "2026-11-16T10:50:00+00:00",
+  "end": "2026-11-16T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsk - D5 - k1a\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100068@school.magister.net",
+  "summary": "[Huiswerk] Duitse taal",
+  "location": "123",
+  "start": "2026-11-16T12:05:00+00:00",
+  "end": "2026-11-16T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\ndu - D6 - k1a\nDocent: Docent 6\n\nLeren grammatica onderdelen A+B+C"
+ },
+ {
+  "uid": "magister-100069@school.magister.net",
+  "summary": "Franse taal",
+  "location": "228",
+  "start": "2026-11-16T12:50:00+00:00",
+  "end": "2026-11-16T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nfa - D7 - k1a\nDocent: Docent 7"
+ },
+ {
+  "uid": "magister-100070@school.magister.net",
+  "summary": "NT2",
+  "location": "120",
+  "start": "2026-11-16T12:50:00+00:00",
+  "end": "2026-11-16T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nnt2\nDocenten: Docent 16, Docent 17"
+ },
+ {
+  "uid": "magister-100071@school.magister.net",
+  "summary": "[Huiswerk] Engelse taal",
+  "location": "125",
+  "start": "2026-11-17T07:30:00+00:00",
+  "end": "2026-11-17T08:15:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nen - D8 - k1a\nDocent: Docent 8\n\nBring your worksheet to class. We will talk about the passive. (+ U2 L4 reading exc: 1-2-3-4-5)"
+ },
+ {
+  "uid": "magister-100072@school.magister.net",
+  "summary": "aardrijkskunde",
+  "location": "221",
+  "start": "2026-11-17T08:15:00+00:00",
+  "end": "2026-11-17T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nak - D4 - k1a\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100073@school.magister.net",
+  "summary": "[Huiswerk] economie",
+  "location": "227",
+  "start": "2026-11-17T09:00:00+00:00",
+  "end": "2026-11-17T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nec - D9 - k1a\nDocent: Docent 9\n\nmaken:opg. 2.28 blz. 178"
+ },
+ {
+  "uid": "magister-100074@school.magister.net",
+  "summary": "wiskunde",
+  "location": "235",
+  "start": "2026-11-17T10:05:00+00:00",
+  "end": "2026-11-17T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nwi - D3 - k1a\nDocent: Docent 3"
+ },
+ {
+  "uid": "magister-100075@school.magister.net",
+  "summary": "tekenen",
+  "location": "052",
+  "start": "2026-11-17T10:50:00+00:00",
+  "end": "2026-11-17T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nte - D10 - k1a\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100133@school.magister.net",
+  "summary": "[Vervallen] geschiedenis",
+  "location": "225",
+  "start": "2026-11-17T12:05:00+00:00",
+  "end": "2026-11-17T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nVervallen\ngs - D11 - k1a\nDocent: Docent 11"
+ },
+ {
+  "uid": "magister-100134@school.magister.net",
+  "summary": "[Vervallen] Franse taal",
+  "location": "222",
+  "start": "2026-11-17T12:50:00+00:00",
+  "end": "2026-11-17T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nVervallen\nfa - D7 - k1a\nDocent: Docent 7"
+ },
+ {
+  "uid": "magister-100076@school.magister.net",
+  "summary": "studieles",
+  "location": "127",
+  "start": "2026-11-18T08:15:00+00:00",
+  "end": "2026-11-18T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nsl - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100077@school.magister.net",
+  "summary": "[Huiswerk] geschiedenis",
+  "location": "226",
+  "start": "2026-11-18T09:00:00+00:00",
+  "end": "2026-11-18T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\ngs - D11 - k1a\nDocent: Docent 11\n\nMaken 2.2 6 t/m 11"
+ },
+ {
+  "uid": "magister-100078@school.magister.net",
+  "summary": "[Huiswerk] Nederlandse taal",
+  "location": "231",
+  "start": "2026-11-18T10:05:00+00:00",
+  "end": "2026-11-18T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nne - D12 - k1a\nDocent: Docent 12\n\nBekijk de instructievideo van Cursus Formuleren, paragraaf 4 en maak opdr 1 en 2"
+ },
+ {
+  "uid": "magister-100079@school.magister.net",
+  "summary": "economie",
+  "location": "227",
+  "start": "2026-11-18T10:50:00+00:00",
+  "end": "2026-11-18T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nec - D9 - k1a\nDocent: Docent 9"
+ },
+ {
+  "uid": "magister-100080@school.magister.net",
+  "summary": "natuurkunde",
+  "location": "019",
+  "start": "2026-11-18T12:05:00+00:00",
+  "end": "2026-11-18T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nGewijzigd\nna - D2,D1 - k1a\nDocenten: Docent 1, Docent 2"
+ },
+ {
+  "uid": "magister-100135@school.magister.net",
+  "summary": "[Vervallen] [Huiswerk] Duitse taal",
+  "location": "123",
+  "start": "2026-11-18T12:50:00+00:00",
+  "end": "2026-11-18T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nVervallen\ndu - D6 - k1a\nDocent: Docent 6\n\nLeren woorden Kapitel 2 Lektion 4 D-NL"
+ },
+ {
+  "uid": "magister-100081@school.magister.net",
+  "summary": "Franse taal",
+  "location": "222",
+  "start": "2026-11-19T07:30:00+00:00",
+  "end": "2026-11-19T08:15:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nfa - D7 - k1a\nDocent: Docent 7"
+ },
+ {
+  "uid": "magister-100082@school.magister.net",
+  "summary": "Nederlandse taal",
+  "location": "133",
+  "start": "2026-11-19T08:15:00+00:00",
+  "end": "2026-11-19T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nne - D12 - k1a\nDocent: Docent 12"
+ },
+ {
+  "uid": "magister-100083@school.magister.net",
+  "summary": "natuurkunde",
+  "location": "014",
+  "start": "2026-11-19T09:00:00+00:00",
+  "end": "2026-11-19T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nGewijzigd\nna - D2,D1 - k1a\nDocenten: Docent 1, Docent 2"
+ },
+ {
+  "uid": "magister-100084@school.magister.net",
+  "summary": "[Proefwerk] Duitse taal",
+  "location": "123",
+  "start": "2026-11-19T10:05:00+00:00",
+  "end": "2026-11-19T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nGewijzigd\ndu - D6 - k1a\nDocent: Docent 6\n\nSchrijfvaardigheid: kaartje schrijven. Je gebruikt een woordenboek NL-D\nNaar cijferinvoer"
+ },
+ {
+  "uid": "magister-100136@school.magister.net",
+  "summary": "[Vervallen] wiskunde",
+  "location": "235",
+  "start": "2026-11-19T10:50:00+00:00",
+  "end": "2026-11-19T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nVervallen\nwi - D3 - k1a\nDocent: Docent 3"
+ },
+ {
+  "uid": "magister-100085@school.magister.net",
+  "summary": "Engelse taal",
+  "location": "125",
+  "start": "2026-11-19T10:50:00+00:00",
+  "end": "2026-11-19T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nGewijzigd\nen - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100137@school.magister.net",
+  "summary": "[Vervallen] tekenen",
+  "location": "052",
+  "start": "2026-11-19T12:05:00+00:00",
+  "end": "2026-11-19T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nVervallen\nte - D10 - k1a\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100086@school.magister.net",
+  "summary": "[SO] Nederlandse taal",
+  "location": "019",
+  "start": "2026-11-20T08:15:00+00:00",
+  "end": "2026-11-20T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nne - D12 - k1a\nDocent: Docent 12\n\nLeerstof: cursus spelling, paragraaf 9, 10 en 11."
+ },
+ {
+  "uid": "magister-100087@school.magister.net",
+  "summary": "scheikunde",
+  "location": "017",
+  "start": "2026-11-20T09:00:00+00:00",
+  "end": "2026-11-20T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nsk - D5 - k1a\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100088@school.magister.net",
+  "summary": "Engelse taal",
+  "location": "125",
+  "start": "2026-11-20T10:05:00+00:00",
+  "end": "2026-11-20T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nen - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100089@school.magister.net",
+  "summary": "[Huiswerk] geschiedenis",
+  "location": "226",
+  "start": "2026-11-20T10:50:00+00:00",
+  "end": "2026-11-20T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\ngs - D11 - k1a\nDocent: Docent 11\n\nMaken 2.3 1 t/m 2"
+ },
+ {
+  "uid": "magister-100138@school.magister.net",
+  "summary": "[Vervallen] lichamelijke opvoeding",
+  "location": "003",
+  "start": "2026-11-20T12:05:00+00:00",
+  "end": "2026-11-20T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nVervallen\nlo - D14 - k1a\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100139@school.magister.net",
+  "summary": "[Vervallen] lichamelijke opvoeding",
+  "location": "003",
+  "start": "2026-11-20T12:50:00+00:00",
+  "end": "2026-11-20T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nVervallen\nlo - D14 - k1a\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100090@school.magister.net",
+  "summary": "natuurkunde",
+  "location": "020",
+  "start": "2026-11-23T08:15:00+00:00",
+  "end": "2026-11-23T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nGewijzigd\nna - D2,D1 - k1a\nDocenten: Docent 1, Docent 2"
+ },
+ {
+  "uid": "magister-100091@school.magister.net",
+  "summary": "wiskunde",
+  "location": "235",
+  "start": "2026-11-23T09:00:00+00:00",
+  "end": "2026-11-23T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwi - D3 - k1a\nDocent: Docent 3"
+ },
+ {
+  "uid": "magister-100092@school.magister.net",
+  "summary": "aardrijkskunde",
+  "location": "226",
+  "start": "2026-11-23T10:05:00+00:00",
+  "end": "2026-11-23T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nak - D4 - k1a\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100093@school.magister.net",
+  "summary": "scheikunde",
+  "location": "017",
+  "start": "2026-11-23T10:50:00+00:00",
+  "end": "2026-11-23T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsk - D5 - k1a\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100094@school.magister.net",
+  "summary": "Duitse taal",
+  "location": "123",
+  "start": "2026-11-23T12:05:00+00:00",
+  "end": "2026-11-23T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\ndu - D6 - k1a\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100095@school.magister.net",
+  "summary": "Franse taal",
+  "location": "121",
+  "start": "2026-11-23T12:50:00+00:00",
+  "end": "2026-11-23T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nfa - D7 - k1a\nDocent: Docent 7"
+ },
+ {
+  "uid": "magister-100096@school.magister.net",
+  "summary": "NT2",
+  "location": "120",
+  "start": "2026-11-23T12:50:00+00:00",
+  "end": "2026-11-23T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nnt2\nDocenten: Docent 16, Docent 17"
+ },
+ {
+  "uid": "magister-100097@school.magister.net",
+  "summary": "[SO] Engelse taal",
+  "location": "125",
+  "start": "2026-11-24T07:30:00+00:00",
+  "end": "2026-11-24T08:15:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nen - D8 - k1a\nDocent: Docent 8\n\ns.o. onregelmatige werkwoorden"
+ },
+ {
+  "uid": "magister-100098@school.magister.net",
+  "summary": "aardrijkskunde",
+  "location": "221",
+  "start": "2026-11-24T08:15:00+00:00",
+  "end": "2026-11-24T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nak - D4 - k1a\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100099@school.magister.net",
+  "summary": "economie",
+  "location": "227",
+  "start": "2026-11-24T09:00:00+00:00",
+  "end": "2026-11-24T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nec - D9 - k1a\nDocent: Docent 9"
+ },
+ {
+  "uid": "magister-100100@school.magister.net",
+  "summary": "wiskunde",
+  "location": "235",
+  "start": "2026-11-24T10:05:00+00:00",
+  "end": "2026-11-24T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nwi - D3 - k1a\nDocent: Docent 3"
+ },
+ {
+  "uid": "magister-100101@school.magister.net",
+  "summary": "tekenen",
+  "location": "052",
+  "start": "2026-11-24T10:50:00+00:00",
+  "end": "2026-11-24T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nte - D10 - k1a\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100102@school.magister.net",
+  "summary": "geschiedenis",
+  "location": "225",
+  "start": "2026-11-24T12:05:00+00:00",
+  "end": "2026-11-24T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\ngs - D11 - k1a\nDocent: Docent 11"
+ },
+ {
+  "uid": "magister-100103@school.magister.net",
+  "summary": "Franse taal",
+  "location": "222",
+  "start": "2026-11-24T12:50:00+00:00",
+  "end": "2026-11-24T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nfa - D7 - k1a\nDocent: Docent 7"
+ },
+ {
+  "uid": "magister-100104@school.magister.net",
+  "summary": "studieles",
+  "location": "127",
+  "start": "2026-11-25T08:15:00+00:00",
+  "end": "2026-11-25T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nsl - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100105@school.magister.net",
+  "summary": "geschiedenis",
+  "location": "226",
+  "start": "2026-11-25T09:00:00+00:00",
+  "end": "2026-11-25T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\ngs - D11 - k1a\nDocent: Docent 11"
+ },
+ {
+  "uid": "magister-100106@school.magister.net",
+  "summary": "Nederlandse taal",
+  "location": "231",
+  "start": "2026-11-25T10:05:00+00:00",
+  "end": "2026-11-25T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nne - D12 - k1a\nDocent: Docent 12"
+ },
+ {
+  "uid": "magister-100107@school.magister.net",
+  "summary": "economie",
+  "location": "227",
+  "start": "2026-11-25T10:50:00+00:00",
+  "end": "2026-11-25T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nec - D9 - k1a\nDocent: Docent 9"
+ },
+ {
+  "uid": "magister-100108@school.magister.net",
+  "summary": "[Huiswerk] natuurkunde",
+  "location": "019",
+  "start": "2026-11-25T12:05:00+00:00",
+  "end": "2026-11-25T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nGewijzigd\nna - D1,D2 - k1a\nDocenten: Docent 1, Docent 2\n\n(practicum luchtweerstand)"
+ },
+ {
+  "uid": "magister-100109@school.magister.net",
+  "summary": "Duitse taal",
+  "location": "123",
+  "start": "2026-11-25T12:50:00+00:00",
+  "end": "2026-11-25T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\ndu - D6 - k1a\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100110@school.magister.net",
+  "summary": "[SO] Franse taal",
+  "location": "222",
+  "start": "2026-11-26T07:30:00+00:00",
+  "end": "2026-11-26T08:15:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 1\nfa - D7 - k1a\nDocent: Docent 7\n\nUnité 2 app 1 t/m 5\nwerkwoorden: avoir, être, aller, faire (présent, passé composé, imparfait, futur)"
+ },
+ {
+  "uid": "magister-100111@school.magister.net",
+  "summary": "Nederlandse taal",
+  "location": "133",
+  "start": "2026-11-26T08:15:00+00:00",
+  "end": "2026-11-26T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nne - D12 - k1a\nDocent: Docent 12"
+ },
+ {
+  "uid": "magister-100112@school.magister.net",
+  "summary": "Engelse taal",
+  "location": "125",
+  "start": "2026-11-26T09:00:00+00:00",
+  "end": "2026-11-26T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nen - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100113@school.magister.net",
+  "summary": "natuurkunde",
+  "location": "020",
+  "start": "2026-11-26T10:05:00+00:00",
+  "end": "2026-11-26T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nGewijzigd\nna - D1,D2 - k1a\nDocenten: Docent 1, Docent 2"
+ },
+ {
+  "uid": "magister-100114@school.magister.net",
+  "summary": "wiskunde",
+  "location": "235",
+  "start": "2026-11-26T10:50:00+00:00",
+  "end": "2026-11-26T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nwi - D3 - k1a\nDocent: Docent 3"
+ },
+ {
+  "uid": "magister-100115@school.magister.net",
+  "summary": "tekenen",
+  "location": "052",
+  "start": "2026-11-26T12:05:00+00:00",
+  "end": "2026-11-26T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nte - D10 - k1a\nDocent: Docent 10"
+ },
+ {
+  "uid": "magister-100116@school.magister.net",
+  "summary": "Duitse taal",
+  "location": "123",
+  "start": "2026-11-26T12:50:00+00:00",
+  "end": "2026-11-26T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\ndu - D6 - k1a\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100117@school.magister.net",
+  "summary": "Nederlandse taal",
+  "location": "019",
+  "start": "2026-11-27T08:15:00+00:00",
+  "end": "2026-11-27T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nne - D12 - k1a\nDocent: Docent 12"
+ },
+ {
+  "uid": "magister-100118@school.magister.net",
+  "summary": "scheikunde",
+  "location": "017",
+  "start": "2026-11-27T09:00:00+00:00",
+  "end": "2026-11-27T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nsk - D5 - k1a\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100119@school.magister.net",
+  "summary": "Engelse taal",
+  "location": "125",
+  "start": "2026-11-27T10:05:00+00:00",
+  "end": "2026-11-27T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nen - D8 - k1a\nDocent: Docent 8"
+ },
+ {
+  "uid": "magister-100120@school.magister.net",
+  "summary": "[Proefwerk] geschiedenis",
+  "location": "226",
+  "start": "2026-11-27T10:50:00+00:00",
+  "end": "2026-11-27T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\ngs - D11 - k1a\nDocent: Docent 11\n\nVaardighedentoets Tussen de Oorlogen 2.1-2.3 (2x)"
+ },
+ {
+  "uid": "magister-100121@school.magister.net",
+  "summary": "lichamelijke opvoeding",
+  "location": "003",
+  "start": "2026-11-27T12:05:00+00:00",
+  "end": "2026-11-27T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\nlo - D14 - k1a\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100122@school.magister.net",
+  "summary": "lichamelijke opvoeding",
+  "location": "003",
+  "start": "2026-11-27T12:50:00+00:00",
+  "end": "2026-11-27T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nlo - D14 - k1a\nDocent: Docent 14"
+ },
+ {
+  "uid": "magister-100123@school.magister.net",
+  "summary": "natuurkunde",
+  "location": "020",
+  "start": "2026-11-30T08:15:00+00:00",
+  "end": "2026-11-30T09:00:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 2\nGewijzigd\nna - D1,D2 - k1a\nDocenten: Docent 1, Docent 2"
+ },
+ {
+  "uid": "magister-100124@school.magister.net",
+  "summary": "wiskunde",
+  "location": "235",
+  "start": "2026-11-30T09:00:00+00:00",
+  "end": "2026-11-30T09:45:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 3\nwi - D3 - k1a\nDocent: Docent 3"
+ },
+ {
+  "uid": "magister-100125@school.magister.net",
+  "summary": "aardrijkskunde",
+  "location": "226",
+  "start": "2026-11-30T10:05:00+00:00",
+  "end": "2026-11-30T10:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 4\nak - D4 - k1a\nDocent: Docent 4"
+ },
+ {
+  "uid": "magister-100126@school.magister.net",
+  "summary": "scheikunde",
+  "location": "017",
+  "start": "2026-11-30T10:50:00+00:00",
+  "end": "2026-11-30T11:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 5\nsk - D5 - k1a\nDocent: Docent 5"
+ },
+ {
+  "uid": "magister-100127@school.magister.net",
+  "summary": "Duitse taal",
+  "location": "123",
+  "start": "2026-11-30T12:05:00+00:00",
+  "end": "2026-11-30T12:50:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 6\ndu - D6 - k1a\nDocent: Docent 6"
+ },
+ {
+  "uid": "magister-100128@school.magister.net",
+  "summary": "NT2",
+  "location": "120",
+  "start": "2026-11-30T12:50:00+00:00",
+  "end": "2026-11-30T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nnt2\nDocenten: Docent 16, Docent 17"
+ },
+ {
+  "uid": "magister-100129@school.magister.net",
+  "summary": "Franse taal",
+  "location": "121",
+  "start": "2026-11-30T12:50:00+00:00",
+  "end": "2026-11-30T13:35:00+00:00",
+  "all_day": false,
+  "description": "Lesuur 7\nfa - D7 - k1a\nDocent: Docent 7"
+ }
+]

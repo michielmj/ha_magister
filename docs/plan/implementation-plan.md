@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-09)** |
 | Date | 2026-11-09 |
 | Based on | `docs/design/high-level-design.md` |
 

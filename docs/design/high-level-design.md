@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-09)** |
 | Date | 2026-11-09 |
 | Owner | Architect (Claude) · Product: PM |
 
@@ -36,7 +36,7 @@ simple and Bearer-token based:
 ```
 GET /api/account                                   -> Persoon.Id, Groep[] ("Ouder"?)
 GET /api/personen/{ouderId}/kinderen               -> Items[] (children)
-GET /api/personen/{persoonId}/afspraken?status=1&van=<UTC>&tot=<UTC>
+GET /api/personen/{persoonId}/afspraken?van=<UTC>&tot=<UTC>      (NO status filter, see §7)
 ```
 
 The **hard part is getting the token**. Magister uses OpenID Connect at
@@ -139,8 +139,8 @@ invalid). Asks for password (+ TOTP secret) again.
 
 | Item | Value |
 |---|---|
-| Device | one per child: name `<Roepnaam> (<tenant>)`, manufacturer "Iddink / Magister", entry_type service |
-| Entity | `calendar.magister_<roepnaam>_<tenant>` (via has_entity_name; name "Agenda") |
+| Device | one per child: name `<Roepnaam> (<school prefix>)`, manufacturer "Magister", entry_type service |
+| Entity | `calendar.<roepnaam>_<school prefix>_agenda` (has_entity_name with translation key; name "Agenda"). `event`/state skips cancelled items (Architect decision, M2 review); `async_get_events` includes them |
 | unique_id | `<host>:<childPersonId>` — stable across renames and re-setup |
 
 Removing a child in the options removes its entity/device (registry cleanup).
@@ -151,23 +151,30 @@ Removing a child in the options removes its entity/device (registry cleanup).
 |---|---|
 | uid | `magister-<Id>@<host>` (same scheme as the reference script) |
 | start/end | `Start`/`Einde` (UTC). All-day when `DuurtHeleDag` → date-only event (end exclusive) |
-| summary | `<prefix><subject>` where subject = `Vakken[].Naam` → `Omschrijving` → "Afspraak" |
+| summary | `<prefix><subject>` where subject = `Vakken[].Naam` → first `" - "` segment of `Omschrijving` (e.g. `wisB`, `SE NAT`, `Schoolfotograaf`) → "Afspraak". Some schools leave `Vakken` empty (PM decision 2026-11-13) |
 | location | `Lokatie` → `Lokalen[].Naam` |
-| description | `Lesuur n`, Omschrijving, teachers, a status line ("Vervallen"/"Gewijzigd"), homework/test text (`Inhoud`, HTML → text) |
+| description | `Lesuur n` (or `n–m`), full Omschrijving, teachers, a status line ("Vervallen"/"Gewijzigd"), homework/test text (`Inhoud`, HTML → text) |
 
-Title prefixes (multiple combine, e.g. `[Vervallen] [Toets] Wiskunde`):
+Title prefixes, using **Magister's own label words** (PM decision 2026-11-13; multiple combine, e.g. `[Vervallen] [Proefwerk] biologie`):
 
 | Condition | Prefix |
 |---|---|
-| Status vervallen (manual/automatic) | `[Vervallen]` |
-| InfoType test / proefwerk / tentamen | `[Toets]` |
-| InfoType schriftelijke / mondelinge overhoring | `[SO]` / `[MO]` |
-| InfoType huiswerk | `[HW]` |
-| Status gewijzigd / verplaatst | no prefix; a note in the description |
+| Status 4 / 5 (vervallen handmatig / automatisch) | `[Vervallen]` |
+| InfoType 2 / 3 | `[Proefwerk]` / `[Tentamen]` |
+| InfoType 4 / 5 (schriftelijke / mondelinge overhoring) | `[SO]` / `[MO]` |
+| InfoType 6 | `[Informatie]` |
+| InfoType 1 | `[Huiswerk]` |
+| Status 3 / 9 / 10 (gewijzigd / verplaatst) | no prefix; a note in the description |
 
 Prefix texts are Dutch constants in `mapping.py` (the event text comes from Dutch data anyway).
-The exact `Status`/`InfoType`/`Type` codes and whether the `status=1` query parameter
-filters out cancelled lessons **must be confirmed in Milestone 1** from real responses.
+**Confirmed in M1 (PM run, 2026-11-13):** the `status=1` query parameter **hides cancelled
+lessons** (Status 5 items only appear without it). The integration therefore fetches
+appointments **without** a status filter. Observed codes: Status 1, 3, 5, 7; InfoType 0, 1, 2, 4;
+Type 13 (lesuur) and 7 (keuzewerktijd-like, e.g. NT2). A cancelled lesson keeps its homework
+(`InfoType` 1 + `Inhoud`), and a replacement item (e.g. a z-uur) can appear in the same slot;
+both are shown. A second school confirmed Status 5 = cancelled (5 items) and showed Type 2
+(school events, e.g. school photographer), empty `Vakken`, and school exams as `SE <VAK>` items
+with InfoType 0 (recognizable by title only). Codes not seen yet (4, 9, 10; InfoType 3, 5, 6) follow community knowledge.
 
 ## 8. Reliability, security and privacy
 
@@ -184,17 +191,16 @@ filters out cancelled lessons **must be confirmed in Milestone 1** from real res
 
 ## 9. Quality and tooling
 
-- Python ≥ 3.13, targeting the current HA stable (minimum version set in `hacs.json`).
+- Python ≥ 3.14 (required by HA since 2026.3), targeting the newest HA release supported by `pytest-homeassistant-custom-component` (minimum version set in `hacs.json`).
 - `ruff` (lint + format), `mypy` on `api/` (strict-ish), pytest with
   `pytest-homeassistant-custom-component`, `aioresponses` for HTTP mocks, coverage
   target ≥ 90 % for `api/` and config flow.
 - GitHub Actions: tests + ruff, `hassfest`, `hacs/action`.
 - Every milestone: Developer session → Reviewer session → PM acceptance.
 
-## 10. Open points for the PM
+## 10. PM decisions on open points (2026-11-09)
 
-1. **SSO/passkey accounts** are out of scope for v1 (setup fails with a clear message). OK?
-2. **License**: MIT is proposed.
-3. **Prefix texts** in §7: OK as proposed, or would you like emoji / other wording?
-4. Which **tenants/account types** do you have to test with in Milestone 1 (parent with
-   2FA? without? student?)
+1. SSO/passkey accounts are out of scope for v1 (setup fails with a clear message). **Approved.**
+2. License: **MIT.**
+3. Prefix texts in §7: approved, then changed on 2026-11-13 to Magister's own label words.
+4. Test accounts for Milestone 1: **parent accounts without 2FA** at two school tenants (details shared privately with the Architect). TOTP is covered by mocked tests only (not verified against a real account).

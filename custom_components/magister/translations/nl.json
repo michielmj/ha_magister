@@ -1,0 +1,64 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Verbinden met Magister",
+        "description": "Log in met het Magister-account van een ouder of leerling. Accounts die via schoolbrede SSO of een passkey inloggen worden niet ondersteund.",
+        "data": {
+          "school": "School",
+          "username": "Gebruikersnaam",
+          "password": "Wachtwoord",
+          "totp_secret": "Authenticator-geheim (optioneel)"
+        },
+        "data_description": {
+          "school": "De schoolnaam (bijvoorbeeld `myschool`), de Magister-hostnaam (`myschool.magister.net`) of het webadres.",
+          "username": "De gebruikersnaam waarmee je in Magister inlogt.",
+          "password": "Het wachtwoord van dit account.",
+          "totp_secret": "Alleen voor accounts met tweestapsverificatie: het geheim (base32-tekst) dat getoond werd bij het instellen van de authenticator-app."
+        }
+      },
+      "children": {
+        "title": "Kies kinderen",
+        "description": "Elk gekozen kind krijgt een agenda.",
+        "data": {
+          "children": "Kinderen"
+        }
+      }
+    },
+    "error": {
+      "invalid_school": "Dit is geen geldige Magister-schoolnaam.",
+      "invalid_auth": "De gebruikersnaam of het wachtwoord klopt niet.",
+      "totp_required": "Dit account vereist tweestapsverificatie. Vul het authenticator-geheim in.",
+      "invalid_totp": "Het authenticator-geheim is ongeldig of de code is geweigerd.",
+      "unsupported_login": "Deze school of dit account gebruikt een inlogmethode die niet wordt ondersteund (schoolbrede SSO of passkey).",
+      "cannot_connect": "Kan geen verbinding maken met Magister. Probeer het later opnieuw.",
+      "unknown": "Er is een onverwachte fout opgetreden. Zie het logboek voor details.",
+      "no_children_selected": "Kies minimaal één kind."
+    },
+    "abort": {
+      "already_configured": "Dit Magister-account is al ingesteld.",
+      "no_children": "Er zijn geen kinderen gevonden bij dit account."
+    }
+  },
+  "entity": {
+    "calendar": {
+      "agenda": {
+        "name": "Agenda"
+      }
+    }
+  },
+  "exceptions": {
+    "auth_failed": {
+      "message": "Inloggen bij Magister is mislukt. Controleer de inloggegevens."
+    },
+    "connection_failed": {
+      "message": "Kan geen verbinding maken met Magister."
+    },
+    "api_error": {
+      "message": "Magister gaf een onverwacht antwoord."
+    },
+    "login_blocked": {
+      "message": "Inloggen bij Magister is geblokkeerd na herhaalde fouten. Laad de integratie opnieuw of voeg haar opnieuw toe met nieuwe inloggegevens."
+    }
+  }
+}
