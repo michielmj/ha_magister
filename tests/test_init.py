@@ -16,6 +16,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.magister import _child_of_unique_id
 from custom_components.magister.api import MagisterAuth, MagisterClient
 from custom_components.magister.const import DOMAIN
 from custom_components.magister.pending import (
@@ -279,3 +280,11 @@ async def test_shutdown_and_replacement_release_pending_sessions(
     second.session.detach.assert_called_once()
     retained.session.detach.assert_called_once()
     assert take_pending_login(hass, "a") is None
+
+
+def test_child_of_unique_id() -> None:
+    """The child id is the second part of the unique id; odd ids give None."""
+    assert _child_of_unique_id("school.magister.net:1001") == 1001
+    assert _child_of_unique_id("school.magister.net:1001:first:abc") == 1001
+    assert _child_of_unique_id("school.magister.net") is None
+    assert _child_of_unique_id("school.magister.net:abc") is None

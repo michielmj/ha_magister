@@ -23,6 +23,27 @@
         "data": {
           "children": "Kinderen"
         }
+      },
+      "reauth_confirm": {
+        "title": "Opnieuw inloggen bij Magister",
+        "description": "De login van {username} bij {school} werkt niet meer. Vul het huidige wachtwoord in. Vul het authenticator-geheim alleen in als het gewijzigd is.",
+        "data": {
+          "password": "Wachtwoord",
+          "totp_secret": "Authenticator-geheim (optioneel)"
+        },
+        "data_description": {
+          "password": "Het huidige wachtwoord van dit account.",
+          "totp_secret": "Laat leeg om het opgeslagen geheim te behouden."
+        }
+      },
+      "reconfigure": {
+        "title": "Magister-login wijzigen",
+        "description": "Wijzig de login van het account bij {school}. Het moet hetzelfde Magister-account zijn. Laat het wachtwoord of geheim leeg om het opgeslagen exemplaar te behouden.",
+        "data": {
+          "username": "Gebruikersnaam",
+          "password": "Wachtwoord (optioneel)",
+          "totp_secret": "Authenticator-geheim (optioneel)"
+        }
       }
     },
     "error": {
@@ -37,7 +58,10 @@
     },
     "abort": {
       "already_configured": "Dit Magister-account is al ingesteld.",
-      "no_children": "Er zijn geen kinderen gevonden bij dit account."
+      "no_children": "Er zijn geen kinderen gevonden bij dit account.",
+      "wrong_account": "Deze gegevens horen bij een ander Magister-account. Voeg dat account toe als nieuwe integratie.",
+      "reauth_successful": "Opnieuw ingelogd. De integratie wordt herladen.",
+      "reconfigure_successful": "De login is bijgewerkt. De integratie wordt herladen."
     }
   },
   "entity": {
@@ -58,7 +82,88 @@
       "message": "Magister gaf een onverwacht antwoord."
     },
     "login_blocked": {
-      "message": "Inloggen bij Magister is geblokkeerd na herhaalde fouten. Laad de integratie opnieuw of voeg haar opnieuw toe met nieuwe inloggegevens."
+      "message": "Inloggen bij Magister is geblokkeerd na herhaalde fouten. Herlaad de integratie om nog één keer te proberen, of gebruik Opnieuw configureren om de gegevens te wijzigen."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Magister-opties",
+        "description": "Kies de kinderen, hoeveel van de agenda wordt opgehaald en hoe vaak die wordt ververst.",
+        "data": {
+          "children": "Kinderen",
+          "weeks_back": "Weken terug",
+          "weeks_ahead": "Weken vooruit",
+          "update_interval": "Verversinterval (minuten)"
+        },
+        "data_description": {
+          "weeks_back": "0 tot 8 weken vóór de huidige week.",
+          "weeks_ahead": "1 tot 12 weken na de huidige week. Sensoren voor de eerste afspraak kunnen hooguit 7 x dit aantal - 1 dagen vooruitkijken.",
+          "update_interval": "15 tot 360 minuten."
+        }
+      }
+    },
+    "error": {
+      "no_children_selected": "Kies minstens één kind."
+    },
+    "abort": {
+      "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",
+      "cannot_connect": "De kinderen konden niet bij Magister worden opgehaald. Probeer het later opnieuw."
+    }
+  },
+  "config_subentries": {
+    "first_appointment": {
+      "initiate_flow": {
+        "user": "Sensor voor eerste afspraak toevoegen",
+        "reconfigure": "Sensor voor eerste afspraak wijzigen"
+      },
+      "entry_type": "Sensor voor eerste afspraak",
+      "step": {
+        "user": {
+          "title": "Sensor voor eerste afspraak",
+          "description": "Een sensor met de starttijd van de eerste afspraak van een dag, bijvoorbeeld voor een wekker-automatisering. Dag 0 is vandaag, 1 is morgen. Maximaal {max_offset} dagen vooruit passen in het opgehaalde venster.",
+          "data": {
+            "child_id": "Kind",
+            "offset": "Aantal dagen vooruit",
+            "name": "Naam (optioneel)"
+          },
+          "data_description": {
+            "offset": "0 = vandaag, 1 = morgen, ... Telt kalenderdagen.",
+            "name": "Laat leeg voor een naam op basis van de dag."
+          }
+        },
+        "reconfigure": {
+          "title": "Sensor voor eerste afspraak wijzigen",
+          "description": "Maximaal {max_offset} dagen vooruit passen in het opgehaalde venster.",
+          "data": {
+            "offset": "Aantal dagen vooruit",
+            "name": "Naam"
+          }
+        },
+        "excluded": {
+          "title": "Uitgesloten vakken",
+          "description": "Afspraken met deze vakken worden overgeslagen. De naam moet precies kloppen, hoofdletters maken niet uit. Je kunt ook andere vakken intypen.",
+          "data": {
+            "excluded": "Vakken om over te slaan"
+          }
+        }
+      },
+      "error": {
+        "offset_outside_window": "Deze dag valt buiten het opgehaalde venster (maximaal {max_offset} dagen vooruit). Verhoog eerst het aantal weken vooruit in de opties."
+      },
+      "abort": {
+        "reconfigure_successful": "De sensor is bijgewerkt."
+      }
+    }
+  },
+  "issues": {
+    "login_page_changed": {
+      "title": "Magister heeft de loginpagina gewijzigd",
+      "description": "Inloggen voor {entry} werkt niet meer omdat Magister de loginpagina heeft gewijzigd. Werk de integratie bij (HACS) naar de laatste versie. Blijft het probleem bestaan, meld het dan op de issue tracker."
+    },
+    "offset_outside_window": {
+      "title": "Sensor voor eerste afspraak buiten het venster",
+      "description": "De sensor {name} kijkt {offset} dagen vooruit, maar bij {weeks_ahead} weken vooruit passen er maar {max_offset} dagen. De sensor is onbekend. Verhoog het aantal weken vooruit in de opties of pas de sensor aan."
     }
   }
 }

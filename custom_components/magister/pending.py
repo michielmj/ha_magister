@@ -75,9 +75,20 @@ def get_retained_login(
     return login
 
 
+def peek_retained_login(hass: HomeAssistant, entry_id: str) -> PendingLogin | None:
+    """Return the login kept for an entry without checking the credentials."""
+    logins: dict[str, PendingLogin] = hass.data.get(_RETAINED, {})
+    return logins.get(entry_id)
+
+
 def retain_login(hass: HomeAssistant, entry_id: str, login: PendingLogin) -> None:
-    """Keep ``login`` for later setup retries and reloads of the entry."""
+    """Keep ``login`` for later setup retries and reloads of the entry.
+
+    A different login kept before (replaced after reauth or reconfigure) is released.
+    """
     logins: dict[str, PendingLogin] = hass.data.setdefault(_RETAINED, {})
+    if (old := logins.get(entry_id)) is not None and old is not login:
+        old.session.detach()
     logins[entry_id] = login
 
 

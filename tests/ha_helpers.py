@@ -105,6 +105,7 @@ def make_entry(
     children: list[tuple[int, str]] | None = None,
     unique_id: str = UNIQUE_ID,
     totp: bool = False,
+    options: dict[str, Any] | None = None,
 ) -> MockConfigEntry:
     """A config entry like the config flow creates it."""
     children = children if children is not None else [(CHILD_ID, "Kind A")]
@@ -124,4 +125,5 @@ def make_entry(
         title="Magister school (Ouder)",
         unique_id=unique_id,
         data=data,
+        options=options or {},
     )

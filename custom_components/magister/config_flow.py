@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 import probatio
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    ConfigSubentryFlow,
+)
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
@@ -38,17 +45,17 @@ from .api.errors import (
     AUTH_UNSUPPORTED_LOGIN,
 )
 from .const import (
-    CHILD_ID,
-    CHILD_NAME,
-    CHILD_SHORT_NAME,
     CONF_CHILDREN,
     CONF_HOST,
     CONF_SCHOOL,
     CONF_TOTP_SECRET,
     DOMAIN,
+    SUBENTRY_FIRST,
     host_prefix,
 )
+from .options_flow import MagisterOptionsFlow, child_entry
 from .pending import PendingLogin, store_pending_login
+from .subentry_flow import FirstAppointmentSubentryFlow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,18 +81,43 @@ USER_SCHEMA = probatio.Schema(
 )
 
 
-def _child_entry(person: Person) -> dict[str, Any]:
-    return {
-        CHILD_ID: person.id,
-        CHILD_NAME: person.name,
-        CHILD_SHORT_NAME: person.first_name or person.initials or person.name,
-    }
+def _credentials_schema(*, reauth: bool) -> probatio.Schema:
+    """Form of the reauth (password) and reconfigure (username, password) steps."""
+    fields: dict[Any, Any] = {}
+    if not reauth:
+        fields[probatio.Required(CONF_USERNAME)] = TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT, autocomplete="username")
+        )
+    password_marker = probatio.Required if reauth else probatio.Optional
+    fields[password_marker(CONF_PASSWORD)] = TextSelector(
+        TextSelectorConfig(
+            type=TextSelectorType.PASSWORD, autocomplete="current-password"
+        )
+    )
+    fields[probatio.Optional(CONF_TOTP_SECRET)] = TextSelector(
+        TextSelectorConfig(type=TextSelectorType.PASSWORD)
+    )
+    return probatio.Schema(fields)
 
 
 class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
     """Add a Magister login (one school account)."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> MagisterOptionsFlow:
+        """Return the options flow (children, window, refresh interval)."""
+        return MagisterOptionsFlow()
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """First-appointment sensors are sub-entries."""
+        return {SUBENTRY_FIRST: FirstAppointmentSubentryFlow}
 
     def __init__(self) -> None:
         """Initialise the flow."""
@@ -152,6 +184,92 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="children", data_schema=schema, errors=errors
         )
 
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Start the re-login after the credentials stopped working."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for the new password (and optionally a new authenticator secret)."""
+        return await self._async_credentials_step("reauth_confirm", user_input)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the username, password or authenticator secret of the account."""
+        return await self._async_credentials_step("reconfigure", user_input)
+
+    async def _async_credentials_step(
+        self, step_id: str, user_input: dict[str, Any] | None
+    ) -> ConfigFlowResult:
+        """Validate new credentials with exactly one login and hand it over."""
+        reauth = self.source == SOURCE_REAUTH
+        entry = self._get_reauth_entry() if reauth else self._get_reconfigure_entry()
+        host: str = entry.data[CONF_HOST]
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            credentials = {
+                CONF_USERNAME: entry.data[CONF_USERNAME]
+                if reauth
+                else user_input[CONF_USERNAME],
+                CONF_PASSWORD: user_input.get(CONF_PASSWORD)
+                or entry.data[CONF_PASSWORD],
+                CONF_TOTP_SECRET: user_input.get(CONF_TOTP_SECRET)
+                or entry.data.get(CONF_TOTP_SECRET),
+            }
+            error = await self._async_validate(host, credentials, with_children=False)
+            if error is None:
+                assert self._account is not None
+                if f"{host}:{self._account.person.id}" != entry.unique_id:
+                    self._discard_login()
+                    return self.async_abort(reason="wrong_account")
+                return self._async_hand_over(entry, host, credentials)
+            errors["base"] = error
+        schema = _credentials_schema(reauth=reauth)
+        suggested = {CONF_USERNAME: entry.data[CONF_USERNAME]}
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(
+                schema, user_input or suggested
+            ),
+            errors=errors,
+            description_placeholders={
+                "school": host_prefix(host),
+                "username": entry.data[CONF_USERNAME],
+            },
+        )
+
+    def _async_hand_over(
+        self, entry: ConfigEntry, host: str, credentials: dict[str, Any]
+    ) -> ConfigFlowResult:
+        """Give the validated login to the entry so the reload does not log in."""
+        assert self._login is not None
+        assert entry.unique_id is not None
+        totp = credentials[CONF_TOTP_SECRET]
+        totp_secret = totp.replace(" ", "") if totp else None
+        self._login.credentials = (
+            host,
+            credentials[CONF_USERNAME],
+            credentials[CONF_PASSWORD],
+            totp_secret,
+        )
+        store_pending_login(self.hass, entry.unique_id, self._login)
+        self._handed_over = True
+        data = {
+            CONF_USERNAME: credentials[CONF_USERNAME],
+            CONF_PASSWORD: credentials[CONF_PASSWORD],
+        }
+        if totp_secret:
+            data[CONF_TOTP_SECRET] = totp_secret
+        new_data = {k: v for k, v in entry.data.items() if k != CONF_TOTP_SECRET}
+        new_data |= data
+        result = self.async_update_and_abort(entry, data=new_data)
+        self.hass.config_entries.async_schedule_reload(entry.entry_id)
+        return result
+
     # ---------------------------------------------------------- helpers
 
     def _discard_login(self) -> None:
@@ -167,7 +285,7 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
             self._discard_login()
 
     async def _async_validate(
-        self, host: str, user_input: dict[str, Any]
+        self, host: str, user_input: dict[str, Any], *, with_children: bool = True
     ) -> str | None:
         """Log in and read the account (and children); return an error key."""
         self._discard_login()
@@ -186,7 +304,7 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
             account = await client.async_get_account()
             children = (
                 await client.async_get_children(account.person.id)
-                if account.is_parent
+                if account.is_parent and with_children
                 else [account.person]
             )
         except MagisterAuthError as err:
@@ -241,7 +359,7 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_HOST: self._host,
             CONF_USERNAME: self._user_input[CONF_USERNAME],
             CONF_PASSWORD: self._user_input[CONF_PASSWORD],
-            CONF_CHILDREN: [_child_entry(child) for child in children],
+            CONF_CHILDREN: [child_entry(child) for child in children],
         }
         if totp_secret := self._user_input.get(CONF_TOTP_SECRET):
             data[CONF_TOTP_SECRET] = totp_secret.replace(" ", "")
