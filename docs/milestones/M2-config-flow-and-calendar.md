@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Approved by PM (2026-11-13)** |
+| Status | **Accepted by PM (2026-11-13)** — installed on HAOS; calendars for all 3 children visible |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | HLD §4–§8 · `docs/reference/magister-api.md` · fixtures in `tests/fixtures/school_a`, `school_b` |
 
