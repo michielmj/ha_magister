@@ -40,6 +40,7 @@ from .errors import (
     MagisterAuthError,
     MagisterConnectionError,
     MagisterError,
+    MagisterLoginPageError,
 )
 from .login_page import (
     DEFAULT_SCOPE,
@@ -191,6 +192,7 @@ class MagisterAuth:
         self._valid_until = 0.0
         self.last_token_source: TokenSource | None = None
         self.final_failure_reported = False
+        self.login_page_changed = False
         self.last_silent_failure: str | None = None
         self.password_submissions = 0
 
@@ -213,6 +215,11 @@ class MagisterAuth:
         self.final_failure_reported = False
 
     @property
+    def backoff_remaining(self) -> float:
+        """Seconds before a new full login may start (0 when not waiting)."""
+        return max(self._blocked_until - self._clock(), 0.0)
+
+    @property
     def host(self) -> str:
         """The school host name."""
         return self._host
@@ -231,6 +238,8 @@ class MagisterAuth:
         self._post_password_failures = 0
         self._token = None
         self._has_session = False
+        self.final_failure_reported = False
+        self.login_page_changed = False
 
     # ------------------------------------------------------------------ token
 
@@ -289,6 +298,8 @@ class MagisterAuth:
                 self._block_for(None)
             raise
         except MagisterError as err:
+            if isinstance(err, MagisterLoginPageError):
+                self.login_page_changed = True
             # Once the password was sent, any other failure may count towards a
             # lockout, so it is remembered and never retried automatically.
             self._token = None
@@ -303,6 +314,8 @@ class MagisterAuth:
         self._backoff = CONNECTION_BACKOFF
         self._post_password_failures = 0
         self._has_session = True
+        self.final_failure_reported = False
+        self.login_page_changed = False
         return self._store(result, "login")
 
     def _block_for(self, retry_after: float | None) -> None:
@@ -490,7 +503,7 @@ class MagisterAuth:
         try:
             return await self._login_once()
         except _AuthCodeRejectedError as err:
-            raise MagisterApiError(
+            raise MagisterLoginPageError(
                 "Magister rejected the login request code; the flow may have changed"
             ) from err
 

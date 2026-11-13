@@ -128,7 +128,8 @@ def build_summary(appointment: Appointment) -> str:
     return " ".join(parts)
 
 
-def _lesson_hours(appointment: Appointment) -> str | None:
+def lesson_hours(appointment: Appointment) -> str | None:
+    """Return ``Lesuur 3`` / a range for lesson items, else ``None``."""
     first, last = appointment.period_start, appointment.period_end
     if first is None:
         return None
@@ -150,7 +151,7 @@ def build_description(appointment: Appointment) -> str:
     header = [
         line
         for line in (
-            _lesson_hours(appointment),
+            lesson_hours(appointment),
             _status_line(appointment),
             appointment.description,
         )
