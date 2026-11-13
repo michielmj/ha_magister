@@ -7,11 +7,11 @@ Magister API.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable, Mapping
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final
 
+import probatio
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
@@ -22,8 +22,6 @@ from .const import CONF_HOST, CONF_WEIGHTS, DOMAIN
 
 if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
-
-_LOGGER = logging.getLogger(__name__)
 
 STORE_VERSION: Final = 1
 SAVE_DELAY: Final = 5.0
@@ -39,6 +37,28 @@ _SUBSCRIBERS: Final = f"{DOMAIN}_homework_subscribers"
 
 type Payload = dict[str, Any]
 type Subscriber = Callable[[Payload], None]
+
+
+def strict_progress(value: Any) -> int:
+    """Validate a progress value: a real integer 0-100 (booleans are rejected)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise probatio.Invalid("progress must be an integer")
+    if not 0 <= value <= 100:
+        raise probatio.Invalid("progress must be between 0 and 100")
+    return value
+
+
+def service_progress(value: Any) -> int:
+    """Like ``strict_progress`` but also accepts whole numbers as text or float."""
+    if isinstance(value, bool):
+        raise probatio.Invalid("progress must be an integer")
+    try:
+        number = float(value)
+    except TypeError, ValueError:
+        raise probatio.Invalid("progress must be an integer") from None
+    if not number.is_integer():
+        raise probatio.Invalid("progress must be an integer")
+    return strict_progress(int(number))
 
 
 def _clamp(value: Any) -> int:
@@ -276,6 +296,11 @@ class HomeworkManager:
         return len(self._progress)
 
 
+async def async_remove_store(hass: HomeAssistant, entry_id: str) -> None:
+    """Delete the progress store of a removed config entry."""
+    await Store(hass, STORE_VERSION, f"{DOMAIN}.homework.{entry_id}").async_remove()
+
+
 def _parse_date(value: Any) -> date | None:
     try:
         return date.fromisoformat(str(value))
@@ -335,6 +360,8 @@ def async_subscribe(
     def remove() -> None:
         if subscriber in subscribers:
             subscribers.remove(subscriber)
+        if not subscribers:
+            _subscribers(hass).pop(entity_id, None)
 
     return remove
 

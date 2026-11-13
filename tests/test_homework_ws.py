@@ -9,7 +9,10 @@ import pytest
 from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
+from pytest_homeassistant_custom_component.common import MockUser
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
+
+from custom_components.magister.const import DOMAIN
 
 from .ha_helpers import NOW
 from .test_homework import TODO_ID, set_progress, setup_homework, uid
@@ -230,3 +233,84 @@ async def test_coordinator_refresh_is_pushed(
     await hass.async_block_till_done()
     event = await client.receive_json()
     assert len(event["event"]["items"]) == 52
+
+
+async def test_set_progress_rejects_booleans_and_returns_stored_values(
+    hass: HomeAssistant, mocked: aioresponses, hass_ws_client: WebSocketGenerator
+) -> None:
+    """True is invalid; the result is what the manager stored."""
+    _, entry = await setup_homework(hass, mocked)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(
+        {
+            "type": SET_PROGRESS,
+            "entity_id": TODO_ID,
+            "item": uid(100065),
+            "progress": True,
+        }
+    )
+    result = await client.receive_json()
+    assert result["error"]["code"] == "invalid_format"
+    assert entry.runtime_data.homework.progress(uid(100065)) == 0
+
+
+async def test_unsubscribe_and_close_clear_the_hub(
+    hass: HomeAssistant, mocked: aioresponses, hass_ws_client: WebSocketGenerator
+) -> None:
+    """The subscriber list is emptied by unsubscribe and by closing the socket."""
+    await setup_homework(hass, mocked)
+    hub = hass.data[f"{DOMAIN}_homework_subscribers"]
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 5, "type": SUBSCRIBE, "entity_id": TODO_ID})
+    await client.receive_json()
+    await client.receive_json()
+    assert len(hub[TODO_ID]) == 1
+    await client.send_json({"id": 6, "type": "unsubscribe_events", "subscription": 5})
+    assert (await client.receive_json())["success"]
+    assert TODO_ID not in hub
+
+    await client.send_json({"id": 7, "type": SUBSCRIBE, "entity_id": TODO_ID})
+    await client.receive_json()
+    await client.receive_json()
+    assert len(hub[TODO_ID]) == 1
+    await client.close()
+    await hass.async_block_till_done()
+    assert TODO_ID not in hub
+
+
+async def test_removal_pushes_unavailable(
+    hass: HomeAssistant, mocked: aioresponses, hass_ws_client: WebSocketGenerator
+) -> None:
+    """Unloading the entry tells subscribers; they keep the last items."""
+    _, entry = await setup_homework(hass, mocked)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": SUBSCRIBE, "entity_id": TODO_ID})
+    await client.receive_json()
+    await client.receive_json()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    event = await client.receive_json()
+    assert event["event"]["available"] is False
+    assert len(event["event"]["items"]) == 53
+
+
+async def test_permissions(
+    hass: HomeAssistant,
+    mocked: aioresponses,
+    hass_ws_client: WebSocketGenerator,
+    hass_admin_user: MockUser,
+) -> None:
+    """Subscribe needs read, set_progress needs control permission."""
+    await setup_homework(hass, mocked)
+    client = await hass_ws_client(hass)
+    hass_admin_user.mock_policy({"entities": {"entity_ids": {TODO_ID: {"read": True}}}})
+    await client.send_json_auto_id(
+        {"type": SET_PROGRESS, "entity_id": TODO_ID, "item": uid(100065), "progress": 5}
+    )
+    assert (await client.receive_json())["error"]["code"] == "unauthorized"
+    await client.send_json_auto_id({"type": SUBSCRIBE, "entity_id": TODO_ID})
+    assert (await client.receive_json())["success"]
+    await client.receive_json()
+
+    hass_admin_user.mock_policy({"entities": {"entity_ids": {"todo.other": True}}})
+    await client.send_json_auto_id({"type": SUBSCRIBE, "entity_id": TODO_ID})
+    assert (await client.receive_json())["error"]["code"] == "unauthorized"

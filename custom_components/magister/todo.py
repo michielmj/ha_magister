@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import probatio
+from homeassistant.components.todo.const import (
+    DOMAIN as TODO_DOMAIN,
+)
 from homeassistant.components.todo.const import TodoItemStatus, TodoListEntityFeature
 from homeassistant.components.todo.entity import TodoItem, TodoListEntity
 from homeassistant.core import HomeAssistant, callback
@@ -10,8 +13,8 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import (
     AddConfigEntryEntitiesCallback,
-    async_get_current_platform,
 )
+from homeassistant.helpers.service import async_register_platform_entity_service
 
 from .api.homework import HomeworkItem
 from .api.mapping import ATTACHMENTS_LINE, LOCAL_TZ
@@ -32,6 +35,7 @@ from .homework import (
     Payload,
     async_publish,
     build_payload,
+    service_progress,
 )
 
 PARALLEL_UPDATES = 0
@@ -57,15 +61,21 @@ async def async_setup_entry(
         )
         for child in entry.data[CONF_CHILDREN]
     )
-    async_get_current_platform().async_register_entity_service(
+
+
+@callback
+def async_register_homework_service(hass: HomeAssistant) -> None:
+    """Register ``magister.set_homework_progress`` (at integration setup)."""
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
         SERVICE_SET_HOMEWORK_PROGRESS,
-        {
+        entity_domain=TODO_DOMAIN,
+        func="async_set_homework_progress",
+        schema={
             probatio.Required(ATTR_ITEM): cv.string,
-            probatio.Required(ATTR_PROGRESS): probatio.All(
-                probatio.Coerce(int), probatio.Range(min=0, max=100)
-            ),
+            probatio.Required(ATTR_PROGRESS): service_progress,
         },
-        "async_set_homework_progress",
     )
 
 
@@ -143,6 +153,12 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
             self._last_payload = payload
             async_publish(self.hass, self.entity_id, payload)
 
+    async def async_will_remove_from_hass(self) -> None:
+        """Tell the card that the list is gone (the last items stay in the payload)."""
+        items = self._last_payload["items"] if self._last_payload else []
+        async_publish(self.hass, self.entity_id, {"available": False, "items": items})
+        await super().async_will_remove_from_hass()
+
     @callback
     def payload(self) -> Payload:
         """The current list for a new WebSocket subscriber."""
@@ -162,6 +178,11 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
         self._require_item(uid)
         self._manager.set_progress(uid, progress)
 
+    @callback
+    def stored_progress(self, uid: str) -> int:
+        """The stored progress of an item."""
+        return self._manager.progress(uid)
+
     async def async_set_homework_progress(self, item: str, progress: int) -> None:
         """Service ``magister.set_homework_progress``."""
         self.set_progress(item, progress)
@@ -173,6 +194,15 @@ class MagisterHomeworkTodo(MagisterEntity, TodoListEntity):
         """
         uid = item.uid or ""
         self._require_item(uid)
+        current = next((i for i in self._attr_todo_items or [] if i.uid == uid), None)
+        if current is not None and (
+            item.summary != current.summary
+            or item.description != current.description
+            or item.due != current.due
+        ):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="homework_status_only"
+            )
         if item.status == TodoItemStatus.COMPLETED:
             self._manager.set_progress(uid, 100)
         elif item.status == TodoItemStatus.NEEDS_ACTION:

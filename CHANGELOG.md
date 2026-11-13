@@ -6,6 +6,9 @@
   progress in percent stored in Home Assistant, the service `magister.set_homework_progress`,
   a WebSocket API for the upcoming card, weighted progress sensors (tomorrow, this week, next
   week) and an options menu with homework weights.
+- Every child gets new entities after upgrading: a Homework to-do list and three progress
+  sensors. With `weeks_ahead` set to 1, a repair notice appears because the next-week sensor
+  needs at least 2 weeks ahead (that sensor stays unavailable until you raise it).
 
 ## 1.0.0
 

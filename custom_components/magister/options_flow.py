@@ -335,5 +335,4 @@ class MagisterOptionsFlow(OptionsFlow):
             options[CONF_WEIGHTS] = weights
         else:
             options.pop(CONF_WEIGHTS, None)
-        self.hass.config_entries.async_update_entry(entry, options=options)
         return self.async_create_entry(data=options)

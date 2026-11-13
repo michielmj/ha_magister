@@ -33,7 +33,7 @@ from .coordinator import (
     login_page_issue_id,
 )
 from .entity import child_device_info
-from .homework import HomeworkManager
+from .homework import HomeworkManager, async_remove_store
 from .options_flow import children_in_other_entries
 from .pending import (
     PendingLogin,
@@ -43,6 +43,7 @@ from .pending import (
     retain_login,
     take_pending_login,
 )
+from .todo import async_register_homework_service
 from .ws_api import async_register_websocket_api
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -54,6 +55,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Magister integration."""
     async_register_shutdown(hass)
     async_register_websocket_api(hass)
+    async_register_homework_service(hass)
     return True
 
 
@@ -244,6 +246,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagisterConfigEntry) ->
 async def async_remove_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> None:
     """Release the kept login when the entry is removed."""
     drop_login(hass, entry.entry_id)
+    await async_remove_store(hass, entry.entry_id)
     ir.async_delete_issue(hass, DOMAIN, duplicate_issue_id(entry.entry_id))
     async_sync_duplicate_issues(hass, exclude_entry_id=entry.entry_id)
     if (pending := take_pending_login(hass, entry.unique_id)) is not None:

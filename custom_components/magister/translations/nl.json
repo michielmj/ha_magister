@@ -106,6 +106,9 @@
     },
     "homework_item_not_found": {
       "message": "Dit huiswerkitem staat niet (meer) in de lijst."
+    },
+    "homework_status_only": {
+      "message": "Alleen de status van een huiswerkitem kan worden gewijzigd; de items komen uit Magister."
     }
   },
   "options": {

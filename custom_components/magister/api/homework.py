@@ -92,7 +92,7 @@ def extract_homework(
                 has_attachments=appointment.has_attachments,
             )
         )
-    items.sort(key=lambda i: (i.start, i.lesson_hour or 0, i.appointment_id))
+    items.sort(key=lambda i: (i.start, i.lesson_hour or 0, i.uid))
     return items
 
 

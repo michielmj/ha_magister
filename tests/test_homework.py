@@ -13,6 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
@@ -454,6 +455,7 @@ async def test_items_leaving_the_window_are_pruned_after_14_days(
     """A vanished item disappears at once; its progress goes after 14 days."""
     fake, entry = await setup_homework(hass, mocked)
     homework = entry.runtime_data.homework
+    original = list(fake.appointments[CHILD_ID])
     await set_progress(hass, uid(100065), 50)
     fake.appointments[CHILD_ID] = [
         a for a in fake.appointments[CHILD_ID] if a["Id"] != 100065
@@ -466,15 +468,72 @@ async def test_items_leaving_the_window_are_pruned_after_14_days(
     frozen_now.tick(timedelta(days=13))
     await coordinator.async_refresh()
     assert homework.progress(uid(100065)) == 50
-    # It comes back: the progress is still there, and the mark is gone.
-    fake.appointments[CHILD_ID] = [
-        a for a in fake.appointments[CHILD_ID] if a["Id"] != 100065
-    ]
-    frozen_now.tick(timedelta(days=2))
+    # It comes back: the progress is still there and the "gone" mark is cleared.
+    fake.appointments[CHILD_ID] = original
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert uid(100065) in await todo_items(hass)
+    assert homework.progress(uid(100065)) == 50
+    # Long after, the present item is not pruned.
+    frozen_now.tick(timedelta(days=30))
+    await coordinator.async_refresh()
+    assert homework.progress(uid(100065)) == 50
+    # Gone again: after more than 14 days the progress is dropped.
+    fake.appointments[CHILD_ID] = [a for a in original if a["Id"] != 100065]
+    await coordinator.async_refresh()
+    frozen_now.tick(timedelta(days=15))
     await coordinator.async_refresh()
     await hass.async_block_till_done()
     assert homework.progress(uid(100065)) == 0
     assert homework.stored_entries == 0
+
+
+async def test_store_is_deleted_with_the_entry(
+    hass: HomeAssistant, mocked: aioresponses, hass_storage: dict[str, Any]
+) -> None:
+    """Removing the config entry removes its progress store."""
+    _, entry = await setup_homework(hass, mocked)
+    await set_progress(hass, uid(100065), 50)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    key = f"{DOMAIN}.homework.{entry.entry_id}"
+    assert key in hass_storage
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert key not in hass_storage
+
+
+async def test_service_exists_before_any_entry(hass: HomeAssistant) -> None:
+    """The action is registered at integration setup."""
+    assert await async_setup_component(hass, DOMAIN, {})
+    assert hass.services.has_service(DOMAIN, "set_homework_progress")
+
+
+async def test_service_rejects_booleans(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """True is not a progress value; whole numbers as text are fine."""
+    _, entry = await setup_homework(hass, mocked)
+    with pytest.raises(Exception, match="integer"):
+        await set_progress(hass, uid(100065), True)  # type: ignore[arg-type]
+    await set_progress(hass, uid(100065), "25")  # type: ignore[arg-type]
+    assert entry.runtime_data.homework.progress(uid(100065)) == 25
+    with pytest.raises(Exception, match="integer"):
+        await set_progress(hass, uid(100065), 2.5)  # type: ignore[arg-type]
+
+
+async def test_only_the_status_can_be_changed(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Renaming (or other fields) is refused with a translated error."""
+    await setup_homework(hass, mocked)
+    with pytest.raises(ServiceValidationError) as err:
+        await hass.services.async_call(
+            "todo",
+            "update_item",
+            {"entity_id": TODO_ID, "item": uid(100065), "rename": "andere titel"},
+            blocking=True,
+        )
+    assert err.value.translation_key == "homework_status_only"
 
 
 async def test_item_keeps_progress_when_text_changes(

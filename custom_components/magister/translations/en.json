@@ -106,6 +106,9 @@
     },
     "homework_item_not_found": {
       "message": "This homework item does not exist (any more) in the list."
+    },
+    "homework_status_only": {
+      "message": "Only the status of a homework item can be changed; the items come from Magister."
     }
   },
   "options": {

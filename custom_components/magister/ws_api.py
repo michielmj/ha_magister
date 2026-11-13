@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 
 import probatio
+from homeassistant.auth.permissions.const import POLICY_CONTROL, POLICY_READ
 from homeassistant.components.todo.const import DATA_COMPONENT
 from homeassistant.components.todo.const import DOMAIN as TODO_DOMAIN
 from homeassistant.components.websocket_api import async_register_command
@@ -19,10 +20,10 @@ from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.components.websocket_api.decorators import websocket_command
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv
 
-from .homework import async_subscribe
+from .homework import async_subscribe, strict_progress
 from .todo import MagisterHomeworkTodo
 
 SUBSCRIBE = "magister/homework/subscribe"
@@ -66,6 +67,8 @@ def websocket_subscribe(
             msg["id"], ERR_NOT_FOUND, "Homework to-do list entity not found"
         )
         return
+    if not connection.user.permissions.check_entity(entity_id, POLICY_READ):
+        raise Unauthorized(entity_id=entity_id)
 
     @callback
     def push(payload: dict[str, Any]) -> None:
@@ -81,9 +84,7 @@ def websocket_subscribe(
         probatio.Required("type"): SET_PROGRESS,
         probatio.Required("entity_id"): cv.entity_domain(TODO_DOMAIN),
         probatio.Required("item"): cv.string,
-        probatio.Required("progress"): probatio.All(
-            int, probatio.Range(min=0, max=100)
-        ),
+        probatio.Required("progress"): strict_progress,
     }
 )
 @callback
@@ -97,11 +98,12 @@ def websocket_set_progress(
             msg["id"], ERR_NOT_FOUND, "Homework to-do list entity not found"
         )
         return
+    if not connection.user.permissions.check_entity(msg["entity_id"], POLICY_CONTROL):
+        raise Unauthorized(entity_id=msg["entity_id"])
     try:
         entity.set_progress(msg["item"], msg["progress"])
     except ServiceValidationError:
         connection.send_error(msg["id"], ERR_ITEM_NOT_FOUND, "Homework item not found")
         return
-    connection.send_result(
-        msg["id"], {"progress": msg["progress"], "completed": msg["progress"] >= 100}
-    )
+    stored = entity.stored_progress(msg["item"])
+    connection.send_result(msg["id"], {"progress": stored, "completed": stored >= 100})
