@@ -316,3 +316,46 @@ async def test_reconfigure_wrong_account_and_wrong_password(
     assert result["reason"] == "wrong_account"
     assert entry.data[CONF_USERNAME] == USERNAME
     assert entry.state is ConfigEntryState.LOADED
+
+
+async def test_login_page_changed_is_a_form_error(
+    hass: HomeAssistant, mocked: aioresponses, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A changed login page is reported as such in reauth and reconfigure."""
+    from . import api as _api  # noqa: F401
+    from .api import helpers
+
+    FakeMagister(mocked, challenges=[*LOGIN_OK, *LOGIN_OK, *LOGIN_OK])
+    entry = await _setup(hass)
+    original = helpers.read_fixture
+    monkeypatch.setattr(
+        helpers,
+        "read_fixture",
+        lambda name: "x" if name == "login_bundle_excerpt.js" else original(name),
+    )
+    result = await _start_reauth(hass, entry)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: NEW_PASSWORD}
+    )
+    assert result["errors"] == {"base": "login_page_changed"}
+    monkeypatch.setattr(helpers, "read_fixture", original)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PASSWORD: NEW_PASSWORD}
+    )
+    assert result["reason"] == "reauth_successful"
+
+
+async def test_reconfigure_can_remove_the_totp_secret(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """The checkbox removes the saved authenticator secret."""
+    FakeMagister(mocked, challenges=[*LOGIN_TOTP_OK, *LOGIN_OK])
+    entry = await _setup(hass, make_entry(totp=True))
+    result = await entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_USERNAME: USERNAME, "remove_totp": True}
+    )
+    assert result["reason"] == "reconfigure_successful"
+    await hass.async_block_till_done()
+    assert CONF_TOTP_SECRET not in entry.data
+    assert entry.state is ConfigEntryState.LOADED

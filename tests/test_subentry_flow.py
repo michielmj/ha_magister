@@ -283,3 +283,28 @@ async def test_delete_sensor(hass: HomeAssistant, mocked: aioresponses) -> None:
     assert hass.states.get("calendar.kind_school_agenda") is not None
     assert entry.state is ConfigEntryState.LOADED
     assert DOMAIN in hass.config.components
+
+
+async def test_default_title_follows_a_new_offset(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A default title is renewed for the new offset; a custom one is kept."""
+    entry = make_entry()
+    add_sensor(entry, 1, subentry_id="d", title="First appointment tomorrow")
+    add_sensor(entry, 1, subentry_id="c", title="My own")
+    entry = await _setup(hass, mocked, entry)
+    for sub_id, expected in (("d", "First appointment in 3 days"), ("c", "My own")):
+        result = await hass.config_entries.subentries.async_init(
+            (entry.entry_id, SUBENTRY_FIRST),
+            context={"source": "reconfigure", "subentry_id": sub_id},
+        )
+        title = entry.subentries[sub_id].title
+        result = await hass.config_entries.subentries.async_configure(
+            result["flow_id"], {CONF_OFFSET: 3, "name": title}
+        )
+        result = await hass.config_entries.subentries.async_configure(
+            result["flow_id"], {}
+        )
+        assert result["type"] is FlowResultType.ABORT
+        assert entry.subentries[sub_id].title == expected
+        await hass.async_block_till_done()

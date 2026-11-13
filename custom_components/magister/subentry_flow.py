@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 import probatio
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import (
+    ConfigSubentry,
+    ConfigSubentryFlow,
+    SubentryFlowResult,
+)
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -145,10 +149,7 @@ class FirstAppointmentSubentryFlow(ConfigSubentryFlow):
             if reconfigure:
                 subentry = self._get_reconfigure_subentry()
                 return self.async_update_and_abort(
-                    entry,
-                    subentry,
-                    title=self._name or subentry.title,
-                    data=data,
+                    entry, subentry, title=self._reconfigured_title(subentry), data=data
                 )
             title = self._name or default_title(self._offset, self.hass.config.language)
             return self.async_create_entry(title=title, data=data)
@@ -176,6 +177,16 @@ class FirstAppointmentSubentryFlow(ConfigSubentryFlow):
             }
         )
         return self.async_show_form(step_id="excluded", data_schema=schema)
+
+    def _reconfigured_title(self, subentry: ConfigSubentry) -> str:
+        """Keep a custom title; follow the new offset while the title is the default."""
+        old = subentry.title
+        if self._name and self._name != old:
+            return self._name
+        old_offset = int(subentry.data[CONF_OFFSET])
+        if old in {default_title(old_offset, "nl"), default_title(old_offset, "en")}:
+            return default_title(self._offset, self.hass.config.language)
+        return old
 
     def _known_subjects(self, entry: Any) -> set[str]:
         """Subjects in the child's current data (empty while the entry is down)."""

@@ -6,7 +6,7 @@ import json
 
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryError
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -17,6 +17,7 @@ from homeassistant.helpers.typing import ConfigType
 from .api import MagisterAuth, MagisterClient
 from .const import (
     CHILD_ID,
+    CHILD_SHORT_NAME,
     CONF_CHILD_ID,
     CONF_CHILDREN,
     CONF_HOST,
@@ -29,6 +30,7 @@ from .coordinator import (
     MagisterRuntimeData,
     login_page_issue_id,
 )
+from .entity import child_device_info
 from .pending import (
     PendingLogin,
     async_register_shutdown,
@@ -71,6 +73,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
     login.credentials = credentials
     retain_login(hass, entry.entry_id, login)
 
+    if login.auth.is_credential_failure:
+        # Rejected credentials are never sent again: only new credentials (the
+        # reauth hand-over or a changed config entry) lead to a new login.
+        login.auth.final_failure_reported = True
+        raise ConfigEntryAuthFailed(
+            translation_domain=DOMAIN, translation_key="auth_failed"
+        )
     if login.auth.has_final_failure and login.auth.final_failure_reported:
         # The failure was already reported (setup error / reauth state), so this
         # setup is user-initiated (reload): allow exactly one new login.
@@ -92,6 +101,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
         coordinator=coordinator,
         snapshot=config_snapshot(entry),
     )
+    # The calendar and the sensors are set up concurrently and share these devices.
+    device_registry = dr.async_get(hass)
+    for child in entry.data[CONF_CHILDREN]:
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            **child_device_info(
+                host, int(child[CHILD_ID]), str(child[CHILD_SHORT_NAME])
+            ),
+        )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
@@ -137,7 +155,7 @@ def _child_of_unique_id(unique_id: str) -> int | None:
 def _async_remove_dropped_children(
     hass: HomeAssistant, entry: MagisterConfigEntry
 ) -> None:
-    """Remove entities of unselected children and of deleted sensors."""
+    """Remove entities, devices and sensors of children that were unselected."""
     selected = {int(child[CHILD_ID]) for child in entry.data[CONF_CHILDREN]}
     for subentry_id, subentry in list(entry.subentries.items()):
         if int(subentry.data.get(CONF_CHILD_ID, -1)) not in selected:
@@ -146,12 +164,6 @@ def _async_remove_dropped_children(
     for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
         child_id = _child_of_unique_id(entity.unique_id)
         if child_id is not None and child_id not in selected:
-            entity_registry.async_remove(entity.entity_id)
-        elif (
-            ":first:" in entity.unique_id
-            and entity.unique_id.rpartition(":")[2] not in entry.subentries
-        ):
-            # The sensor of a deleted sub-entry
             entity_registry.async_remove(entity.entity_id)
     device_registry = dr.async_get(hass)
     for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
@@ -170,4 +182,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagisterConfigEntry) ->
 async def async_remove_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> None:
     """Release the kept login when the entry is removed."""
     drop_login(hass, entry.entry_id)
+    if (pending := take_pending_login(hass, entry.unique_id)) is not None:
+        pending.session.detach()
     ir.async_delete_issue(hass, DOMAIN, login_page_issue_id(entry.entry_id))

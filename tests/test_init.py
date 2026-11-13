@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.const import CONF_PASSWORD, EVENT_HOMEASSISTANT_CLOSE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
@@ -153,10 +153,10 @@ async def test_setup_retry_does_not_resend_the_password(
     assert _password_posts(fake) == 1
 
 
-async def test_final_failure_then_reload_tries_exactly_one_login(
+async def test_rejected_credentials_are_never_resent_on_reload(
     hass: HomeAssistant, mocked: aioresponses
 ) -> None:
-    """A reported final failure ends in SETUP_ERROR; a reload tries one new login."""
+    """A rejected password ends in the reauth state; reloads send nothing more."""
     bad = [
         {"action": "username"},
         {"action": "password"},
@@ -169,9 +169,57 @@ async def test_final_failure_then_reload_tries_exactly_one_login(
     assert entry.state is ConfigEntryState.SETUP_ERROR
     assert _password_posts(fake) == 1
 
-    await hass.config_entries.async_reload(entry.entry_id)
-    assert entry.state is ConfigEntryState.SETUP_ERROR
+    for _ in range(2):
+        await hass.config_entries.async_reload(entry.entry_id)
+        assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert _password_posts(fake) == 1
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [f["context"]["source"] for f in flows] == ["reauth"]
+
+
+async def test_sub_entry_changes_in_the_reauth_state_send_no_password(
+    hass: HomeAssistant, mocked: aioresponses, freezer: FrozenDateTimeFactory
+) -> None:
+    """Adding, editing or deleting a sensor while reauth is pending: 0 submissions."""
+    clock = [0.0]
+    ok = [{"action": "username"}, {"action": "password"}, {"redirectURL": RETURN_URL}]
+    bad = [
+        {"action": "username"},
+        {"action": "password"},
+        {"error": "InvalidChallenge"},
+    ]
+    fake = FakeMagister(mocked, challenges=[*ok, *bad, *ok])
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    with patch(
+        "custom_components.magister.MagisterAuth",
+        partial(MagisterAuth, clock=lambda: clock[0]),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        clock[0] += 4000
+        freezer.tick(timedelta(minutes=65))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert _password_posts(fake) == 2
+    flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
+    assert [f["context"]["source"] for f in flows] == ["reauth"]
+
+    sub = ConfigSubentry(
+        data={"child_id": CHILD_ID, "offset": 0, "excluded": []},
+        subentry_type="first_appointment",
+        title="First",
+        unique_id=None,
+        subentry_id="s1",
+    )
+    hass.config_entries.async_add_subentry(entry, sub)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    hass.config_entries.async_update_subentry(entry, sub, title="Other")
+    await hass.async_block_till_done(wait_background_tasks=True)
+    hass.config_entries.async_remove_subentry(entry, "s1")
+    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.config_entries.async_reload(entry.entry_id)
+    assert _password_posts(fake) == 2
+    assert entry.state is ConfigEntryState.SETUP_ERROR
 
 
 async def test_outage_after_password_gives_three_posts_then_setup_error(
@@ -288,3 +336,18 @@ def test_child_of_unique_id() -> None:
     assert _child_of_unique_id("school.magister.net:1001:first:abc") == 1001
     assert _child_of_unique_id("school.magister.net") is None
     assert _child_of_unique_id("school.magister.net:abc") is None
+
+
+async def test_removing_the_entry_releases_a_waiting_pending_login(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A login handed over by reauth but not adopted yet is released on removal."""
+    FakeMagister(mocked)
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    login = PendingLogin(Mock(), Mock(), Mock())
+    store_pending_login(hass, entry.unique_id, login)
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    login.session.detach.assert_called_once()
+    assert take_pending_login(hass, entry.unique_id) is None

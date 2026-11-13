@@ -42,7 +42,8 @@
         "data": {
           "username": "Gebruikersnaam",
           "password": "Wachtwoord (optioneel)",
-          "totp_secret": "Authenticator-geheim (optioneel)"
+          "totp_secret": "Authenticator-geheim (optioneel)",
+          "remove_totp": "Opgeslagen authenticator-geheim verwijderen"
         }
       }
     },
@@ -54,7 +55,8 @@
       "unsupported_login": "Deze school of dit account gebruikt een inlogmethode die niet wordt ondersteund (schoolbrede SSO of passkey).",
       "cannot_connect": "Kan geen verbinding maken met Magister. Probeer het later opnieuw.",
       "unknown": "Er is een onverwachte fout opgetreden. Zie het logboek voor details.",
-      "no_children_selected": "Kies minimaal één kind."
+      "no_children_selected": "Kies minimaal één kind.",
+      "login_page_changed": "Magister heeft de loginpagina gewijzigd, dus inloggen is nu niet mogelijk. Werk de integratie bij of probeer het later opnieuw."
     },
     "abort": {
       "already_configured": "Dit Magister-account is al ingesteld.",

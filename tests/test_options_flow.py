@@ -120,10 +120,10 @@ async def test_save_options_reloads_without_new_login(
     coordinator = entry.runtime_data.coordinator
     assert coordinator is not first.coordinator
     assert coordinator.update_interval == timedelta(minutes=60)
-    # window: this week (2 Nov is last week) up to two weeks after the current one
+    # window: from Sunday 8 Nov 23:00 UTC up to today + 15 days
     query = fake.appointment_requests[-1][1]
     assert query["van"].startswith("2026-11-08T23:00")
-    assert query["tot"].startswith("2026-11-22T23:00")
+    assert query["tot"].startswith("2026-11-27T23:00")
     # one reload only, with the kept login: still one password
     assert len(fake.appointment_requests) == 2
     assert _password_posts(fake) == 1

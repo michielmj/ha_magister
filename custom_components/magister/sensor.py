@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
 from .api import (
@@ -20,6 +21,7 @@ from .api import (
     find_first_appointment,
     lesson_hours,
 )
+from .api.mapping import LOCAL_TZ
 from .const import (
     CHILD_ID,
     CHILD_SHORT_NAME,
@@ -33,7 +35,7 @@ from .const import (
     max_offset,
 )
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
-from .entity import MagisterEntity
+from .entity import MagisterEntity, child_key
 
 PARALLEL_UPDATES = 0
 
@@ -51,20 +53,26 @@ async def async_setup_entry(
     """Add a sensor for each first-appointment sub-entry."""
     coordinator = entry.runtime_data.coordinator
     host: str = entry.data[CONF_HOST]
+    device_registry = dr.async_get(hass)
     children = {int(child[CHILD_ID]): child for child in entry.data[CONF_CHILDREN]}
     for subentry in entry.subentries.values():
         child = children.get(int(subentry.data.get(CONF_CHILD_ID, -1)))
         if subentry.subentry_type != SUBENTRY_FIRST or child is None:
             continue
-        # Not added "under" the sub-entry: the sensor shares the child's device with
-        # the calendar, and a device may belong to one sub-entry only. Entities of
-        # deleted sub-entries are removed in ``async_setup_entry`` of the integration.
+        # The child's device belongs to the main entry (registered in setup); the
+        # sensor only points to it, so HA removes the sensor with its sub-entry.
+        device = device_registry.async_get_device_by_identifier(
+            (DOMAIN, child_key(host, int(child[CHILD_ID]))), entry.entry_id
+        )
+        if device is None:  # pragma: no cover - registered before the platforms
+            continue
         async_add_entities(
             [
                 MagisterFirstAppointmentSensor(
-                    coordinator, host, str(child[CHILD_SHORT_NAME]), subentry
+                    coordinator, host, str(child[CHILD_SHORT_NAME]), subentry, device
                 )
-            ]
+            ],
+            config_subentry_id=subentry.subentry_id,
         )
 
 
@@ -79,15 +87,19 @@ class MagisterFirstAppointmentSensor(MagisterEntity, SensorEntity):
         host: str,
         short_name: str,
         subentry: ConfigSubentry,
+        device: dr.DeviceEntry,
     ) -> None:
-        """Create the sensor."""
+        """Create the sensor (on the existing device of the child)."""
         child_id = int(subentry.data[CONF_CHILD_ID])
         super().__init__(coordinator, host, child_id, short_name)
+        self._attr_device_info = None
+        self.device_entry = device
         self._subentry_id = subentry.subentry_id
         self._offset = int(subentry.data[CONF_OFFSET])
         self._excluded: list[str] = [str(s) for s in subentry.data[CONF_EXCLUDED]]
         self._attr_unique_id = f"{host}:{child_id}:first:{subentry.subentry_id}"
         self._attr_name = subentry.title
+        self._unsub_midnight: CALLBACK_TYPE | None = None
         self._day: date | None = None
         self._result: FirstAppointment | None = None
         self._fits = True
@@ -100,11 +112,11 @@ class MagisterFirstAppointmentSensor(MagisterEntity, SensorEntity):
     def _recompute(self) -> None:
         """Find the first appointment again from the coordinator data."""
         self._fits = self._offset <= max_offset(self.coordinator.weeks_ahead)
-        self._day = dt_util.now().date() + timedelta(days=self._offset)
+        self._day = dt_util.now(LOCAL_TZ).date() + timedelta(days=self._offset)
         appointments = (self.coordinator.data or {}).get(self._child_id, [])
         if self._fits:
             self._result = find_first_appointment(
-                appointments, self._day, self._excluded, dt_util.get_default_time_zone()
+                appointments, self._day, self._excluded, LOCAL_TZ
             )
         else:
             self._result = None
@@ -135,11 +147,8 @@ class MagisterFirstAppointmentSensor(MagisterEntity, SensorEntity):
         """Recompute when the day rolls over, without any API call."""
         await super().async_added_to_hass()
         self._sync_issue()
-        self.async_on_remove(
-            async_track_time_change(
-                self.hass, self._handle_midnight, hour=0, minute=0, second=0
-            )
-        )
+        self._schedule_midnight()
+        self.async_on_remove(self._cancel_midnight)
         self.async_on_remove(self._clear_issue)
 
     @callback
@@ -147,9 +156,26 @@ class MagisterFirstAppointmentSensor(MagisterEntity, SensorEntity):
         ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
 
     @callback
+    def _schedule_midnight(self) -> None:
+        """Wake up at the next midnight in Europe/Amsterdam (the school's day)."""
+        tomorrow = dt_util.now(LOCAL_TZ).date() + timedelta(days=1)
+        self._unsub_midnight = async_track_point_in_time(
+            self.hass,
+            self._handle_midnight,
+            datetime.combine(tomorrow, time.min, LOCAL_TZ),
+        )
+
+    @callback
+    def _cancel_midnight(self) -> None:
+        if self._unsub_midnight is not None:
+            self._unsub_midnight()
+            self._unsub_midnight = None
+
+    @callback
     def _handle_midnight(self, _now: datetime) -> None:
         self._recompute()
         self.async_write_ha_state()
+        self._schedule_midnight()
 
     @callback
     def _handle_coordinator_update(self) -> None:

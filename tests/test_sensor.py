@@ -110,7 +110,7 @@ async def setup_sensor(
 
 
 async def test_first_appointment_today(
-    hass: HomeAssistant, mocked: aioresponses
+    hass: HomeAssistant, mocked: aioresponses, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Offset 0: the first timed lesson of today, with details."""
     fake, _entry = await setup_sensor(hass, mocked, 0)
@@ -134,6 +134,8 @@ async def test_first_appointment_today(
     device = dr.async_get(hass).async_get(entity.device_id)
     assert device is not None
     assert device.name == "Kind (school)"
+    assert "different config subentry" not in caplog.text
+    assert entity.config_subentry_id == "sub1"
     # the same device as the calendar
     calendar = registry.async_get("calendar.kind_school_agenda")
     assert calendar is not None
@@ -435,3 +437,74 @@ async def test_unknown_subentry_types_are_ignored(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert hass.states.get(SENSOR_ID) is None
+
+
+async def test_day_rolls_over_at_amsterdam_midnight_whatever_the_ha_timezone(
+    hass: HomeAssistant, mocked: aioresponses, frozen_now: FrozenDateTimeFactory
+) -> None:
+    """With HA set to UTC, "today" and the rollover still follow Amsterdam."""
+    await hass.config.async_set_time_zone("UTC")
+    # Thursday 12 Nov, 23:30 UTC = Friday 13 Nov 00:30 in Amsterdam
+    frozen_now.move_to("2026-11-12 23:30:00+00:00")
+    fake, _ = await setup_sensor(hass, mocked, 0)
+    state = hass.states.get(SENSOR_ID)
+    assert state is not None
+    assert state.attributes["date"] == "2026-11-13"
+    assert state.state == "2026-11-13T08:15:00+00:00"
+
+    # Friday 13 Nov 23:30 UTC is already Saturday in Amsterdam: the sensor rolls
+    # over at 23:00 UTC (Amsterdam midnight), not at UTC midnight.
+    frozen_now.move_to("2026-11-13 22:59:00+00:00")
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    state = hass.states.get(SENSOR_ID)
+    assert state is not None
+    assert state.attributes["date"] == "2026-11-13"
+    requests = len(fake.appointment_requests)
+    frozen_now.move_to("2026-11-13 23:00:30+00:00")
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    state = hass.states.get(SENSOR_ID)
+    assert state is not None
+    assert state.attributes["date"] == "2026-11-14"
+    assert state.state == "unknown"
+    assert len(fake.appointment_requests) == requests
+
+
+@pytest.mark.parametrize(
+    ("now", "day"),
+    [
+        ("2026-11-13 09:30:00+00:00", "2026-12-03"),  # Friday
+        ("2026-11-15 10:00:00+00:00", "2026-12-05"),  # Sunday
+    ],
+)
+async def test_largest_valid_offset_is_inside_the_fetched_window(
+    hass: HomeAssistant,
+    mocked: aioresponses,
+    frozen_now: FrozenDateTimeFactory,
+    now: str,
+    day: str,
+) -> None:
+    """Offset 7 x 3 - 1 has data on a Friday and on a Sunday."""
+    frozen_now.move_to(now)
+    fake = FakeMagister(mocked)
+    item = copy.deepcopy(fake.appointments[CHILD_ID][0])
+    item.update(
+        {
+            "Id": 888001,
+            "Start": f"{day}T08:00:00.0000000Z",
+            "Einde": f"{day}T09:00:00.0000000Z",
+            "Status": 1,
+            "DuurtHeleDag": False,
+        }
+    )
+    fake.appointments[CHILD_ID].append(item)
+    entry = make_entry()
+    add_sensor(entry, 20)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    state = hass.states.get(SENSOR_ID)
+    assert state is not None
+    assert state.state == f"{day}T08:00:00+00:00"
+    assert fake.appointment_requests[0][1]["tot"] > f"{day}T23:00"

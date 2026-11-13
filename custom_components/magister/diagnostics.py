@@ -16,7 +16,6 @@ from .const import (
     CONF_HOST,
     CONF_OFFSET,
     CONF_TOTP_SECRET,
-    host_prefix,
 )
 from .coordinator import MagisterConfigEntry
 
@@ -26,7 +25,6 @@ TO_REDACT = {
     CONF_USERNAME,
     CONF_PASSWORD,
     CONF_TOTP_SECRET,
-    "host_prefix",
     "school",
     "name",
     "short_name",
@@ -72,7 +70,6 @@ async def async_get_config_entry_diagnostics(
     last_exception = coordinator.last_exception
     diagnostics: dict[str, Any] = {
         "entry": {
-            "host_prefix": host_prefix(entry.data[CONF_HOST]),
             "account_type": _account_type(entry),
             "number_of_children": len(entry.data[CONF_CHILDREN]),
             "options": dict(entry.options),

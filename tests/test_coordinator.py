@@ -42,18 +42,18 @@ def frozen_now(freezer: FrozenDateTimeFactory) -> FrozenDateTimeFactory:
 @pytest.mark.parametrize(
     ("now", "start", "end"),
     [
-        # Friday 13 Nov 2026: Monday 2 Nov up to Monday 30 Nov
-        ("2026-11-13T09:30:00+00:00", "2026-11-02T00:00", "2026-11-30T00:00"),
+        # Friday 13 Nov 2026: Monday 2 Nov up to local midnight of today + 22 days
+        ("2026-11-13T09:30:00+00:00", "2026-11-02T00:00", "2026-12-05T00:00"),
         # Monday itself belongs to the current week
-        ("2026-11-09T00:00:00+01:00", "2026-11-02T00:00", "2026-11-30T00:00"),
+        ("2026-11-09T00:00:00+01:00", "2026-11-02T00:00", "2026-12-01T00:00"),
         # Sunday 23:30 local time is still the same week
-        ("2026-11-15T22:30:00+00:00", "2026-11-02T00:00", "2026-11-30T00:00"),
+        ("2026-11-15T22:30:00+00:00", "2026-11-02T00:00", "2026-12-07T00:00"),
         # around the end of daylight saving time (25 Oct 2026)
-        ("2026-10-27T10:00:00+00:00", "2026-10-19T00:00", "2026-11-16T00:00"),
+        ("2026-10-27T10:00:00+00:00", "2026-10-19T00:00", "2026-11-18T00:00"),
     ],
 )
 def test_fetch_window(now: str, start: str, end: str) -> None:
-    """The window is Monday-aligned in Europe/Amsterdam."""
+    """The window starts on a Monday and ends 7 x weeks ahead + 1 days from today."""
     got_start, got_end = fetch_window(datetime.fromisoformat(now))
     assert got_start == datetime.fromisoformat(start).replace(tzinfo=LOCAL_TZ)
     assert got_end == datetime.fromisoformat(end).replace(tzinfo=LOCAL_TZ)
@@ -85,7 +85,7 @@ async def test_refresh_fetches_sequentially_without_status_filter(
     params = fake.appointment_requests[0][1]
     assert set(params) == {"van", "tot"}
     assert params["van"] == "2026-11-01T23:00:00.000Z"  # Mon 2 Nov 00:00 CET
-    assert params["tot"] == "2026-11-29T23:00:00.000Z"  # Mon 30 Nov 00:00 CET
+    assert params["tot"] == "2026-12-04T23:00:00.000Z"  # 5 Dec 00:00 CET (+22 days)
     data = entry.runtime_data.coordinator.data
     assert [a.start for a in data[1]] == sorted(a.start for a in data[1])
     assert data[2] == []
@@ -255,3 +255,15 @@ async def test_remembered_login_failure_is_auth_failed(
         final.return_value = True
         await coordinator.async_refresh()
     assert isinstance(coordinator.last_exception, ConfigEntryAuthFailed)
+
+
+@pytest.mark.parametrize("today", ["2026-11-13", "2026-11-15", "2026-11-09"])
+@pytest.mark.parametrize("weeks_ahead", [1, 3, 12])
+def test_window_covers_every_valid_offset(today: str, weeks_ahead: int) -> None:
+    """Offset 7 x weeks ahead - 1 (and the day after midnight) is inside."""
+    now = datetime.fromisoformat(f"{today}T12:00:00").replace(tzinfo=LOCAL_TZ)
+    _, end = fetch_window(now, 1, weeks_ahead)
+    last_valid = datetime.combine(
+        now.date() + timedelta(days=7 * weeks_ahead - 1), datetime.max.time(), LOCAL_TZ
+    )
+    assert end > last_valid + timedelta(days=1)

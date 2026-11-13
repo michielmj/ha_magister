@@ -205,6 +205,11 @@ class MagisterAuth:
         """Whether a failure is remembered that is never retried automatically."""
         return self._failure is not None
 
+    @property
+    def is_credential_failure(self) -> bool:
+        """Whether the remembered failure is a rejection of the credentials."""
+        return isinstance(self._failure, MagisterAuthError)
+
     def clear_final_failure(self) -> None:
         """Allow a new login after a reported final failure (user-initiated).
 

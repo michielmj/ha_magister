@@ -9,6 +9,7 @@ CONF_SCHOOL: Final = "school"
 CONF_TOTP_SECRET: Final = "totp_secret"
 CONF_CHILDREN: Final = "children"
 CONF_HOST: Final = "host"
+CONF_REMOVE_TOTP: Final = "remove_totp"
 
 # Keys of one item in ``CONF_CHILDREN``.
 CHILD_ID: Final = "id"

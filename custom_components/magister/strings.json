@@ -42,7 +42,8 @@
         "data": {
           "username": "Username",
           "password": "Password (optional)",
-          "totp_secret": "Authenticator secret (optional)"
+          "totp_secret": "Authenticator secret (optional)",
+          "remove_totp": "Remove the saved authenticator secret"
         }
       }
     },
@@ -54,7 +55,8 @@
       "unsupported_login": "This school or account uses a login method that is not supported (school SSO or passkey).",
       "cannot_connect": "Could not connect to Magister. Try again later.",
       "unknown": "An unexpected error occurred. See the log for details.",
-      "no_children_selected": "Select at least one child."
+      "no_children_selected": "Select at least one child.",
+      "login_page_changed": "Magister changed its login page, so logging in is not possible right now. Update the integration or try again later."
     },
     "abort": {
       "already_configured": "This Magister account is already configured.",

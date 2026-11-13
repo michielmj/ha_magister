@@ -66,13 +66,16 @@ def fetch_window(
 ) -> tuple[datetime, datetime]:
     """Return the window to fetch, in Europe/Amsterdam.
 
-    From Monday 00:00 of ``weeks_back`` weeks ago up to Monday 00:00 of the week
-    ``weeks_ahead`` weeks after the current one.
+    From Monday 00:00 of ``weeks_back`` weeks ago up to local midnight of the day
+    ``7 * weeks_ahead + 1`` days from today, so that every first-appointment offset
+    up to ``7 * weeks_ahead - 1`` is covered, also right after midnight.
     """
     today = now.astimezone(LOCAL_TZ).date()
     monday = today - timedelta(days=today.weekday())
     start = datetime.combine(monday - timedelta(weeks=weeks_back), time.min, LOCAL_TZ)
-    end = datetime.combine(monday + timedelta(weeks=weeks_ahead), time.min, LOCAL_TZ)
+    end = datetime.combine(
+        today + timedelta(days=7 * weeks_ahead + 1), time.min, LOCAL_TZ
+    )
     return start, end
 
 

@@ -19,6 +19,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import AbortFlow
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -35,6 +36,7 @@ from .api import (
     MagisterAuthError,
     MagisterClient,
     MagisterConnectionError,
+    MagisterLoginPageError,
     Person,
     normalize_host,
 )
@@ -47,6 +49,7 @@ from .api.errors import (
 from .const import (
     CONF_CHILDREN,
     CONF_HOST,
+    CONF_REMOVE_TOTP,
     CONF_SCHOOL,
     CONF_TOTP_SECRET,
     DOMAIN,
@@ -97,6 +100,8 @@ def _credentials_schema(*, reauth: bool) -> probatio.Schema:
     fields[probatio.Optional(CONF_TOTP_SECRET)] = TextSelector(
         TextSelectorConfig(type=TextSelectorType.PASSWORD)
     )
+    if not reauth:
+        fields[probatio.Optional(CONF_REMOVE_TOTP, default=False)] = BooleanSelector()
     return probatio.Schema(fields)
 
 
@@ -211,21 +216,29 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
         host: str = entry.data[CONF_HOST]
         errors: dict[str, str] = {}
         if user_input is not None:
+            remove_totp = bool(user_input.get(CONF_REMOVE_TOTP))
             credentials = {
                 CONF_USERNAME: entry.data[CONF_USERNAME]
                 if reauth
                 else user_input[CONF_USERNAME],
                 CONF_PASSWORD: user_input.get(CONF_PASSWORD)
                 or entry.data[CONF_PASSWORD],
-                CONF_TOTP_SECRET: user_input.get(CONF_TOTP_SECRET)
+                CONF_TOTP_SECRET: None
+                if remove_totp
+                else user_input.get(CONF_TOTP_SECRET)
                 or entry.data.get(CONF_TOTP_SECRET),
             }
             error = await self._async_validate(host, credentials, with_children=False)
             if error is None:
                 assert self._account is not None
-                if f"{host}:{self._account.person.id}" != entry.unique_id:
+                try:
+                    await self.async_set_unique_id(
+                        f"{host}:{self._account.person.id}", raise_on_progress=False
+                    )
+                    self._abort_if_unique_id_mismatch(reason="wrong_account")
+                except AbortFlow:
                     self._discard_login()
-                    return self.async_abort(reason="wrong_account")
+                    raise
                 return self._async_hand_over(entry, host, credentials)
             errors["base"] = error
         schema = _credentials_schema(reauth=reauth)
@@ -320,6 +333,10 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("Could not connect to %s: %s", host, err)
             self._discard_login()
             return "cannot_connect"
+        except MagisterLoginPageError as err:
+            _LOGGER.debug("The login page of %s changed: %s", host, err)
+            self._discard_login()
+            return "login_page_changed"
         except MagisterApiError as err:
             _LOGGER.debug("Unexpected answer from %s: %s", host, err)
             self._discard_login()
