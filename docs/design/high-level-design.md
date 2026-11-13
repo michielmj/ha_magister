@@ -164,7 +164,8 @@ Title prefixes, using **Magister's own label words** (PM decision 2026-11-13; mu
 | InfoType 4 / 5 (schriftelijke / mondelinge overhoring) | `[SO]` / `[MO]` |
 | InfoType 6 | `[Informatie]` |
 | InfoType 1 | `[Huiswerk]` |
-| Status 3 / 9 / 10 (gewijzigd / verplaatst) | no prefix; a note in the description |
+| Status 9 / 10 (verplaatst; community codes, not yet seen) | no prefix; "Verplaatst" note in the description |
+| Status 3 | **no note**: PM confirmed 2026-11-13 that Magister shows these as normal lessons |
 
 Prefix texts are Dutch constants in `mapping.py` (the event text comes from Dutch data anyway).
 **Confirmed in M1 (PM run, 2026-11-13):** the `status=1` query parameter **hides cancelled
