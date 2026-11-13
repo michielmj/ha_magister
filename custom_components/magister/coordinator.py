@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -107,12 +107,19 @@ class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
                 )
                 data[child_id] = sorted(appointments, key=lambda a: (a.start, a.id))
         except MagisterAuthError as err:
+            self._auth.final_failure_reported = True
             raise ConfigEntryAuthFailed(
                 translation_domain=DOMAIN, translation_key="auth_failed"
             ) from err
         except (MagisterConnectionError, MagisterApiError) as err:
             if self._auth.has_final_failure:
                 # A remembered failure after the password step is never retried.
+                self._auth.final_failure_reported = True
+                if self.data is None:
+                    # During setup: not a credentials problem (5xx/timeout).
+                    raise ConfigEntryError(
+                        translation_domain=DOMAIN, translation_key="login_blocked"
+                    ) from err
                 raise ConfigEntryAuthFailed(
                     translation_domain=DOMAIN, translation_key="auth_failed"
                 ) from err

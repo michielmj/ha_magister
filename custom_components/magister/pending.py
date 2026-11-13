@@ -14,7 +14,7 @@ removal, changed credentials) or when Home Assistant closes.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import EVENT_HOMEASSISTANT_CLOSE
@@ -35,17 +35,20 @@ _RETAINED = f"{DOMAIN}_retained_logins"
 class PendingLogin:
     """A session, auth helper and client, with the credentials they were made for."""
 
-    session: aiohttp.ClientSession
-    auth: MagisterAuth
-    client: MagisterClient
-    credentials: tuple[Any, ...] | None = None
+    session: aiohttp.ClientSession = field(repr=False)
+    auth: MagisterAuth = field(repr=False)
+    client: MagisterClient = field(repr=False)
+    credentials: tuple[Any, ...] | None = field(default=None, repr=False)
 
 
 def store_pending_login(
     hass: HomeAssistant, unique_id: str, login: PendingLogin
 ) -> None:
     """Keep ``login`` for the entry with ``unique_id`` (from the config flow)."""
-    hass.data.setdefault(_PENDING, {})[unique_id] = login
+    logins: dict[str, PendingLogin] = hass.data.setdefault(_PENDING, {})
+    if (old := logins.get(unique_id)) is not None and old is not login:
+        old.session.detach()
+    logins[unique_id] = login
 
 
 def take_pending_login(
@@ -93,5 +96,9 @@ def async_register_shutdown(hass: HomeAssistant) -> None:
     def _release(_: Event) -> None:
         for entry_id in list(hass.data.get(_RETAINED, {})):
             drop_login(hass, entry_id)
+        pending: dict[str, PendingLogin] = hass.data.get(_PENDING, {})
+        for login in pending.values():
+            login.session.detach()
+        pending.clear()
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_CLOSE, _release)

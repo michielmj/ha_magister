@@ -190,6 +190,7 @@ class MagisterAuth:
         self._post_password_failures = 0
         self._valid_until = 0.0
         self.last_token_source: TokenSource | None = None
+        self.final_failure_reported = False
         self.last_silent_failure: str | None = None
         self.password_submissions = 0
 
@@ -201,6 +202,15 @@ class MagisterAuth:
     def has_final_failure(self) -> bool:
         """Whether a failure is remembered that is never retried automatically."""
         return self._failure is not None
+
+    def clear_final_failure(self) -> None:
+        """Allow a new login after a reported final failure (user-initiated).
+
+        An active backoff / ``Retry-After`` still applies.
+        """
+        self._failure = None
+        self._post_password_failures = 0
+        self.final_failure_reported = False
 
     @property
     def host(self) -> str:

@@ -54,7 +54,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
     login.credentials = credentials
     retain_login(hass, entry.entry_id, login)
 
+    if login.auth.has_final_failure and login.auth.final_failure_reported:
+        # The failure was already reported (setup error / reauth state), so this
+        # setup is user-initiated (reload): allow exactly one new login.
+        login.auth.clear_final_failure()
     if login.auth.has_final_failure:
+        login.auth.final_failure_reported = True
         raise ConfigEntryError(
             translation_domain=DOMAIN, translation_key="login_blocked"
         )
