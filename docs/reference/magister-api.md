@@ -57,6 +57,8 @@ defaults to `status=None` since M1) to be able to show `[Vervallen]` items.
 
 ### `Status`
 
+Status 4 and 5 get the prefix `[Vervallen]` (HLD section 7).
+
 | Code | Observed count | Meaning |
 |---|---|---|
 | 1 | 72 (**confirmed** present) | normal scheduled item (shown by `status=1`) |
@@ -74,15 +76,15 @@ open; none of the observed items had `Afgerond` set.
 
 ### `InfoType`
 
-| Code | Observed count | Meaning | Prefix per HLD section 7 |
+| Code | Observed count (school A) | Meaning | Prefix per HLD section 7 |
 |---|---|---|---|
 | 0 | 87 (**confirmed**) | none | |
-| 1 | 47 (**confirmed**) | homework | `[HW]` |
-| 2 | 2 (**confirmed**) | test (proefwerk) | `[Toets]` |
-| 3 | not observed | exam (tentamen), community, unconfirmed | `[Toets]` |
+| 1 | 47 (**confirmed**) | homework | `[Huiswerk]` |
+| 2 | 2 (**confirmed**) | test (proefwerk) | `[Proefwerk]` |
+| 3 | not observed | exam (tentamen), community, unconfirmed | `[Tentamen]` |
 | 4 | 4 (**confirmed**) | written quiz (schriftelijke overhoring), e.g. "Schriftcontrole", "s.o." | `[SO]` |
 | 5 | not observed | oral quiz (mondelinge overhoring), community, unconfirmed | `[MO]` |
-| 6 | not observed | information, community, unconfirmed | |
+| 6 | not observed | information, community, unconfirmed | `[Informatie]` |
 | 7 | not observed | note, community, unconfirmed | |
 
 Note: the 10 cancelled (Status 5) items include 3 with InfoType 1 (homework on a cancelled
@@ -95,7 +97,7 @@ lesson).
 | 13 | 136 (**confirmed**) | lesson |
 | 7 | 4 (**confirmed** present) | observed for an "NT2" item; likely KWT / keuzewerktijd (choice hour) |
 | 1 | not observed | personal appointment, community, unconfirmed |
-| 2 | 2 (**confirmed** at school B) | general; e.g. "Schoolfotograaf", "Voorlichting PTA en PTD" |
+| 2 | school A: not observed; school B: 2 (**confirmed**) | general; e.g. "Schoolfotograaf", "Voorlichting PTA en PTD" |
 | 3 | not observed | school-wide, community, unconfirmed |
 | 4 | not observed | internship, community, unconfirmed |
 | 5 | not observed | intake, community, unconfirmed |
@@ -109,8 +111,9 @@ lesson).
 * `Omschrijving` of lessons looks like `<subject code> - <teacher code(s)> - <class code>`.
 * Each item also has `Subtype`, `IsOnlineDeelname`, `WeergaveType`, `HerhaalStatus`,
   `Herhaling`, `Groepen[{Code}]`, `HeeftBijlagen`, `Bijlagen`, `Opmerking` and
-  `Aantekening`. In this data set `HeeftBijlagen` (always false), `Bijlagen`, `Opmerking`
-  and `Aantekening` (always null) never carried data; `Subtype`, `IsOnlineDeelname`,
+  `Aantekening`. In school A `HeeftBijlagen` was always false; at school B it was true on 3
+  items (text says "zie bijlage") while `Bijlagen` stayed null. `Bijlagen`, `Opmerking`
+  and `Aantekening` were always null at both schools; `Subtype`, `IsOnlineDeelname`,
   `WeergaveType`, `HerhaalStatus` and `Herhaling` were constant. None are modelled.
 
 ### School B observations (second school, 94 items / 89 with `status=1`)
@@ -133,5 +136,7 @@ Fixtures: `tests/fixtures/school_b/`.
 * **A teacher's text can signal a cancellation the status does not show:** one Status 1
   lesson has Inhoud "les gaat niet door ivm ...". The integration only marks Status 4/5
   as cancelled; this text is shown as normal homework/description.
-* No item had `DuurtHeleDag` true; `HeeftBijlagen`, `Bijlagen`, `Opmerking` and
-  `Aantekening` were again always empty.
+* No item had `DuurtHeleDag` true. `HeeftBijlagen` was **true on 3 items** (100002,
+  100015, 100032; their text says "zie bijlage") while `Bijlagen` stayed null, so the
+  attachment list is not returned by this endpoint. `Opmerking` and `Aantekening` were
+  always null.

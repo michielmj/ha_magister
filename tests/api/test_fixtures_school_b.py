@@ -93,3 +93,12 @@ def test_school_a_subject_unchanged() -> None:
     items = load("school_a", "appointments.json")["Items"]
     parsed = [Appointment.from_json(i) for i in items]
     assert {a.subject for a in parsed if a.type == 13} >= {"wiskunde", "natuurkunde"}
+
+
+def test_school_b_attachment_flag_without_list() -> None:
+    """HeeftBijlagen is true on 3 items while Bijlagen stays null."""
+    items = load("school_b", "appointments.json")["Items"]
+    flagged = [i["Id"] for i in items if i["HeeftBijlagen"]]
+    assert flagged == [100002, 100015, 100032]
+    assert all(i["Bijlagen"] is None for i in items)
+    assert all(i["Opmerking"] is None and i["Aantekening"] is None for i in items)

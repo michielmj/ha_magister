@@ -163,6 +163,8 @@ def test_person_and_account_errors() -> None:
         ({"Vakken": [], "Omschrijving": "SE NAT - K4nat_2 - D24"}, "SE NAT"),
         ({"Vakken": [], "Omschrijving": "  Schoolfotograaf  "}, "Schoolfotograaf"),
         ({"Vakken": [], "Omschrijving": ""}, ""),
+        ({"Vakken": [], "Omschrijving": " - x"}, ""),
+        ({"Vakken": [], "Omschrijving": None}, ""),
     ],
 )
 def test_subject_falls_back_to_description(
