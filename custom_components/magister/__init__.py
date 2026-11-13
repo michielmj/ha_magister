@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant, callback
@@ -31,6 +32,7 @@ from .coordinator import (
     login_page_issue_id,
 )
 from .entity import child_device_info
+from .options_flow import children_in_other_entries
 from .pending import (
     PendingLogin,
     async_register_shutdown,
@@ -49,6 +51,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Magister integration."""
     async_register_shutdown(hass)
     return True
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> bool:
@@ -110,9 +115,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
                 host, int(child[CHILD_ID]), str(child[CHILD_SHORT_NAME])
             ),
         )
+    async_sync_duplicate_issues(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
+
+
+def duplicate_issue_id(entry_id: str) -> str:
+    """Issue id of the "child in several logins" repair for an entry."""
+    return f"child_in_multiple_entries_{entry_id}"
+
+
+@callback
+def async_sync_duplicate_issues(
+    hass: HomeAssistant, exclude_entry_id: str | None = None
+) -> None:
+    """Create or clear the repair for children that two logins of a school share."""
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.entry_id == exclude_entry_id:
+            continue
+        own = {int(c[CHILD_ID]) for c in entry.data[CONF_CHILDREN]}
+        taken = children_in_other_entries(
+            hass, entry.data[CONF_HOST], entry.entry_id, exclude_entry_id
+        )
+        issue_id = duplicate_issue_id(entry.entry_id)
+        if own & taken:
+            if ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None:
+                _LOGGER.warning(
+                    "A child is configured under more than one Magister login "
+                    "for the same school; remove it from one login via Configure"
+                )
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="child_in_multiple_entries",
+            )
+        else:
+            ir.async_delete_issue(hass, DOMAIN, issue_id)
 
 
 def config_snapshot(entry: MagisterConfigEntry) -> str:
@@ -138,6 +180,7 @@ async def _async_update_listener(
     hass: HomeAssistant, entry: MagisterConfigEntry
 ) -> None:
     """Reload after options, children or sensors changed."""
+    async_sync_duplicate_issues(hass)
     if config_snapshot(entry) != entry.runtime_data.snapshot:
         hass.config_entries.async_schedule_reload(entry.entry_id)
 
@@ -182,6 +225,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagisterConfigEntry) ->
 async def async_remove_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> None:
     """Release the kept login when the entry is removed."""
     drop_login(hass, entry.entry_id)
+    ir.async_delete_issue(hass, DOMAIN, duplicate_issue_id(entry.entry_id))
+    async_sync_duplicate_issues(hass, exclude_entry_id=entry.entry_id)
     if (pending := take_pending_login(hass, entry.unique_id)) is not None:
         pending.session.detach()
     ir.async_delete_issue(hass, DOMAIN, login_page_issue_id(entry.entry_id))

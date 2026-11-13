@@ -70,7 +70,8 @@ browser.
 
 Elke Magister-login is één vermelding. Meer logins zijn prima, ook bij dezelfde school en bij
 andere scholen, mits elk kind onder één login wordt toegevoegd (twee ouders: voeg elk kind één
-keer toe). Hetzelfde account kan niet twee keer worden toegevoegd.
+keer toe). De installatie en **Configureren** verbergen kinderen die al onder een andere login van
+dezelfde school zijn toegevoegd. Hetzelfde account kan niet twee keer worden toegevoegd.
 
 ### Opties
 
@@ -155,6 +156,9 @@ eerste les die je niet mag missen: zet er ook een wekker op een vaste tijd naast
   configureren of de kaart voor opnieuw inloggen.
 - **Reparatie "Magister heeft de loginpagina gewijzigd"**: Magister heeft de loginpagina's
   aangepast. Werk de integratie bij in HACS; blijft het probleem, meld het dan als issue.
+- **Reparatie "Een kind staat bij meer dan één login"**: een kind is ingesteld bij meer dan één
+  login van dezelfde school (mogelijk bij installaties van vóór deze controle). Open
+  **Configureren** bij één van die logins en haal het kind uit de selectie.
 - **Reparatie "Sensor voor eerste afspraak buiten het venster"**: een sensor kijkt verder vooruit
   dan de weken vooruit toelaten. Verhoog **Weken vooruit** of wijzig de sensor.
 - **Logboeken**: Instellingen > Systeem > Logboeken, filter op `magister`. Voor meer detail zet

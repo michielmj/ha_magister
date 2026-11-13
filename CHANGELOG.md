@@ -2,11 +2,6 @@
 
 ## Unreleased
 
-- A child that another login of the same school already has is no longer offered (config
-  flow and options), and a login whose children are all taken is rejected with a clear
-  message. This prevents two calendars with the same unique id.
-- Dutch translation fixes.
-
 ## 1.0.0
 
 First stable release. Summary of 0.1 to 0.3:
@@ -24,6 +19,12 @@ First stable release. Summary of 0.1 to 0.3:
 - Lockout protection for the login, diagnostics with redaction, and repair messages when
   Magister changes its login page or a sensor falls outside the fetched window.
 - Dutch and English translations and README; `tools/magister_cli.py` for troubleshooting.
+- A child that another login of the same school already has is no longer offered (config
+  flow and options), and a login whose children are all taken is rejected with a clear
+  message. This prevents two calendars with the same unique id.
+- Dutch translation fixes.
+- Repair message when a child is configured under more than one login of a school (installs
+  from before this check); the options form always offers the children an entry already has.
 - New in 1.0: project icon (shipped in `custom_components/magister/brand/`), user
   documentation in English and Dutch, release workflow, issue templates, security policy and
   Dependabot.

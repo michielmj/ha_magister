@@ -169,6 +169,10 @@
     "offset_outside_window": {
       "title": "First-appointment sensor outside the window",
       "description": "The sensor {name} looks {offset} days ahead, but only {max_offset} days fit in {weeks_ahead} weeks ahead. The sensor is unknown. Increase the weeks ahead in the options or edit the sensor."
+    },
+    "child_in_multiple_entries": {
+      "title": "Several logins list the same child",
+      "description": "A child is configured under more than one Magister login for this school. Remove it from one login: open Configure on that login and deselect the child."
     }
   }
 }

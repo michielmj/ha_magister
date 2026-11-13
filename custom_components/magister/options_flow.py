@@ -52,12 +52,18 @@ def child_entry(person: Person) -> dict[str, Any]:
 
 
 def children_in_other_entries(
-    hass: HomeAssistant, host: str, exclude_entry_id: str | None
+    hass: HomeAssistant,
+    host: str,
+    exclude_entry_id: str | None,
+    also_exclude: str | None = None,
 ) -> set[int]:
     """Child ids of the same school that another entry already has a calendar for."""
     taken: set[int] = set()
     for other in hass.config_entries.async_entries(DOMAIN):
-        if other.entry_id == exclude_entry_id or other.data.get(CONF_HOST) != host:
+        if (
+            other.entry_id in (exclude_entry_id, also_exclude)
+            or other.data.get(CONF_HOST) != host
+        ):
             continue
         taken.update(int(c[CHILD_ID]) for c in other.data.get(CONF_CHILDREN, []))
     return taken
@@ -121,12 +127,15 @@ class MagisterOptionsFlow(OptionsFlow):
         taken = children_in_other_entries(
             self.hass, str(entry.data[CONF_HOST]), entry.entry_id
         )
-        offered = {k: v for k, v in self._children.items() if k not in taken}
-        errors: dict[str, str] = {}
         current = [int(c[CHILD_ID]) for c in entry.data[CONF_CHILDREN]]
+        # Children this entry already has stay offered, so the form can always be saved.
+        offered = {
+            k: v for k, v in self._children.items() if k not in taken or k in current
+        }
+        errors: dict[str, str] = {}
         if user_input is not None:
             selected = {int(value) for value in user_input[CONF_CHILDREN]}
-            if selected & taken:
+            if selected & (taken - set(current)):
                 errors["base"] = "child_already_configured"
             elif not selected:
                 errors["base"] = "no_children_selected"
@@ -150,9 +159,7 @@ class MagisterOptionsFlow(OptionsFlow):
                 )
                 return self.async_create_entry(data=options)
         values = user_input or {
-            CONF_CHILDREN: [
-                str(child_id) for child_id in current if child_id not in taken
-            ],
+            CONF_CHILDREN: [str(child_id) for child_id in current],
             CONF_WEEKS_BACK: entry.options.get(CONF_WEEKS_BACK, WEEKS_BACK),
             CONF_WEEKS_AHEAD: entry.options.get(CONF_WEEKS_AHEAD, WEEKS_AHEAD),
             CONF_INTERVAL: entry.options.get(CONF_INTERVAL, INTERVAL_MINUTES),

@@ -388,3 +388,17 @@ async def test_all_children_already_configured_aborts(
     result = await hass.config_entries.flow.async_configure(flow_id, USER_INPUT)
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "all_children_configured"
+
+
+async def test_student_who_is_a_child_elsewhere_aborts(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A student login whose person is a child in a parent's entry is rejected."""
+    FakeMagister(mocked, student=True)
+    make_entry(
+        children=[(CHILD_ID, "Kind S")], unique_id="school.magister.net:2000"
+    ).add_to_hass(hass)
+    flow_id = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(flow_id, USER_INPUT)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "all_children_configured"

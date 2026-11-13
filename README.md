@@ -65,14 +65,15 @@ Copy the folder `custom_components/magister` from this repository to
 
 Each Magister login is one entry. Several logins are fine, also at the same school and for
 different schools, as long as each child is added under one login only (two parents: add each
-child once). The same account cannot be added twice.
+child once). The setup and **Configure** hide children that are already added under another
+login of the same school. The same account cannot be added twice.
 
 ### Options
 
 **Configure** on the integration page changes the children, the weeks back (0 to 8), the
-weeks ahead (1 to 12) and the refresh interval (15 to 360 minutes). Saving reloads the integration without a new password login, as
-long as the session is still valid. Adding a child adds a calendar (sensors you add yourself);
-removing a child removes its calendar and sensors.
+weeks ahead (1 to 12) and the refresh interval (15 to 360 minutes). Saving reloads the
+integration without a new password login, as long as the session is still valid. Adding a child
+adds a calendar (sensors you add yourself); removing a child removes its calendar and sensors.
 
 ## First-appointment sensors
 
@@ -147,6 +148,9 @@ lesson you must not miss, also add a fixed-time alarm as a fallback.
   time. If the password is wrong, use Reconfigure or the re-login card instead.
 - **Repair "Magister changed its login page"**: Magister changed its sign-in pages. Update the
   integration in HACS; if it persists, open an issue.
+- **Repair "Several logins list the same child"**: a child is configured under more than one
+  login of the same school (possible with installs from before this check). Open **Configure** on
+  one of those logins and deselect the child.
 - **Repair "First-appointment sensor outside the window"**: a sensor looks further ahead than the
   weeks ahead allow. Increase **Weeks ahead** or edit the sensor.
 - **Logs**: Settings > System > Logs, filter on `magister`. For more detail add this to

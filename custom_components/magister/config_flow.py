@@ -372,11 +372,11 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
         if not self._children:
             self._discard_login()
             return self.async_abort(reason="no_children")
-        if not self._account.is_parent:
-            return self._async_create_entry(self._children)
         if all(child.id in self._taken_children() for child in self._children):
             self._discard_login()
             return self.async_abort(reason="all_children_configured")
+        if not self._account.is_parent:
+            return self._async_create_entry(self._children)
         return await self.async_step_children()
 
     def _async_create_entry(self, children: list[Person]) -> ConfigFlowResult:

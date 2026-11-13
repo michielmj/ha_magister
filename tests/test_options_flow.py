@@ -379,3 +379,33 @@ async def test_child_of_another_login_is_not_offered(
         }
     )
     assert result["errors"] == {"base": "child_already_configured"}
+
+
+async def test_existing_duplicate_child_stays_offered_and_saveable(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A child this entry already has stays in the form even if another login has it."""
+    _, entry = await _setup(
+        hass,
+        mocked,
+        children=[(1001, "Anna"), (1002, "Bram")],
+        magister_children=TWO_CHILDREN,
+    )
+    make_entry(
+        children=[(1002, "Bram")], unique_id="school.magister.net:2000"
+    ).add_to_hass(hass)
+    result = await _init(hass, entry)
+    keys = {str(k): k for k in result["data_schema"].schema}
+    options = result["data_schema"].schema[keys[CONF_CHILDREN]].config["options"]
+    assert [o["value"] for o in options] == ["1001", "1002"]
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_CHILDREN: ["1001", "1002"],
+            CONF_WEEKS_BACK: 1,
+            CONF_WEEKS_AHEAD: 3,
+            CONF_INTERVAL: 30,
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert [c["id"] for c in entry.data[CONF_CHILDREN]] == [1001, 1002]
