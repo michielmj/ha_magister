@@ -1,0 +1,21 @@
+set_homework_progress:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    item:
+      required: true
+      example: "myschool.magister.net:1001:100001"
+      selector:
+        text:
+    progress:
+      required: true
+      example: 50
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 25
+          unit_of_measurement: "%"
+          mode: slider

@@ -23,6 +23,7 @@ from .const import (
     CONF_CHILDREN,
     CONF_HOST,
     CONF_TOTP_SECRET,
+    CONF_WEIGHTS,
     DOMAIN,
 )
 from .coordinator import (
@@ -32,6 +33,7 @@ from .coordinator import (
     login_page_issue_id,
 )
 from .entity import child_device_info
+from .homework import HomeworkManager
 from .options_flow import children_in_other_entries
 from .pending import (
     PendingLogin,
@@ -41,15 +43,17 @@ from .pending import (
     retain_login,
     take_pending_login,
 )
+from .ws_api import async_register_websocket_api
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
-PLATFORMS: list[Platform] = [Platform.CALENDAR, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.CALENDAR, Platform.SENSOR, Platform.TODO]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Magister integration."""
     async_register_shutdown(hass)
+    async_register_websocket_api(hass)
     return True
 
 
@@ -98,12 +102,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
     coordinator = MagisterCoordinator(hass, entry, login.client, login.auth)
     await coordinator.async_config_entry_first_refresh()
 
+    homework = HomeworkManager(hass, entry, coordinator)
+    await homework.async_load()
+    homework.async_start()
+
     _async_remove_dropped_children(hass, entry)
     entry.runtime_data = MagisterRuntimeData(
         session=login.session,
         auth=login.auth,
         client=login.client,
         coordinator=coordinator,
+        homework=homework,
         snapshot=config_snapshot(entry),
     )
     # The calendar and the sensors are set up concurrently and share these devices.
@@ -160,11 +169,16 @@ def async_sync_duplicate_issues(
 def config_snapshot(entry: MagisterConfigEntry) -> str:
     """The parts of an entry that need a reload when they change.
 
-    Credentials are left out: reauth and reconfigure schedule their own reload.
+    Credentials are left out: reauth and reconfigure schedule their own reload. So are
+    the homework weights, which are applied to the sensors without a reload.
     """
     return json.dumps(
         {
-            "options": dict(entry.options),
+            "options": {
+                key: value
+                for key, value in entry.options.items()
+                if key != CONF_WEIGHTS
+            },
             "children": [child[CHILD_ID] for child in entry.data[CONF_CHILDREN]],
             "subentries": {
                 sid: [sub.subentry_type, sub.title, dict(sub.data)]
@@ -179,10 +193,12 @@ def config_snapshot(entry: MagisterConfigEntry) -> str:
 async def _async_update_listener(
     hass: HomeAssistant, entry: MagisterConfigEntry
 ) -> None:
-    """Reload after options, children or sensors changed."""
+    """Reload after options, children or sensors changed; apply new weights live."""
     async_sync_duplicate_issues(hass)
     if config_snapshot(entry) != entry.runtime_data.snapshot:
         hass.config_entries.async_schedule_reload(entry.entry_id)
+    else:
+        entry.runtime_data.homework.async_weights_changed()
 
 
 def _child_of_unique_id(unique_id: str) -> int | None:
@@ -218,8 +234,11 @@ def _async_remove_dropped_children(
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> bool:
-    """Unload a Magister config entry."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    """Unload a Magister config entry (unsaved homework progress is written first)."""
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        await entry.runtime_data.homework.async_flush()
+    return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> None:

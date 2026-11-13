@@ -17,6 +17,7 @@ from .const import (
     CONF_HOST,
     CONF_OFFSET,
     CONF_TOTP_SECRET,
+    CONF_WEIGHTS,
 )
 from .coordinator import MagisterConfigEntry
 
@@ -58,10 +59,13 @@ async def async_get_config_entry_diagnostics(
     coordinator = runtime.coordinator
     auth = runtime.auth
     children: list[dict[str, Any]] = []
-    for index, appointments in enumerate((coordinator.data or {}).values(), start=1):
+    for index, (child_id, appointments) in enumerate(
+        (coordinator.data or {}).items(), start=1
+    ):
         children.append(
             {
                 "child": f"child {index}",
+                "homework": runtime.homework.statistics(child_id),
                 "events_in_window": len(appointments),
                 "status": _counts([item.status for item in appointments]),
                 "info_type": _counts([item.info_type for item in appointments]),
@@ -73,9 +77,11 @@ async def async_get_config_entry_diagnostics(
         "entry": {
             "account_type": _account_type(entry),
             "number_of_children": len(entry.data[CONF_CHILDREN]),
-            "options": dict(entry.options),
+            # Weights are keyed by child id and subject: only their counts are shown.
+            "options": {k: v for k, v in entry.options.items() if k != CONF_WEIGHTS},
         },
         "children": children,
+        "homework_store": {"stored_entries": runtime.homework.stored_entries},
         "sensors": [
             {
                 "offset": subentry.data.get(CONF_OFFSET),

@@ -6,7 +6,12 @@ import logging
 from typing import Any
 
 import probatio
-from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigEntryState,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import (
     NumberSelector,
@@ -19,6 +24,15 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import MagisterApiError, MagisterAuthError, MagisterConnectionError, Person
+from .api.homework import (
+    DEFAULT_WEIGHT,
+    TYPE_KEYS,
+    WEIGHT_MAX,
+    WEIGHT_MIN,
+    Weights,
+    merge_subject_weights,
+    subjects_of,
+)
 from .const import (
     CHILD_ID,
     CHILD_NAME,
@@ -28,6 +42,7 @@ from .const import (
     CONF_INTERVAL,
     CONF_WEEKS_AHEAD,
     CONF_WEEKS_BACK,
+    CONF_WEIGHTS,
     DOMAIN,
     INTERVAL_MAX,
     INTERVAL_MIN,
@@ -77,12 +92,25 @@ def _number(minimum: int, maximum: int) -> NumberSelector:
     )
 
 
+def _weight_number() -> NumberSelector:
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=WEIGHT_MIN,
+            max=WEIGHT_MAX,
+            step=0.5,
+            mode=NumberSelectorMode.BOX,
+        )
+    )
+
+
 class MagisterOptionsFlow(OptionsFlow):
-    """Change the children, the time window and the refresh interval."""
+    """A menu: general settings (children, window, interval) and homework weights."""
 
     def __init__(self) -> None:
         """Initialise the flow."""
         self._children: dict[int, dict[str, Any]] | None = None
+        self._weights_child: int | None = None
+        self._type_weights: dict[str, float] = {}
 
     async def _async_fetch_children(self, entry: ConfigEntry) -> str | None:
         """Read the current children list; return an abort reason on failure.
@@ -117,7 +145,13 @@ class MagisterOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Show and save the options."""
+        """Choose between the general settings and the homework weights."""
+        return self.async_show_menu(step_id="init", menu_options=["general", "weights"])
+
+    async def async_step_general(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show and save the general options."""
         entry = self.config_entry
         if self._children is None and (
             reason := await self._async_fetch_children(entry)
@@ -141,6 +175,7 @@ class MagisterOptionsFlow(OptionsFlow):
                 errors["base"] = "no_children_selected"
             else:
                 options = {
+                    **entry.options,
                     CONF_WEEKS_BACK: int(user_input[CONF_WEEKS_BACK]),
                     CONF_WEEKS_AHEAD: int(user_input[CONF_WEEKS_AHEAD]),
                     CONF_INTERVAL: int(user_input[CONF_INTERVAL]),
@@ -184,7 +219,121 @@ class MagisterOptionsFlow(OptionsFlow):
             }
         )
         return self.async_show_form(
-            step_id="init",
+            step_id="general",
             data_schema=self.add_suggested_values_to_schema(schema, values),
             errors=errors,
         )
+
+    # -- homework weights ---------------------------------------------------
+
+    def _child_names(self) -> dict[int, str]:
+        return {
+            int(c[CHILD_ID]): str(c[CHILD_NAME])
+            for c in self.config_entry.data[CONF_CHILDREN]
+        }
+
+    def _stored_weights(self) -> Weights:
+        assert self._weights_child is not None
+        stored = self.config_entry.options.get(CONF_WEIGHTS)
+        child = (
+            stored.get(str(self._weights_child)) if isinstance(stored, dict) else None
+        )
+        return Weights.from_options(child)
+
+    async def async_step_weights(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Choose the child whose homework weights are changed."""
+        if self.config_entry.state is not ConfigEntryState.LOADED:
+            return self.async_abort(reason="not_loaded")
+        names = self._child_names()
+        if user_input is not None or len(names) == 1:
+            self._weights_child = (
+                int(user_input["child"]) if user_input else next(iter(names))
+            )
+            return await self.async_step_weights_types()
+        return self.async_show_form(
+            step_id="weights",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required("child"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(value=str(child_id), label=name)
+                                for child_id, name in names.items()
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def async_step_weights_types(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Weights per type (Huiswerk, Proefwerk, Tentamen, SO, MO)."""
+        if user_input is not None:
+            self._type_weights = {
+                key: float(user_input[key]) for key in TYPE_KEYS if key in user_input
+            }
+            return await self.async_step_weights_subjects()
+        stored = self._stored_weights()
+        schema = probatio.Schema(
+            {probatio.Required(key): _weight_number() for key in TYPE_KEYS}
+        )
+        return self.async_show_form(
+            step_id="weights_types",
+            data_schema=self.add_suggested_values_to_schema(
+                schema,
+                {key: stored.types.get(key, DEFAULT_WEIGHT) for key in TYPE_KEYS},
+            ),
+            description_placeholders={
+                "child": self._child_names()[self._weights_child or 0]
+            },
+        )
+
+    async def async_step_weights_subjects(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Weights per subject in the child's current homework data."""
+        assert self._weights_child is not None
+        subjects = subjects_of(
+            self.config_entry.runtime_data.homework.items(self._weights_child)
+        )
+        if user_input is None and subjects:
+            stored = self._stored_weights()
+            schema = probatio.Schema(
+                {probatio.Required(name): _weight_number() for name in subjects}
+            )
+            return self.async_show_form(
+                step_id="weights_subjects",
+                data_schema=self.add_suggested_values_to_schema(
+                    schema, {name: stored.subject_weight(name) for name in subjects}
+                ),
+            )
+        present = {name: float(value) for name, value in (user_input or {}).items()}
+        return self._save_weights(present)
+
+    def _save_weights(self, present_subjects: dict[str, float]) -> ConfigFlowResult:
+        """Store only the values other than 1; keep subjects not present now."""
+        entry = self.config_entry
+        stored = self._stored_weights()
+        types = {k: w for k, w in self._type_weights.items() if w != DEFAULT_WEIGHT}
+        subjects = merge_subject_weights(stored.subjects, present_subjects)
+        weights = {
+            key: dict(value)
+            for key, value in (entry.options.get(CONF_WEIGHTS) or {}).items()
+        }
+        child_key = str(self._weights_child)
+        if types or subjects:
+            weights[child_key] = {"types": types, "subjects": subjects}
+        else:
+            weights.pop(child_key, None)
+        options = dict(entry.options)
+        if weights:
+            options[CONF_WEIGHTS] = weights
+        else:
+            options.pop(CONF_WEIGHTS, None)
+        self.hass.config_entries.async_update_entry(entry, options=options)
+        return self.async_create_entry(data=options)

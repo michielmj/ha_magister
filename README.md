@@ -15,6 +15,7 @@ a day (handy for a wake-up alarm).
 - A calendar **Agenda** for every child (device `Kind (myschool)`), with lessons, homework,
   tests, cancelled lessons and school events. By default from one week back to three weeks
   ahead, refreshed every 30 minutes (both adjustable).
+- A **Homework** to-do list and three progress sensors per child (see the homework planner).
 - Optional **first-appointment sensors** (a timestamp) for automations.
 - Event titles come from Magister (in Dutch) with these labels:
 
@@ -70,10 +71,10 @@ login of the same school. The same account cannot be added twice.
 
 ### Options
 
-**Configure** on the integration page changes the children, the weeks back (0 to 8), the
+**Configure** on the integration page opens a menu: **General settings** changes the children, the weeks back (0 to 8), the
 weeks ahead (1 to 12) and the refresh interval (15 to 360 minutes). Saving reloads the
 integration without a new password login, as long as the session is still valid. Adding a child
-adds a calendar (sensors you add yourself); removing a child removes its calendar and sensors.
+adds a calendar, a homework list and progress sensors (first-appointment sensors you add yourself); removing a child removes all of them. **Homework weights** is described under the homework planner.
 
 ## First-appointment sensors
 
@@ -126,6 +127,48 @@ belongs on the offset 0 sensor and an alarm the evening before on the offset 1 s
 to 24 hours when Magister or your internet connection is down, so a short outage does not cancel a
 scheduled alarm. After 24 hours without a successful refresh they become unavailable. For a first
 lesson you must not miss, also add a fixed-time alarm as a fallback.
+
+## Homework planner (to-do list and progress sensors)
+
+Each child also gets a **Homework** to-do list (`todo.kind_myschool_homework`) and three
+progress sensors. The items are the homework and test items of the agenda in the fetched window
+(Magister's *Huiswerk*, *Proefwerk*, *Tentamen*, *SO* and *MO*; information items are left out).
+Homework on a cancelled lesson is shown, marked `Les vervallen`.
+
+- **To-do list.** The title is `[Huiswerk] wiskunde`, the due date is the lesson, the description
+  holds the homework text. Tick an item (in the to-do view, the mobile app, by voice or in an
+  automation) to set it to 100 %; untick it to restore the last value below 100 %. Items cannot
+  be added, renamed or deleted: they come from Magister.
+- **Progress** is a percentage per item (0 to 100) and is stored in Home Assistant only. Nothing
+  is written to Magister. It survives restarts and refreshes, and it is kept when Magister
+  changes the homework text. Progress of items that left the fetched window is removed after
+  14 days. Set it with the service `magister.set_homework_progress` (target the to-do entity;
+  fields `item`, the item's `uid`, and `progress` 0 to 100):
+
+```yaml
+action: magister.set_homework_progress
+target:
+  entity_id: todo.kind_myschool_homework
+data:
+  item: "myschool.magister.net:1001:100065"
+  progress: 50
+```
+
+- **Progress sensors** (`Homework tomorrow`, `Homework this week`, `Homework next week`, unit %):
+  the weighted average progress of the items due in that period. This week is Monday to Sunday
+  including the days already past; tomorrow is the next calendar day. **With nothing due the
+  value is 100 %**; the attribute `items: 0` tells that apart from "all done". Attributes:
+  `items`, `completed`, `open`, `tests` (tests and quizzes), `period_start`, `period_end` and
+  `weights` (the weights in use). The sensors update on every change, each refresh and at
+  midnight, without extra requests to Magister, and follow the 24 hour availability rule.
+  "Next week" needs at least 2 weeks ahead; with 1 week ahead that sensor is unavailable and a
+  repair notice explains it.
+- **Weights.** In **Configure > Homework weights** choose a child and set a weight (0 to 10, steps
+  of 0.5, default 1) per type and per subject. An item counts with
+  `type weight x subject weight`; a weight of 0 leaves the item out of the average (it stays in the
+  list). Only values other than 1 are saved. Subjects are matched on the whole name, ignoring upper
+  and lower case; weights of subjects that are not in the data right now are kept. Changing
+  weights does not reload the integration.
 
 ## How it behaves
 

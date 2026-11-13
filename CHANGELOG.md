@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Homework planner backend: a to-do list per child with the homework and test items,
+  progress in percent stored in Home Assistant, the service `magister.set_homework_progress`,
+  a WebSocket API for the upcoming card, weighted progress sensors (tomorrow, this week, next
+  week) and an options menu with homework weights.
+
 ## 1.0.0
 
 First stable release. Summary of 0.1 to 0.3:

@@ -15,6 +15,7 @@ agenda per kind, plus optionele sensoren met de starttijd van de eerste afspraak
 - Per kind een agenda met de naam **Agenda** (apparaat `Kind (myschool)`), met lessen, huiswerk,
   toetsen, vervallen lessen en schoolactiviteiten. Standaard van een week terug tot drie weken
   vooruit, elke 30 minuten ververst (beide instelbaar).
+- Per kind een takenlijst **Huiswerk** en drie voortgangssensoren (zie de huiswerkplanner).
 - Optionele **sensoren voor de eerste afspraak** (een tijdstempel) voor automatiseringen.
 - De titels komen uit Magister met deze labels:
 
@@ -75,11 +76,12 @@ dezelfde school zijn toegevoegd. Hetzelfde account kan niet twee keer worden toe
 
 ### Opties
 
-**Configureren** op de integratiepagina wijzigt de kinderen, de weken terug (0 tot 8), de weken
+**Configureren** op de integratiepagina opent een menu: **Algemene instellingen** wijzigt de kinderen, de weken terug (0 tot 8), de weken
 vooruit (1 tot 12) en het verversingsinterval (15 tot 360 minuten). Opslaan laadt de integratie
 opnieuw, zonder nieuwe wachtwoordlogin zolang de sessie nog geldig is. Een kind toevoegen voegt
-een agenda toe (sensoren voeg je zelf toe); een kind verwijderen verwijdert zijn agenda en
-sensoren.
+een agenda, een huiswerklijst en voortgangssensoren toe (sensoren voor de eerste afspraak voeg je
+zelf toe); een kind verwijderen verwijdert ze allemaal. **Huiswerkgewichten** staat beschreven bij
+de huiswerkplanner.
 
 ## Sensoren voor de eerste afspraak
 
@@ -133,6 +135,51 @@ sensor met 1 dag vooruit.
 gegevens tot 24 uur vast als Magister of je internet uitvalt, dus een korte storing annuleert een
 geplande wekker niet. Na 24 uur zonder geslaagde verversing worden ze niet beschikbaar. Voor een
 eerste les die je niet mag missen: zet er ook een wekker op een vaste tijd naast.
+
+## Huiswerkplanner (takenlijst en voortgangssensoren)
+
+Elk kind krijgt ook een takenlijst **Huiswerk** (`todo.kind_myschool_huiswerk`) en drie
+voortgangssensoren. De items zijn de huiswerk- en toetsitems uit de agenda in het opgehaalde
+venster (Magister: *Huiswerk*, *Proefwerk*, *Tentamen*, *SO* en *MO*; informatie-items blijven
+buiten beschouwing). Huiswerk bij een vervallen les wordt getoond, met de markering
+`Les vervallen`.
+
+- **Takenlijst.** De titel is `[Huiswerk] wiskunde`, de einddatum is de les, de beschrijving bevat
+  de huiswerktekst. Vink een item af (in de takenweergave, de mobiele app, met spraak of in een
+  automatisering) om het op 100 % te zetten; haal het vinkje weg om de laatste waarde onder 100 %
+  terug te zetten. Items toevoegen, hernoemen of verwijderen kan niet: ze komen uit Magister.
+- **Voortgang** is een percentage per item (0 tot 100) en wordt alleen in Home Assistant bewaard.
+  Er wordt niets naar Magister geschreven. De voortgang blijft na herstarts en verversingen
+  bestaan, ook als Magister de huiswerktekst wijzigt. Voortgang van items die uit het opgehaalde
+  venster zijn verdwenen, wordt na 14 dagen verwijderd. Stel hem in met de service
+  `magister.set_homework_progress` (doel is de to-do-entiteit; velden `item`, de `uid` van het
+  item, en `progress` 0 tot 100):
+
+```yaml
+action: magister.set_homework_progress
+target:
+  entity_id: todo.kind_myschool_huiswerk
+data:
+  item: "myschool.magister.net:1001:100065"
+  progress: 50
+```
+
+- **Voortgangssensoren** (`Huiswerk morgen`, `Huiswerk deze week`, `Huiswerk volgende week`,
+  eenheid %): de gewogen gemiddelde voortgang van de items die in die periode verschijnen. Deze
+  week is maandag tot en met zondag, inclusief de dagen die al voorbij zijn; morgen is de
+  volgende kalenderdag. **Zonder items is de waarde 100 %**; het attribuut `items: 0` maakt het
+  verschil met "alles klaar". Attributen: `items`, `completed`, `open`, `tests` (toetsen en
+  overhoringen), `period_start`, `period_end` en `weights` (de gebruikte gewichten). De sensoren
+  worden bijgewerkt bij elke wijziging, elke verversing en om middernacht, zonder extra verzoeken
+  aan Magister, en volgen de beschikbaarheidsregel van 24 uur. "Volgende week" heeft minstens
+  2 weken vooruit nodig; bij 1 week vooruit is die sensor niet beschikbaar en legt een
+  reparatiemelding het uit.
+- **Gewichten.** Kies in **Configureren > Huiswerkgewichten** een kind en stel per soort en per
+  vak een gewicht in (0 tot 10, stappen van 0,5, standaard 1). Een item telt mee met
+  `gewicht soort x gewicht vak`; een gewicht van 0 laat het item buiten het gemiddelde (het blijft
+  in de lijst). Alleen waarden anders dan 1 worden bewaard. Vakken worden op de hele naam
+  vergeleken, zonder onderscheid tussen hoofd- en kleine letters; gewichten van vakken die nu niet
+  in de gegevens staan blijven bewaard. Gewichten wijzigen laadt de integratie niet opnieuw.
 
 ## Gedrag
 

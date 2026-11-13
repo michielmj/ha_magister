@@ -22,6 +22,9 @@ SCHOOL_SUFFIX: Final = ".magister.net"
 CONF_WEEKS_BACK: Final = "weeks_back"
 CONF_WEEKS_AHEAD: Final = "weeks_ahead"
 CONF_INTERVAL: Final = "update_interval"
+# Homework weights: ``{child_id: {"types": {...}, "subjects": {...}}}``. Part of the
+# options but not of the reload snapshot: changing them never reloads the entry.
+CONF_WEIGHTS: Final = "weights"
 
 WEEKS_BACK: Final = 1
 WEEKS_AHEAD: Final = 3
@@ -38,6 +41,11 @@ CONF_CHILD_ID: Final = "child_id"
 CONF_OFFSET: Final = "offset"
 CONF_EXCLUDED: Final = "excluded"
 OFFSET_FIELD_MAX: Final = 100
+
+# Homework planner service.
+SERVICE_SET_HOMEWORK_PROGRESS: Final = "set_homework_progress"
+ATTR_ITEM: Final = "item"
+ATTR_PROGRESS: Final = "progress"
 
 MANUFACTURER: Final = "Magister"
 

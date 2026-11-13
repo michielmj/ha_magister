@@ -44,8 +44,8 @@ def _patch_aioresponses(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def mocked() -> Generator[aioresponses]:
-    """Mock aiohttp requests."""
-    with aioresponses() as m:
+    """Mock aiohttp requests (the local test server stays reachable)."""
+    with aioresponses(passthrough=["http://127.0.0.1"]) as m:
         yield m
 
 
