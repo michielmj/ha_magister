@@ -28,9 +28,22 @@ are not repeated. After an entry reload the new entity pushes its list once to e
 ```json
 {"id": 1, "type": "event", "event": {
   "available": true,
-  "items": [ <item>, ... ]
+  "items": [ <item>, ... ],
+  "progress": {
+    "tomorrow":  {"value": 100.0, "items": 0, "completed": 0},
+    "week":      {"value": 25.0,  "items": 18, "completed": 4},
+    "next_week": null
+  }
 }}
 ```
+
+`progress` (since 1.2.0) holds exactly the values of the three progress sensors (tomorrow, this week Mon–Sun,
+next week Mon–Sun), using the weighted average and the same 100 % rule for empty periods.
+- `value`: float 0–100.
+- `items` and `completed`: counts of the items in that period.
+- An entry is `null` when the corresponding sensor is unavailable, e.g. when next week falls outside the fetch window.
+  It is also `null` for every period when `available` is false.
+- Clients that predate 1.2.0 ignore the field.
 
 `available: false` means that the data is older than 24 h, the entry is not loaded, or the entity was
 removed. `items` then holds the last known list, which can be empty. The card shows a "not available" state.
