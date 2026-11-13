@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Homework planner card (`custom:magister-homework-card`, NL/EN, visual editor) shipped with the
+  integration and loaded automatically. The integration now depends on `frontend` and `http`.
 - Homework planner backend: a to-do list per child with the homework and test items,
   progress in percent stored in Home Assistant, the service `magister.set_homework_progress`,
   a WebSocket API for the upcoming card, weighted progress sensors (tomorrow, this week, next

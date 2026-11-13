@@ -11,3 +11,7 @@ updates:
     ignore:
       # The Home Assistant baseline is bumped by hand (see docs/plan/release.md).
       - dependency-name: pytest-homeassistant-custom-component
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly

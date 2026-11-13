@@ -181,6 +181,47 @@ data:
   vergeleken, zonder onderscheid tussen hoofd- en kleine letters; gewichten van vakken die nu niet
   in de gegevens staan blijven bewaard. Gewichten wijzigen laadt de integratie niet opnieuw.
 
+## Huiswerkplanner-kaart
+
+De integratie levert een eigen Lovelace-kaart mee, **Magister Homework planner**, één per kind. De
+kaart wordt automatisch geladen (je hoeft zelf geen resource toe te voegen, ook niet met HACS) en
+toont het huiswerk en de toetsen van de Huiswerklijst van het kind, per dag gegroepeerd, met een
+voortgangsbediening per item.
+
+**Toevoegen:** open een dashboard, kies *Dashboard bewerken > Kaart toevoegen*, zoek op
+**Magister** en kies *Magister Homework planner*. Kies in de visuele editor de Huiswerklijst van
+het kind.
+
+| Optie | Standaard | Betekenis |
+|---|---|---|
+| `entity` | (verplicht) | De Huiswerklijst van het kind (een `todo.`-entiteit van Magister) |
+| `title` | geen | Titel van de kaart |
+| `show_completed` | `false` | Toon ook afgerond huiswerk (je kunt het weer openzetten) |
+| `show_past` | `false` | Toon ook dagen vóór vandaag, onder "Eerder" |
+| `days_ahead` | `7` | Toon items tot zoveel dagen na vandaag (die dag inbegrepen) |
+
+```yaml
+type: custom:magister-homework-card
+entity: todo.kind_myschool_homework
+title: Huiswerk Anna
+show_completed: false
+show_past: false
+days_ahead: 7
+```
+
+- Per dag: "Vandaag", "Morgen", daarna de weekdag en datum. Toetsen (Proefwerk, Tentamen, SO, MO)
+  vallen extra op. Vervallen lessen zijn gemarkeerd, net als een bijlage in Magister (de bestanden
+  zelf zijn hier niet beschikbaar).
+- **Vink** een item aan om het af te ronden (100 %); **vink uit** om terug te gaan naar de voortgang
+  van daarvoor. Of tik een stap aan (0, 25, 50, 75, 100 %). De tekst van een item toont twee
+  regels; tik erop voor de rest.
+- De kaart werkt zichzelf bij. Is Magister langer dan 24 uur onbereikbaar, dan worden de laatste
+  items grijs en zijn ze niet te wijzigen. Mislukt het opslaan, dan wordt de wijziging teruggedraaid
+  en verschijnt een melding.
+- De teksten volgen de taal van Home Assistant (Nederlands of Engels), de kleuren je thema.
+- Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
+  kunt herstellen.
+
 ## Gedrag
 
 - Standaard elke 30 minuten verversen; het hele venster wordt in één keer opgehaald.
@@ -245,6 +286,10 @@ gevraagd.
 Meld beveiligingsproblemen privé, zie [SECURITY.md](SECURITY.md).
 
 ## Ontwikkeling
+
+De Huiswerkplanner-kaart wordt gebouwd uit [`frontend/`](frontend/) (`npm ci && npm run build`); de
+gebouwde bundel in `custom_components/magister/frontend/` staat in de repository en CI faalt als die
+niet bij de broncode past.
 
 Ontwerp- en planningsdocumenten staan in [`docs/`](docs/) (Engels). Beheerder: `michielmj`.
 Licentie: MIT.

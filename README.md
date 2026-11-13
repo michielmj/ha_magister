@@ -170,6 +170,43 @@ data:
   and lower case; weights of subjects that are not in the data right now are kept. Changing
   weights does not reload the integration.
 
+## Homework planner card
+
+The integration ships its own Lovelace card, **Magister Homework planner**, one per child. It is
+loaded automatically (no resource to add by hand, also not with HACS) and shows the homework
+and tests of the child's Homework to-do list, grouped per day, with a progress control per item.
+
+**Add it:** open a dashboard, choose *Edit dashboard > Add card*, search for **Magister** and pick
+*Magister Homework planner*. Choose the child's Homework list in the visual editor.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `entity` | (required) | The child's Homework to-do list (a `todo.` entity of Magister) |
+| `title` | none | Card title |
+| `show_completed` | `false` | Also show completed items (they can be unticked) |
+| `show_past` | `false` | Also show days before today, in an "Earlier" section |
+| `days_ahead` | `7` | Show items up to this many days after today (that day included) |
+
+```yaml
+type: custom:magister-homework-card
+entity: todo.kind_myschool_homework
+title: Homework Anna
+show_completed: false
+show_past: false
+days_ahead: 7
+```
+
+- Per day: "Today", "Tomorrow", then the weekday and date. Tests (Proefwerk, Tentamen, SO, MO) are
+  highlighted. Lessons that were cancelled are marked, and so is an attachment in Magister (the
+  files themselves are not available here).
+- **Tick** an item to mark it done (100 %); **untick** it to go back to the progress it had before.
+  Or tap a step (0, 25, 50, 75, 100 %). The text of an item shows two lines; tap it for the rest.
+- The card updates by itself. When Magister has been unreachable for more than 24 hours the last
+  items are greyed out and cannot be changed. If saving fails, the change is rolled back and a
+  message appears.
+- Texts follow your Home Assistant language (Dutch or English), colours follow your theme.
+- An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
+
 ## How it behaves
 
 - Refresh every 30 minutes by default; the whole window is fetched in one go.
@@ -233,4 +270,6 @@ Report security problems privately, see [SECURITY.md](SECURITY.md).
 
 ## Development
 
-Design and planning documents are in [`docs/`](docs/). Maintainer: `michielmj`. License: MIT.
+Design and planning documents are in [`docs/`](docs/). The Homework planner card is built from
+[`frontend/`](frontend/) (`npm ci && npm run build`); the built bundle in
+`custom_components/magister/frontend/` is committed, and CI fails when it does not match the source. Maintainer: `michielmj`. License: MIT.
