@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Approved by PM (2026-11-13)** |
+| Status | **Accepted by PM (2026-11-13)** — options, repair message, diagnostics and sensors tested on HAOS (0.3.1) |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | HLD §5 (options, reauth), §8 (reliability, privacy) · M2 review notes |
 
