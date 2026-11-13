@@ -65,6 +65,13 @@ CHANGELOG, version tagging, GitHub release, HACS validation green.
   storing the password. This is undocumented and Magister may reject software authenticators,
   so it would need a spike first.
 
+## Post-1.0 follow-ups (from the final review, non-blocking)
+- Duplicate-child repair: log the warning again after a restart (`issue is None or not issue.active`),
+  only once per pair; resync when the duplicate is fixed on a not-loaded entry; tests that go through the options
+  flow/update listener and assert both entries' issues.
+- Proper fix for shared children: put the account id in the calendar unique_id/device identifier, with a
+  config-entry migration (so two parents can each add the same child).
+
 ## Risks
 
 | Risk | Impact | Mitigation |
