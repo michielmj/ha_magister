@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Generic calendar with a graduation cap. Original artwork, MIT licensed with the repository. -->
+  <rect x="24" y="44" width="208" height="192" rx="24" fill="#ffffff" stroke="#3b6ea5" stroke-width="8"/>
+  <path d="M24 68a24 24 0 0 1 24-24h160a24 24 0 0 1 24 24v36H24z" fill="#3b6ea5"/>
+  <rect x="68" y="22" width="16" height="44" rx="8" fill="#1f4068"/>
+  <rect x="172" y="22" width="16" height="44" rx="8" fill="#1f4068"/>
+  <g fill="#c9d9ec">
+    <rect x="48" y="196" width="28" height="18" rx="4"/>
+    <rect x="84" y="196" width="28" height="18" rx="4"/>
+    <rect x="144" y="196" width="28" height="18" rx="4"/>
+    <rect x="180" y="196" width="28" height="18" rx="4"/>
+  </g>
+  <!-- graduation cap -->
+  <path d="M92 150v22c0 10 16 18 36 18s36-8 36-18v-22l-36 16z" fill="#1f4068"/>
+  <path d="M128 112L48 146l80 34 80-34z" fill="#2b5a8c"/>
+  <path d="M128 112L48 146l80 34 80-34z" fill="none" stroke="#1f4068" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M204 150v26" stroke="#e0a82e" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="204" cy="180" r="7" fill="#e0a82e"/>
+</svg>

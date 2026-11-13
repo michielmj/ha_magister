@@ -15,6 +15,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.magister import async_sync_duplicate_issues
 from custom_components.magister.api import (
     MagisterApiError,
     MagisterAuth,
@@ -140,3 +141,57 @@ async def test_unreported_final_failure_blocks_setup(
     assert entry.state is ConfigEntryState.SETUP_ERROR
     assert auth.final_failure_reported
     assert fake.login.posts == []
+
+
+async def test_child_in_two_logins_creates_and_clears_a_repair_issue(
+    hass: HomeAssistant, mocked: aioresponses, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A child shared by two logins of a school is reported, without names."""
+    FakeMagister(mocked)
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    other = make_entry(unique_id="school.magister.net:2000")
+    other.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    registry = ir.async_get(hass)
+    issue_id = f"child_in_multiple_entries_{entry.entry_id}"
+    issue = registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert not issue.is_fixable
+    assert issue.translation_key == "child_in_multiple_entries"
+    assert "more than one Magister login" in caplog.text
+    assert "Kind A" not in caplog.text
+
+    await hass.config_entries.async_remove(other.entry_id)
+    await hass.async_block_till_done()
+    assert registry.async_get_issue(DOMAIN, issue_id) is None
+
+
+async def test_duplicate_issue_cleared_when_child_is_removed_via_options(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Fixing the duplicate in one login clears the issue of the other."""
+    FakeMagister(mocked)
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    other = make_entry(unique_id="school.magister.net:2000")
+    other.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    registry = ir.async_get(hass)
+    assert registry.async_get_issue(
+        DOMAIN, f"child_in_multiple_entries_{entry.entry_id}"
+    )
+    # In real life the other login changes through its own options flow, whose update
+    # listener runs the same sync.
+    hass.config_entries.async_update_entry(
+        other,
+        data={**other.data, "children": [{"id": 9, "name": "X", "short_name": "X"}]},
+    )
+    async_sync_duplicate_issues(hass)
+    assert (
+        registry.async_get_issue(DOMAIN, f"child_in_multiple_entries_{entry.entry_id}")
+        is None
+    )

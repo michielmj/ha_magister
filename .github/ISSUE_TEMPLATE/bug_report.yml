@@ -1,0 +1,62 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Privacy warning
+        This is a public page. **Never post names of children, teachers or schools, screenshots
+        that show names, usernames, passwords, authenticator secrets or tokens.** Replace
+        anything personal in logs by hand before pasting. Use the diagnostics file below: it is
+        redacted.
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.10.4"
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Magister integration version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installation method
+      options: [HACS, Manual]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics file
+      description: |
+        Integration page, three-dot menu, **Download diagnostics**. Drag the file into this box
+        (it is redacted, but skim it first).
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I removed names and personal data from this report.
+          required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines (anonymized)
+      render: text

@@ -56,14 +56,16 @@
       "cannot_connect": "Could not connect to Magister. Try again later.",
       "unknown": "An unexpected error occurred. See the log for details.",
       "no_children_selected": "Select at least one child.",
-      "login_page_changed": "Magister changed its login page, so logging in is not possible right now. Update the integration or try again later."
+      "login_page_changed": "Magister changed its login page, so logging in is not possible right now. Update the integration or try again later.",
+      "child_already_configured": "This child is already added under another login of this school. Add each child under one login only."
     },
     "abort": {
       "already_configured": "This Magister account is already configured.",
       "no_children": "No children were found on this account.",
       "wrong_account": "These credentials belong to a different Magister account. Add that account as a new integration instead.",
       "reauth_successful": "Logged in again. The integration is reloading.",
-      "reconfigure_successful": "The login was updated. The integration is reloading."
+      "reconfigure_successful": "The login was updated. The integration is reloading.",
+      "all_children_configured": "All children of this account are already added under another login of this school."
     }
   },
   "entity": {
@@ -106,7 +108,8 @@
       }
     },
     "error": {
-      "no_children_selected": "Select at least one child."
+      "no_children_selected": "Select at least one child.",
+      "child_already_configured": "This child is already added under another login of this school. Add each child under one login only."
     },
     "abort": {
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",
@@ -166,6 +169,10 @@
     "offset_outside_window": {
       "title": "First-appointment sensor outside the window",
       "description": "The sensor {name} looks {offset} days ahead, but only {max_offset} days fit in {weeks_ahead} weeks ahead. The sensor is unknown. Increase the weeks ahead in the options or edit the sensor."
+    },
+    "child_in_multiple_entries": {
+      "title": "Several logins list the same child",
+      "description": "A child is configured under more than one Magister login for this school. Remove it from one login: open Configure on that login and deselect the child."
     }
   }
 }

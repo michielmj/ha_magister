@@ -55,15 +55,17 @@
       "unsupported_login": "Deze school of dit account gebruikt een inlogmethode die niet wordt ondersteund (schoolbrede SSO of passkey).",
       "cannot_connect": "Kan geen verbinding maken met Magister. Probeer het later opnieuw.",
       "unknown": "Er is een onverwachte fout opgetreden. Zie het logboek voor details.",
-      "no_children_selected": "Kies minimaal één kind.",
-      "login_page_changed": "Magister heeft de loginpagina gewijzigd, dus inloggen is nu niet mogelijk. Werk de integratie bij of probeer het later opnieuw."
+      "no_children_selected": "Kies minstens één kind.",
+      "login_page_changed": "Magister heeft de loginpagina gewijzigd, dus inloggen is nu niet mogelijk. Werk de integratie bij of probeer het later opnieuw.",
+      "child_already_configured": "Dit kind is al toegevoegd bij een andere login van deze school. Voeg elk kind bij één login toe."
     },
     "abort": {
       "already_configured": "Dit Magister-account is al ingesteld.",
       "no_children": "Er zijn geen kinderen gevonden bij dit account.",
       "wrong_account": "Deze gegevens horen bij een ander Magister-account. Voeg dat account toe als nieuwe integratie.",
       "reauth_successful": "Opnieuw ingelogd. De integratie wordt herladen.",
-      "reconfigure_successful": "De login is bijgewerkt. De integratie wordt herladen."
+      "reconfigure_successful": "De login is bijgewerkt. De integratie wordt herladen.",
+      "all_children_configured": "Alle kinderen van dit account zijn al toegevoegd bij een andere login van deze school."
     }
   },
   "entity": {
@@ -106,7 +108,8 @@
       }
     },
     "error": {
-      "no_children_selected": "Kies minstens één kind."
+      "no_children_selected": "Kies minstens één kind.",
+      "child_already_configured": "Dit kind is al toegevoegd bij een andere login van deze school. Voeg elk kind bij één login toe."
     },
     "abort": {
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",
@@ -165,7 +168,11 @@
     },
     "offset_outside_window": {
       "title": "Sensor voor eerste afspraak buiten het venster",
-      "description": "De sensor {name} kijkt {offset} dagen vooruit, maar bij {weeks_ahead} weken vooruit passen er maar {max_offset} dagen. De sensor is onbekend. Verhoog het aantal weken vooruit in de opties of pas de sensor aan."
+      "description": "De sensor {name} kijkt {offset} dagen vooruit, maar bij {weeks_ahead} weken vooruit passen er hooguit {max_offset} dagen. De sensor is onbekend. Verhoog het aantal weken vooruit in de opties of pas de sensor aan."
+    },
+    "child_in_multiple_entries": {
+      "title": "Een kind staat bij meer dan één login",
+      "description": "Een kind is bij meer dan één Magister-login van deze school ingesteld. Haal het bij één login weg: open Configureren bij die login en haal het kind uit de selectie."
     }
   }
 }

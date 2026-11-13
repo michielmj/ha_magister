@@ -1,5 +1,6 @@
 {
   "name": "Magister",
   "homeassistant": "2026.10.4",
+  "country": "NL",
   "render_readme": true
 }

@@ -21,3 +21,4 @@ home-assistant.log*
 .idea/
 .vscode/
 .DS_Store
+*.whl

@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## 1.0.0
+
+First stable release. Summary of 0.1 to 0.3:
+
+- Calendars per child and school with Magister's labels (`[Vervallen]`, `[Huiswerk]`,
+  `[Proefwerk]`, ...), fetched from one week back to three weeks ahead every 30 minutes
+  (adjustable in the options).
+- Config flow with school, username, password, optional authenticator secret and a choice of
+  children; several logins per school are supported. Re-authentication, reconfigure and
+  options flows (saving reloads without a new login).
+- First-appointment sensors (config sub-entries) with a day offset and excluded subjects,
+  for example for a wake-up alarm.
+- Calendars and sensors stay available on the last good data for up to 24 hours when a
+  refresh fails.
+- Lockout protection for the login, diagnostics with redaction, and repair messages when
+  Magister changes its login page or a sensor falls outside the fetched window.
+- Dutch and English translations and README; `tools/magister_cli.py` for troubleshooting.
+- A child that another login of the same school already has is no longer offered (config
+  flow and options), and a login whose children are all taken is rejected with a clear
+  message. This prevents two calendars with the same unique id.
+- Dutch translation fixes.
+- Repair message when a child is configured under more than one login of a school (installs
+  from before this check); the options form always offers the children an entry already has.
+- New in 1.0: project icon (shipped in `custom_components/magister/brand/`), user
+  documentation in English and Dutch, release workflow, issue templates, security policy and
+  Dependabot.
+
 ## 0.3.1
 
 - Status 3 appointments are shown as normal lessons: the "Gewijzigd" line is gone from

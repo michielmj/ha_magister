@@ -6,15 +6,16 @@ fixtures. Nothing is sent anywhere except to your school's Magister servers.
 
 ## 1. Get the code
 
-Either clone the branch:
+Either clone the repository (the latest release is the safest choice; `main` is the
+current state):
 
 ```
-git clone --branch claude/jolly-mayer-i2h3oo https://github.com/michielmj/ha_magister.git
+git clone https://github.com/michielmj/ha_magister.git
 cd ha_magister
 ```
 
-or on GitHub choose branch `claude/jolly-mayer-i2h3oo`, then Code > Download ZIP, unzip it
-and open a terminal in the unzipped folder.
+or on GitHub open the latest release (Releases) and download the source code ZIP, or
+choose Code > Download ZIP on branch `main`. Unzip it and open a terminal in the unzipped folder.
 
 ## 2. Install (once)
 

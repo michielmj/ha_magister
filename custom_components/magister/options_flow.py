@@ -7,6 +7,7 @@ from typing import Any
 
 import probatio
 from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -23,9 +24,11 @@ from .const import (
     CHILD_NAME,
     CHILD_SHORT_NAME,
     CONF_CHILDREN,
+    CONF_HOST,
     CONF_INTERVAL,
     CONF_WEEKS_AHEAD,
     CONF_WEEKS_BACK,
+    DOMAIN,
     INTERVAL_MAX,
     INTERVAL_MIN,
     INTERVAL_MINUTES,
@@ -46,6 +49,24 @@ def child_entry(person: Person) -> dict[str, Any]:
         CHILD_NAME: person.name,
         CHILD_SHORT_NAME: person.first_name or person.initials or person.name,
     }
+
+
+def children_in_other_entries(
+    hass: HomeAssistant,
+    host: str,
+    exclude_entry_id: str | None,
+    also_exclude: str | None = None,
+) -> set[int]:
+    """Child ids of the same school that another entry already has a calendar for."""
+    taken: set[int] = set()
+    for other in hass.config_entries.async_entries(DOMAIN):
+        if (
+            other.entry_id in (exclude_entry_id, also_exclude)
+            or other.data.get(CONF_HOST) != host
+        ):
+            continue
+        taken.update(int(c[CHILD_ID]) for c in other.data.get(CONF_CHILDREN, []))
+    return taken
 
 
 def _number(minimum: int, maximum: int) -> NumberSelector:
@@ -103,11 +124,20 @@ class MagisterOptionsFlow(OptionsFlow):
         ):
             return self.async_abort(reason=reason)
         assert self._children is not None
-        errors: dict[str, str] = {}
+        taken = children_in_other_entries(
+            self.hass, str(entry.data[CONF_HOST]), entry.entry_id
+        )
         current = [int(c[CHILD_ID]) for c in entry.data[CONF_CHILDREN]]
+        # Children this entry already has stay offered, so the form can always be saved.
+        offered = {
+            k: v for k, v in self._children.items() if k not in taken or k in current
+        }
+        errors: dict[str, str] = {}
         if user_input is not None:
             selected = {int(value) for value in user_input[CONF_CHILDREN]}
-            if not selected:
+            if selected & (taken - set(current)):
+                errors["base"] = "child_already_configured"
+            elif not selected:
                 errors["base"] = "no_children_selected"
             else:
                 options = {
@@ -121,7 +151,7 @@ class MagisterOptionsFlow(OptionsFlow):
                         **entry.data,
                         CONF_CHILDREN: [
                             child
-                            for child_id, child in self._children.items()
+                            for child_id, child in offered.items()
                             if child_id in selected
                         ],
                     },
@@ -142,7 +172,7 @@ class MagisterOptionsFlow(OptionsFlow):
                             SelectOptionDict(
                                 value=str(child_id), label=str(child[CHILD_NAME])
                             )
-                            for child_id, child in self._children.items()
+                            for child_id, child in offered.items()
                         ],
                         multiple=True,
                         mode=SelectSelectorMode.LIST,
