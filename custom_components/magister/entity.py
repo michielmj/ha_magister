@@ -90,6 +90,8 @@ class MagisterEntity(CoordinatorEntity[MagisterCoordinator]):
     def _handle_expiry(self, _now: datetime) -> None:
         self._unsub_expiry = None
         self.async_write_ha_state()
+        if self.available:
+            self._schedule_expiry()
 
     @callback
     def _handle_coordinator_update(self) -> None:

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.3.1
+
+- Status 3 appointments are shown as normal lessons: the "Gewijzigd" line is gone from
+  the description (Magister itself shows no changed marker). "Verplaatst" for Status 9
+  and 10 stays.
+- An entity that is still available when its data-age timer fires now schedules the
+  timer again.
+- Test for an outage that spans midnight: the sensor shows the next day's first
+  lesson from cached data.
+
 ## 0.3.0
 
 Summary of M2, M3 and the follow-up since 0.0.1:

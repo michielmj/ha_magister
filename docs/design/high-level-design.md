@@ -153,7 +153,7 @@ Removing a child in the options removes its entity/device (registry cleanup).
 | start/end | `Start`/`Einde` (UTC). All-day when `DuurtHeleDag` → date-only event (end exclusive) |
 | summary | `<prefix><subject>` where subject = `Vakken[].Naam` → first `" - "` segment of `Omschrijving` (e.g. `wisB`, `SE NAT`, `Schoolfotograaf`) → "Afspraak". Some schools leave `Vakken` empty (PM decision 2026-11-13) |
 | location | `Lokatie` → `Lokalen[].Naam` |
-| description | `Lesuur n` (or `n–m`), full Omschrijving, teachers, a status line ("Vervallen"/"Gewijzigd"), homework/test text (`Inhoud`, HTML → text) |
+| description | `Lesuur n` (or `n–m`), full Omschrijving, teachers, a status line ("Vervallen"/"Verplaatst"), homework/test text (`Inhoud`, HTML → text) |
 
 Title prefixes, using **Magister's own label words** (PM decision 2026-11-13; multiple combine, e.g. `[Vervallen] [Proefwerk] biologie`):
 

@@ -148,3 +148,33 @@ async def test_diagnostics_show_the_age_of_the_data(
     frozen_now.tick(timedelta(minutes=10))
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
     assert diagnostics["coordinator"]["last_success_age_seconds"] == 600
+
+
+async def test_outage_spanning_midnight_shows_next_days_first_lesson(
+    hass: HomeAssistant, mocked: aioresponses, frozen_now: FrozenDateTimeFactory
+) -> None:
+    """Cached data answers for the new day after midnight, still available."""
+    frozen_now.move_to("2026-11-12 05:00:00+00:00")  # Thursday 06:00 Amsterdam
+    fake = await _setup(hass, mocked)
+    assert hass.states.get(SENSOR_ID).state != "unavailable"
+
+    fake.appointment_status = 503
+    for _ in range(37):  # to Friday 00:30 Amsterdam (Thu 23:30 UTC)
+        await _tick(hass, frozen_now, timedelta(minutes=30))
+    state = hass.states.get(SENSOR_ID)
+    assert state is not None
+    assert state.state == "2026-11-13T08:15:00+00:00"
+    assert state.attributes["date"] == "2026-11-13"
+
+
+async def test_expiry_timer_reschedules_while_available(
+    hass: HomeAssistant, mocked: aioresponses, frozen_now: FrozenDateTimeFactory
+) -> None:
+    """If the data is still fresh when the timer fires, a new timer is set."""
+    await _setup(hass, mocked)
+    entity = hass.data["sensor"].get_entity(SENSOR_ID)
+    assert entity is not None
+    entity._unsub_expiry = None
+    entity._handle_expiry(frozen_now())
+    assert entity._unsub_expiry is not None
+    entity._cancel_expiry()

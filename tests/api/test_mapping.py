@@ -134,12 +134,19 @@ def test_prefixes(status: int | None, info_type: int | None, prefix: str) -> Non
 
 @pytest.mark.parametrize(
     ("status", "line"),
-    [(3, "Gewijzigd"), (9, "Gewijzigd"), (10, "Verplaatst"), (4, "Vervallen")],
+    [(9, "Verplaatst"), (10, "Verplaatst"), (4, "Vervallen")],
 )
 def test_status_lines(status: int, line: str) -> None:
     """Changed, moved and cancelled items get a status line."""
     description = map_appointment(make(Status=status), HOST).description
     assert description.splitlines()[0] == line
+
+
+def test_status_3_is_a_normal_lesson() -> None:
+    """Magister shows Status 3 as a normal lesson, so there is no status line."""
+    description = map_appointment(make(Status=3), HOST).description
+    assert description == map_appointment(make(Status=1), HOST).description
+    assert "Gewijzigd" not in description
 
 
 def test_multi_hour_and_empty_vakken_fall_back_to_omschrijving() -> None:
