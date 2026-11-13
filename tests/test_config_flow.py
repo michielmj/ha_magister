@@ -32,6 +32,11 @@ from custom_components.magister.const import (
 from .api.helpers import PASSWORD, RETURN_URL, TOKEN, TOTP_SECRET, USERNAME
 from .ha_helpers import CHILD_ID, UNIQUE_ID, FakeMagister, make_entry
 
+TWO_CHILDREN = [
+    {"Id": 1001, "Roepnaam": "Anna", "Achternaam": "", "Tussenvoegsel": ""},
+    {"Id": 1002, "Roepnaam": "Bram", "Achternaam": "", "Tussenvoegsel": ""},
+]
+
 USER_INPUT = {
     CONF_SCHOOL: "school",
     CONF_USERNAME: USERNAME,
@@ -351,3 +356,35 @@ async def test_no_secrets_in_logs(
     assert "InvalidChallenge" in caplog.text  # the server error name is logged
     for secret in (PASSWORD, TOTP_SECRET, TOKEN):
         assert secret not in caplog.text
+
+
+async def test_child_of_another_login_is_not_offered(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A child already configured under another login of the school is hidden."""
+    FakeMagister(mocked, children=TWO_CHILDREN)
+    make_entry(unique_id="school.magister.net:2000").add_to_hass(hass)
+    flow_id = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(flow_id, USER_INPUT)
+    assert result["step_id"] == "children"
+    schema = result["data_schema"].schema
+    key = next(k for k in schema if k == CONF_CHILDREN)
+    assert [o["value"] for o in schema[key].config["options"]] == ["1002"]
+
+    # A stale or forged selection is rejected with a clear error
+    flow = hass.config_entries.flow._progress[flow_id]
+    assert flow._taken_children() == {CHILD_ID}
+    result = await flow.async_step_children({CONF_CHILDREN: ["1001", "1002"]})
+    assert result["errors"] == {"base": "child_already_configured"}
+
+
+async def test_all_children_already_configured_aborts(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """When every child already belongs to another login there is nothing to add."""
+    FakeMagister(mocked)
+    make_entry(unique_id="school.magister.net:2000").add_to_hass(hass)
+    flow_id = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(flow_id, USER_INPUT)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "all_children_configured"

@@ -12,9 +12,9 @@ agenda per kind, plus optionele sensoren met de starttijd van de eerste afspraak
 
 ## Wat je krijgt
 
-- Een agenda **Agenda** per kind (apparaat `Kind (myschool)`), met lessen, huiswerk, toetsen,
-  vervallen lessen en schoolactiviteiten. Standaard van een week terug tot drie weken vooruit,
-  elke 30 minuten ververst (beide instelbaar).
+- Per kind een agenda met de naam **Agenda** (apparaat `Kind (myschool)`), met lessen, huiswerk,
+  toetsen, vervallen lessen en schoolactiviteiten. Standaard van een week terug tot drie weken
+  vooruit, elke 30 minuten ververst (beide instelbaar).
 - Optionele **sensoren voor de eerste afspraak** (een tijdstempel) voor automatiseringen.
 - De titels komen uit Magister met deze labels:
 
@@ -24,9 +24,10 @@ agenda per kind, plus optionele sensoren met de starttijd van de eerste afspraak
 | `[Huiswerk] wiskunde` | les met huiswerk |
 | `[Proefwerk]`, `[Tentamen]`, `[SO]`, `[MO]`, `[Informatie]` | proefwerk, tentamen, schriftelijke/mondelinge overhoring, informatie |
 
-Labels worden gecombineerd, bijvoorbeeld `[Vervallen] [Huiswerk] scheikunde`. Geeft Magister geen vak, dan wordt het
-eerste deel van de omschrijving als titel gebruikt (en `Afspraak` als die leeg is). De beschrijving van een afspraak toont het lesuur, een
-opmerking bij verplaatste of vervallen lessen, de docenten en de huiswerktekst.
+Labels worden gecombineerd, bijvoorbeeld `[Vervallen] [Huiswerk] scheikunde`. Geeft Magister geen
+vak, dan wordt het eerste deel van de omschrijving als titel gebruikt (en `Afspraak` als die leeg
+is). De beschrijving van een afspraak toont het lesuur, een opmerking bij verplaatste of vervallen
+lessen, de docenten en de huiswerktekst.
 
 ## Vereisten
 
@@ -57,55 +58,56 @@ opmerking bij verplaatste of vervallen lessen, de docenten en de huiswerktekst.
 ### Handmatig
 
 Kopieer de map `custom_components/magister` uit deze repository naar
-`config/custom_components/magister` in Home Assistant, herstart Home Assistant en ververs de browser.
+`config/custom_components/magister` in Home Assistant, herstart Home Assistant en ververs de
+browser.
 
 ## Instellen
 
-1. Ga naar **Instellingen > Apparaten & services > Integratie toevoegen** en kies **Magister**.
+1. Ga naar **Instellingen > Apparaten & diensten > Integratie toevoegen** en kies **Magister**.
 2. Vul de school in (`myschool`, `myschool.magister.net` of het webadres), de gebruikersnaam en het
    wachtwoord. Bij tweestapsverificatie vul je ook het authenticator-geheim in.
 3. Kies bij een ouderaccount de kinderen die een agenda moeten krijgen.
 
-Elke Magister-login is één vermelding. Je kunt meer logins toevoegen, ook voor dezelfde school
-(bijvoorbeeld beide ouders), en logins voor andere scholen. Hetzelfde account kan niet twee keer
-worden toegevoegd.
+Elke Magister-login is één vermelding. Meer logins zijn prima, ook bij dezelfde school en bij
+andere scholen, mits elk kind onder één login wordt toegevoegd (twee ouders: voeg elk kind één
+keer toe). Hetzelfde account kan niet twee keer worden toegevoegd.
 
 ### Opties
 
-**Configureren** op de integratiepagina wijzigt de kinderen (voegt ook hun agenda's en sensoren
-toe of verwijdert ze), de weken terug (0 tot 8), de weken vooruit (1 tot 12) en het
-verversingsinterval (15 tot 360 minuten). Opslaan laadt de integratie opnieuw, zonder opnieuw in
-te loggen.
+**Configureren** op de integratiepagina wijzigt de kinderen, de weken terug (0 tot 8), de weken
+vooruit (1 tot 12) en het verversingsinterval (15 tot 360 minuten). Opslaan laadt de integratie
+opnieuw, zonder nieuwe wachtwoordlogin zolang de sessie nog geldig is. Een kind toevoegen voegt
+een agenda toe (sensoren voeg je zelf toe); een kind verwijderen verwijdert zijn agenda en
+sensoren.
 
 ## Sensoren voor de eerste afspraak
 
 Er wordt niets automatisch aangemaakt. Kies op de integratiepagina **Sensor voor eerste afspraak
 toevoegen** (naast **Configureren**):
 
-1. Kies het kind en de dagverschuiving (0 = vandaag, 1 = morgen, ...). De dag moet binnen het
-   opgehaalde venster liggen: hooguit `7 x weken vooruit - 1` dagen vooruit (20 bij de standaard
-   van 3 weken).
+1. Kies het kind en het **Aantal dagen vooruit** (0 = vandaag, 1 = morgen, ...). De dag moet
+   binnen het opgehaalde venster liggen: hooguit `7 x weken vooruit - 1` dagen vooruit (20 bij de
+   standaard van 3 weken).
 2. Kies de vakken die niet meetellen, bijvoorbeeld `Franse taal`. De lijst toont vakken uit de
    huidige agenda van het kind en je kunt ook andere namen typen. Een vak komt overeen als de hele
    naam gelijk is, zonder onderscheid tussen hoofd- en kleine letters.
 
 De sensor (apparaatklasse `timestamp`, op het apparaat van het kind, bijvoorbeeld
-`sensor.kind_myschool_eerste_afspraak_vandaag`) toont de start van de eerste afspraak met een
-tijd op die dag die niet vervalt en niet is uitgesloten. Lessen, schooltoetsen en
-schoolactiviteiten tellen mee; afspraken voor de hele dag niet. Attributen: `date`, `end`,
-`subject`, `summary`, `location`, `lesson_hours` en `skipped` (het aantal vervallen of
-uitgesloten afspraken ervoor).
+`sensor.kind_myschool_eerste_afspraak_vandaag`) toont de start van de eerste afspraak met een tijd
+op die dag die niet vervalt en niet is uitgesloten. Lessen, schooltoetsen en schoolactiviteiten
+tellen mee; afspraken voor de hele dag niet. Attributen: `date`, `end`, `subject`, `summary`,
+`location`, `lesson_hours` en `skipped` (het aantal vervallen of uitgesloten afspraken ervoor).
 
 De status is **`unknown`** (onbekend) als er zo'n afspraak niet is (weekend, vakantie, alles
-vervalt of is uitgesloten) of als de dagverschuiving niet meer in het venster past (een
-reparatiemelding legt dat uit). De verschuiving telt kalenderdagen, dus op vrijdag is 1 zaterdag.
-De sensor wordt bij elke verversing en om middernacht bijgewerkt, zonder extra verzoeken aan
-Magister. Elke sensor kun je apart wijzigen (opnieuw configureren) en verwijderen.
+vervalt of is uitgesloten) of als de aantal dagen vooruit niet meer in het venster past (een
+reparatiemelding legt dat uit). Het aantal dagen vooruit telt kalenderdagen, dus op vrijdag is 1
+zaterdag. De sensor wordt bij elke verversing en om middernacht bijgewerkt, zonder extra verzoeken
+aan Magister. Elke sensor kun je apart wijzigen (opnieuw configureren) en verwijderen.
 
 ### Voorbeelden voor automatiseringen
 
 De sensor is een tijdstempel, dus de trigger **Tijd** kan er relatief aan vuren. Een wekker 1,5
-uur voor de eerste les van vandaag (sensor met verschuiving 0):
+uur voor de eerste les van vandaag (sensor met 0 dagen vooruit):
 
 ```yaml
 triggers:
@@ -117,14 +119,14 @@ actions:
   - action: script.wake_up
 ```
 
-Bij een vroege les wil je misschien de avond ervoor een wekker: gebruik de sensor "morgen"
-(verschuiving 1) met een grote negatieve offset, bijvoorbeeld `"-14:00:00"` (14 uur voor de
-eerste les van morgen).
+Bij een vroege les wil je misschien de avond ervoor een wekker: gebruik de sensor "morgen" (1 dag
+vooruit) met een grote negatieve offset, bijvoorbeeld `"-14:00:00"` (14 uur voor de eerste les van
+morgen).
 
 Vuistregel: kies de sensor waarvan de dag de doeldag is op het moment dat de trigger vuurt. Een
-sensor "vandaag" schuift om middernacht door naar de volgende dag, dus een wekker om 06:45 voor
-de les van vandaag hoort bij de sensor met verschuiving 0 en een wekker de avond ervoor bij de
-sensor met verschuiving 1.
+sensor "vandaag" schuift om middernacht door naar de volgende dag, dus een wekker om 06:45 voor de
+les van vandaag hoort bij de sensor met 0 dagen vooruit en een wekker de avond ervoor bij de
+sensor met 1 dag vooruit.
 
 **Voeg voor belangrijke wekkers een reserve toe.** De sensoren en agenda's houden de laatste goede
 gegevens tot 24 uur vast als Magister of je internet uitvalt, dus een korte storing annuleert een
@@ -147,16 +149,16 @@ eerste les die je niet mag missen: zet er ook een wekker op een vaste tijd naast
   bewust de gebruikersnaam of het geheim wijzigen, gebruik dan **Opnieuw configureren** in het
   drie-puntjesmenu van de vermelding. Beide accepteren alleen hetzelfde Magister-account.
 - **Inloggen geblokkeerd / "Inloggen bij Magister is geblokkeerd na herhaalde fouten"**: om te
-  voorkomen dat je account op slot gaat, stopt de integratie na herhaalde fouten met proberen.
-  Los de oorzaak op (wachtwoord, netwerk) en **laad de integratie opnieuw** (drie-puntjesmenu):
-  dat probeert het nog één keer. Klopt het wachtwoord niet, gebruik dan Opnieuw configureren of de
-  kaart voor opnieuw inloggen.
+  voorkomen dat je account op slot gaat, stopt de integratie na herhaalde fouten met proberen. Los
+  de oorzaak op (wachtwoord, netwerk) en **herlaad de integratie** (drie-puntjesmenu,
+  **Herladen**): dat probeert het nog één keer. Klopt het wachtwoord niet, gebruik dan Opnieuw
+  configureren of de kaart voor opnieuw inloggen.
 - **Reparatie "Magister heeft de loginpagina gewijzigd"**: Magister heeft de loginpagina's
   aangepast. Werk de integratie bij in HACS; blijft het probleem, meld het dan als issue.
 - **Reparatie "Sensor voor eerste afspraak buiten het venster"**: een sensor kijkt verder vooruit
   dan de weken vooruit toelaten. Verhoog **Weken vooruit** of wijzig de sensor.
-- **Logs**: Instellingen > Systeem > Logs, filter op `magister`. Voor meer detail zet je dit in
-  `configuration.yaml` en herstart je:
+- **Logboeken**: Instellingen > Systeem > Logboeken, filter op `magister`. Voor meer detail zet
+  je dit in `configuration.yaml` en herstart je:
 
   ```yaml
   logger:
@@ -164,9 +166,9 @@ eerste les die je niet mag missen: zet er ook een wekker op een vaste tijd naast
       custom_components.magister: debug
   ```
 
-- **Diagnostiek**: op de integratiepagina, drie-puntjesmenu, **Diagnostiek downloaden**. Het
-  bestand bevat opties, aantallen en de loginstatus; gebruikersnamen, wachtwoorden, geheimen,
-  tokens, namen, id's en de schoolhost zijn verwijderd.
+- **Diagnostische gegevens**: op de integratiepagina, drie-puntjesmenu, **Diagnostische gegevens
+  downloaden**. Het bestand bevat opties, aantallen en de loginstatus; gebruikersnamen,
+  wachtwoorden, geheimen, tokens, namen, id's en de schoolhost zijn verwijderd.
 
 **Plaats nooit namen, schermafbeeldingen met namen of wachtwoorden in een issue.** Voeg het
 diagnostiekbestand toe en haal persoonlijke gegevens uit logs zelf weg.
@@ -184,7 +186,7 @@ gevraagd.
   Assistant (`config/.storage`), net als bij andere integraties. Bescherm je back-ups.
 - Ze worden nooit in logs geschreven; diagnostiek verbergt ze.
 - Gegevens gaan alleen tussen je Home Assistant en Magister (de Magister-server en de loginservice
-  van je school). Er is geen andere server en er is geen analyse.
+  van je school). Er is geen andere server en er worden geen gebruiksgegevens verzameld.
 - Bescherming tegen blokkade: na een mislukte login of herhaalde serverfouten wacht de integratie
   en probeert niet opnieuw met het wachtwoord; ze stopt helemaal als een poging kan meetellen voor
   een blokkade, tot je de integratie opnieuw laadt of opnieuw verifieert.

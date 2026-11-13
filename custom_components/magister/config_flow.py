@@ -56,7 +56,7 @@ from .const import (
     SUBENTRY_FIRST,
     host_prefix,
 )
-from .options_flow import MagisterOptionsFlow, child_entry
+from .options_flow import MagisterOptionsFlow, child_entry, children_in_other_entries
 from .pending import PendingLogin, store_pending_login
 from .subentry_flow import FirstAppointmentSubentryFlow
 
@@ -156,6 +156,10 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    def _taken_children(self) -> set[int]:
+        """Children of this school that another login already has."""
+        return children_in_other_entries(self.hass, self._host, None)
+
     async def async_step_children(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -164,13 +168,17 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             selected = {int(value) for value in user_input[CONF_CHILDREN]}
             chosen = [child for child in self._children if child.id in selected]
-            if chosen:
+            if not chosen:
+                errors["base"] = "no_children_selected"
+            elif {child.id for child in chosen} & self._taken_children():
+                errors["base"] = "child_already_configured"
+            else:
                 return self._async_create_entry(chosen)
-            errors["base"] = "no_children_selected"
 
         options = [
             SelectOptionDict(value=str(child.id), label=child.name)
             for child in self._children
+            if child.id not in self._taken_children()
         ]
         schema = probatio.Schema(
             {
@@ -366,6 +374,9 @@ class MagisterConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="no_children")
         if not self._account.is_parent:
             return self._async_create_entry(self._children)
+        if all(child.id in self._taken_children() for child in self._children):
+            self._discard_login()
+            return self.async_abort(reason="all_children_configured")
         return await self.async_step_children()
 
     def _async_create_entry(self, children: list[Person]) -> ConfigFlowResult:

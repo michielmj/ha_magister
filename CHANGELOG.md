@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- A child that another login of the same school already has is no longer offered (config
+  flow and options), and a login whose children are all taken is rejected with a clear
+  message. This prevents two calendars with the same unique id.
+- Dutch translation fixes.
+
 ## 1.0.0
 
 First stable release. Summary of 0.1 to 0.3:

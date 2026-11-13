@@ -354,3 +354,28 @@ async def test_no_kept_login_aborts(hass: HomeAssistant, mocked: aioresponses) -
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "cannot_connect"
+
+
+async def test_child_of_another_login_is_not_offered(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Children that another login of the school has are hidden and rejected."""
+    _, entry = await _setup(
+        hass, mocked, children=[(1001, "Anna")], magister_children=TWO_CHILDREN
+    )
+    other = make_entry(children=[(1002, "Bram")], unique_id="school.magister.net:2000")
+    other.add_to_hass(hass)
+    result = await _init(hass, entry)
+    keys = {str(k): k for k in result["data_schema"].schema}
+    options = result["data_schema"].schema[keys[CONF_CHILDREN]].config["options"]
+    assert [o["value"] for o in options] == ["1001"]
+    flow = hass.config_entries.options._progress[result["flow_id"]]
+    result = await flow.async_step_init(
+        {
+            CONF_CHILDREN: ["1001", "1002"],
+            CONF_WEEKS_BACK: 1,
+            CONF_WEEKS_AHEAD: 3,
+            CONF_INTERVAL: 30,
+        }
+    )
+    assert result["errors"] == {"base": "child_already_configured"}

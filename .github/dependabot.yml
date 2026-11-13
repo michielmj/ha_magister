@@ -8,3 +8,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # The Home Assistant baseline is bumped by hand (see docs/plan/release.md).
+      - dependency-name: pytest-homeassistant-custom-component

@@ -63,14 +63,16 @@ Copy the folder `custom_components/magister` from this repository to
    the password. With two-step verification also enter the authenticator secret.
 3. For a parent account choose the children that should get a calendar.
 
-Each Magister login is one entry. You can add several logins, also for the same school (for
-example both parents), and logins for different schools. The same account cannot be added twice.
+Each Magister login is one entry. Several logins are fine, also at the same school and for
+different schools, as long as each child is added under one login only (two parents: add each
+child once). The same account cannot be added twice.
 
 ### Options
 
-**Configure** on the integration page changes the children (also adds or removes their
-calendars and sensors), the weeks back (0 to 8), the weeks ahead (1 to 12) and the refresh
-interval (15 to 360 minutes). Saving reloads the integration without logging in again.
+**Configure** on the integration page changes the children, the weeks back (0 to 8), the
+weeks ahead (1 to 12) and the refresh interval (15 to 360 minutes). Saving reloads the integration without a new password login, as
+long as the session is still valid. Adding a child adds a calendar (sensors you add yourself);
+removing a child removes its calendar and sensors.
 
 ## First-appointment sensors
 

@@ -14,7 +14,7 @@ checks this, runs the tests and publishes the release with the notes from the ma
 2. In `CHANGELOG.md` turn the notes under `## Unreleased` into a `## X.Y.Z` section (the heading
    is exactly `## X.Y.Z`, nothing after the version) and leave an empty `## Unreleased` above it.
 3. Run the checks locally: `ruff check .`, `ruff format --check .`, `mypy`,
-   `pytest --cov=custom_components.magister`. Run the privacy grep from the project rules.
+   `pytest --cov=custom_components.magister`. Run the privacy grep from the maintainer's private notes (it is not listed here).
 4. Open a PR, wait for CI (Tests, Hassfest, HACS), merge it.
 5. The Architect pushes the tag on the merge commit:
    `git tag vX.Y.Z && git push origin vX.Y.Z`.
@@ -29,6 +29,8 @@ tag that already has a published release; bump to the next patch version instead
 
 ## Notes
 
+- Dependabot ignores `pytest-homeassistant-custom-component`: the Home Assistant baseline
+  (that package, `homeassistant` in `hacs.json` and the README requirement) is bumped by hand.
 - HACS shows the README (`render_readme`) and the release notes from the GitHub release.
 - The icon is shipped in `custom_components/magister/brand/` (HA 2026.10 serves it for custom
   integrations); the source is `docs/assets/icon.svg`.
