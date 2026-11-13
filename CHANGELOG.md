@@ -12,3 +12,8 @@
   calendar entity per child with Magister's labels (`[Vervallen]`, `[Huiswerk]`,
   `[Proefwerk]`, ...). Login backoff after server errors (auth carry-overs from M1).
   NL and EN translations.
+- M3: options flow (children, weeks back/ahead, refresh interval; saving reloads
+  without a new login), re-authentication and reconfigure flows (one validating login,
+  handed over to the entry so the reload does not log in again), diagnostics with
+  redaction, a repair issue when Magister changes its login page, and first-appointment
+  sensors (config sub-entries) with a day offset and excluded subjects.

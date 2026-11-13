@@ -23,6 +23,28 @@
         "data": {
           "children": "Children"
         }
+      },
+      "reauth_confirm": {
+        "title": "Log in to Magister again",
+        "description": "The login for {username} at {school} no longer works. Enter the current password. Only fill in the authenticator secret when it changed.",
+        "data": {
+          "password": "Password",
+          "totp_secret": "Authenticator secret (optional)"
+        },
+        "data_description": {
+          "password": "The current password of this account.",
+          "totp_secret": "Leave empty to keep the saved secret."
+        }
+      },
+      "reconfigure": {
+        "title": "Change the Magister login",
+        "description": "Change the login of the account at {school}. It must be the same Magister account. Leave the password or secret empty to keep the saved one.",
+        "data": {
+          "username": "Username",
+          "password": "Password (optional)",
+          "totp_secret": "Authenticator secret (optional)",
+          "remove_totp": "Remove the saved authenticator secret"
+        }
       }
     },
     "error": {
@@ -33,11 +55,15 @@
       "unsupported_login": "This school or account uses a login method that is not supported (school SSO or passkey).",
       "cannot_connect": "Could not connect to Magister. Try again later.",
       "unknown": "An unexpected error occurred. See the log for details.",
-      "no_children_selected": "Select at least one child."
+      "no_children_selected": "Select at least one child.",
+      "login_page_changed": "Magister changed its login page, so logging in is not possible right now. Update the integration or try again later."
     },
     "abort": {
       "already_configured": "This Magister account is already configured.",
-      "no_children": "No children were found on this account."
+      "no_children": "No children were found on this account.",
+      "wrong_account": "These credentials belong to a different Magister account. Add that account as a new integration instead.",
+      "reauth_successful": "Logged in again. The integration is reloading.",
+      "reconfigure_successful": "The login was updated. The integration is reloading."
     }
   },
   "entity": {
@@ -58,7 +84,88 @@
       "message": "Magister returned an unexpected answer."
     },
     "login_blocked": {
-      "message": "Logging in to Magister is blocked after repeated failures. Reload the integration or re-add it with new credentials."
+      "message": "Logging in to Magister is blocked after repeated failures. Reload the integration to try once more, or use Reconfigure to change the credentials."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Magister options",
+        "description": "Choose the children, how much of the agenda is fetched and how often it is refreshed.",
+        "data": {
+          "children": "Children",
+          "weeks_back": "Weeks back",
+          "weeks_ahead": "Weeks ahead",
+          "update_interval": "Refresh interval (minutes)"
+        },
+        "data_description": {
+          "weeks_back": "0 to 8 weeks before the current week.",
+          "weeks_ahead": "1 to 12 weeks after the current week. First-appointment sensors can look at most 7 x this number - 1 days ahead.",
+          "update_interval": "15 to 360 minutes."
+        }
+      }
+    },
+    "error": {
+      "no_children_selected": "Select at least one child."
+    },
+    "abort": {
+      "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",
+      "cannot_connect": "Could not read the children from Magister. Try again later."
+    }
+  },
+  "config_subentries": {
+    "first_appointment": {
+      "initiate_flow": {
+        "user": "Add first-appointment sensor",
+        "reconfigure": "Edit first-appointment sensor"
+      },
+      "entry_type": "First-appointment sensor",
+      "step": {
+        "user": {
+          "title": "First-appointment sensor",
+          "description": "A sensor with the start time of the first appointment of a day, for example for a wake-up automation. Day 0 is today, 1 is tomorrow. At most {max_offset} days ahead fit in the fetched window.",
+          "data": {
+            "child_id": "Child",
+            "offset": "Day offset",
+            "name": "Name (optional)"
+          },
+          "data_description": {
+            "offset": "0 = today, 1 = tomorrow, ... Counts calendar days.",
+            "name": "Leave empty for a name based on the day."
+          }
+        },
+        "reconfigure": {
+          "title": "Edit first-appointment sensor",
+          "description": "At most {max_offset} days ahead fit in the fetched window.",
+          "data": {
+            "offset": "Day offset",
+            "name": "Name"
+          }
+        },
+        "excluded": {
+          "title": "Excluded subjects",
+          "description": "Appointments with these subjects are skipped. Matching is exact, ignoring upper and lower case. You can type other subjects too.",
+          "data": {
+            "excluded": "Subjects to skip"
+          }
+        }
+      },
+      "error": {
+        "offset_outside_window": "This day is outside the fetched window (at most {max_offset} days ahead). Increase the weeks ahead in the options first."
+      },
+      "abort": {
+        "reconfigure_successful": "The sensor was updated."
+      }
+    }
+  },
+  "issues": {
+    "login_page_changed": {
+      "title": "Magister changed its login page",
+      "description": "The login for {entry} no longer works because Magister changed its login page. Update the integration (HACS) to the latest version. If the problem remains, report it on the issue tracker."
+    },
+    "offset_outside_window": {
+      "title": "First-appointment sensor outside the window",
+      "description": "The sensor {name} looks {offset} days ahead, but only {max_offset} days fit in {weeks_ahead} weeks ahead. The sensor is unknown. Increase the weeks ahead in the options or edit the sensor."
     }
   }
 }

@@ -59,6 +59,11 @@ CHANGELOG, version tagging, GitHub release, HACS validation green.
 - HA events on schedule changes (cancellation, new test) for automations.
 - On-demand fetch for calendar ranges outside the sync window.
 - Grades, absences; SSO login support; publishing `api/` as a PyPI library.
+- **Passkey login** (discussed 2026-11-13, **not scheduled** by PM decision: no urgent need).
+  Technical note for later: HA cannot use the user's own passkey. It could register its own
+  software passkey via Magister's pairing step (`pair-fido`) and then sign logins instead of
+  storing the password. This is undocumented and Magister may reject software authenticators,
+  so it would need a spike first.
 
 ## Risks
 

@@ -2,7 +2,7 @@
 
 Everything here is pure string parsing (no I/O) so it can be tested against saved
 fixtures. Magister can change these patterns at any time; this is the module to fix
-when ``MagisterApiError("Could not extract authCode ...")`` starts to appear.
+when ``MagisterLoginPageError`` starts to appear.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from urllib.parse import parse_qs, urlsplit
 
-from .errors import MagisterApiError
+from .errors import MagisterLoginPageError
 
 DEFAULT_SCOPE = (
     "openid profile opp.read opp.manage attendance.overview "
@@ -48,7 +48,7 @@ def find_login_script_url(html: str) -> str:
             return source
     if sources:
         return sources[0]
-    raise MagisterApiError("Login page contains no script bundle")
+    raise MagisterLoginPageError("Login page contains no script bundle")
 
 
 def extract_auth_code(js: str) -> str:
@@ -71,7 +71,7 @@ def extract_auth_code(js: str) -> str:
     literal = _LITERAL_RE.search(js)
     if literal:
         return str(literal.group(1))
-    raise MagisterApiError("Could not extract authCode from the login bundle")
+    raise MagisterLoginPageError("Could not extract authCode from the login bundle")
 
 
 def parse_oidc_scope(oidc_config_js: str) -> str:

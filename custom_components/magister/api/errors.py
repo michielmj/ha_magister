@@ -55,3 +55,7 @@ class MagisterApiError(MagisterError):
         super().__init__(message)
         self.status = status
         self.retry_after = retry_after
+
+
+class MagisterLoginPageError(MagisterApiError):
+    """The login page or its script changed; the login can no longer be driven."""

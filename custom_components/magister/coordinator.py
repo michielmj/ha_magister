@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -20,14 +21,18 @@ from .api import (
     MagisterAuthError,
     MagisterClient,
     MagisterConnectionError,
+    MagisterLoginPageError,
 )
 from .api.auth import RETRY_AFTER_MAX
 from .api.mapping import LOCAL_TZ
 from .const import (
     CHILD_ID,
     CONF_CHILDREN,
+    CONF_INTERVAL,
+    CONF_WEEKS_AHEAD,
+    CONF_WEEKS_BACK,
     DOMAIN,
-    UPDATE_INTERVAL,
+    INTERVAL_MINUTES,
     WEEKS_AHEAD,
     WEEKS_BACK,
 )
@@ -48,6 +53,7 @@ class MagisterRuntimeData:
     auth: MagisterAuth
     client: MagisterClient
     coordinator: MagisterCoordinator
+    snapshot: str = ""
 
 
 type MagisterConfigEntry = ConfigEntry[MagisterRuntimeData]
@@ -60,14 +66,22 @@ def fetch_window(
 ) -> tuple[datetime, datetime]:
     """Return the window to fetch, in Europe/Amsterdam.
 
-    From Monday 00:00 of ``weeks_back`` weeks ago up to Monday 00:00 of the week
-    ``weeks_ahead`` weeks after the current one.
+    From Monday 00:00 of ``weeks_back`` weeks ago up to local midnight of the day
+    ``7 * weeks_ahead + 1`` days from today, so that every first-appointment offset
+    up to ``7 * weeks_ahead - 1`` is covered, also right after midnight.
     """
     today = now.astimezone(LOCAL_TZ).date()
     monday = today - timedelta(days=today.weekday())
     start = datetime.combine(monday - timedelta(weeks=weeks_back), time.min, LOCAL_TZ)
-    end = datetime.combine(monday + timedelta(weeks=weeks_ahead), time.min, LOCAL_TZ)
+    end = datetime.combine(
+        today + timedelta(days=7 * weeks_ahead + 1), time.min, LOCAL_TZ
+    )
     return start, end
+
+
+def login_page_issue_id(entry_id: str) -> str:
+    """Issue id of the "login page changed" repair for an entry."""
+    return f"login_page_changed_{entry_id}"
 
 
 class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
@@ -88,8 +102,13 @@ class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN} {entry.title}",
-            update_interval=UPDATE_INTERVAL,
+            update_interval=timedelta(
+                minutes=int(entry.options.get(CONF_INTERVAL, INTERVAL_MINUTES))
+            ),
         )
+        self.last_success: datetime | None = None
+        self.weeks_back = int(entry.options.get(CONF_WEEKS_BACK, WEEKS_BACK))
+        self.weeks_ahead = int(entry.options.get(CONF_WEEKS_AHEAD, WEEKS_AHEAD))
         self._client = client
         self._auth = auth
         self.child_ids: list[int] = [
@@ -98,7 +117,7 @@ class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
 
     async def _async_update_data(self) -> MagisterData:
         """Fetch the window for each child, one after the other."""
-        start, end = fetch_window(dt_util.now())
+        start, end = fetch_window(dt_util.now(), self.weeks_back, self.weeks_ahead)
         data: MagisterData = {}
         try:
             for child_id in self.child_ids:
@@ -112,6 +131,8 @@ class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
                 translation_domain=DOMAIN, translation_key="auth_failed"
             ) from err
         except (MagisterConnectionError, MagisterApiError) as err:
+            if isinstance(err, MagisterLoginPageError):
+                self._async_report_login_page_changed()
             if self._auth.has_final_failure:
                 # A remembered failure after the password step is never retried.
                 self._auth.final_failure_reported = True
@@ -135,9 +156,26 @@ class MagisterCoordinator(DataUpdateCoordinator[MagisterData]):
                 translation_key="api_error",
                 retry_after=retry_after,
             ) from err
+        self.last_success = dt_util.utcnow()
+        ir.async_delete_issue(
+            self.hass, DOMAIN, login_page_issue_id(self.config_entry.entry_id)
+        )
         _LOGGER.debug(
             "Fetched %d appointments for %d children",
             sum(len(items) for items in data.values()),
             len(data),
         )
         return data
+
+    def _async_report_login_page_changed(self) -> None:
+        """Tell the user that Magister changed its login page."""
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            login_page_issue_id(self.config_entry.entry_id),
+            is_fixable=False,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key="login_page_changed",
+            translation_placeholders={"entry": self.config_entry.title},
+            learn_more_url="https://github.com/michielmj/ha_magister/issues",
+        )

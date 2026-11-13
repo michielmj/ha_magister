@@ -7,8 +7,10 @@ from .errors import (
     MagisterAuthError,
     MagisterConnectionError,
     MagisterError,
+    MagisterLoginPageError,
 )
-from .mapping import CalendarFields, map_appointment
+from .first_appointment import FirstAppointment, find_first_appointment
+from .mapping import CalendarFields, build_summary, lesson_hours, map_appointment
 from .models import Account, Appointment, AppointmentType, InfoType, Person
 from .utils import normalize_host
 
@@ -17,6 +19,7 @@ __all__ = [
     "Appointment",
     "AppointmentType",
     "CalendarFields",
+    "FirstAppointment",
     "InfoType",
     "MagisterApiError",
     "MagisterAuth",
@@ -24,7 +27,11 @@ __all__ = [
     "MagisterClient",
     "MagisterConnectionError",
     "MagisterError",
+    "MagisterLoginPageError",
     "Person",
+    "build_summary",
+    "find_first_appointment",
+    "lesson_hours",
     "map_appointment",
     "normalize_host",
 ]

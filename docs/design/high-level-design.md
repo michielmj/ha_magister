@@ -19,7 +19,7 @@ per tenant–child combination** up to date.
 | R1 | Login | Unattended login with **username + password**, plus an **optional TOTP secret** for 2FA accounts. Plain HTTP, no browser. |
 | R2 | Setup model | **UI config flow, one config entry per Magister login** (tenant + account). Children are discovered automatically; the user selects which get a calendar. Several logins/schools = several entries. |
 | R3 | Content | All agenda items: **lessons**, **homework & tests**, **cancelled/changed lessons**, **personal & school events**. |
-| R4 | Scope v1 | **Calendars only.** Sensors and change events go to the backlog. |
+| R4 | Scope v1 | **Calendars**, plus (added 2026-11-13) user-defined **first-appointment sensors** per child: day offset, excluded subjects, created as config sub-entries (M3). Other sensors and change events go to the backlog. |
 | R5 | Sync | Window **1 week back to 3 weeks ahead**, refreshed **every 30 min**. Both can be changed in the options. |
 | R6 | Cancelled lessons | **Kept in the calendar, title prefixed** (e.g. `[Vervallen] Wiskunde`). |
 | R7 | Distribution | **HACS custom repository**, UI translations **NL + EN**. Event texts come from Magister (Dutch). |

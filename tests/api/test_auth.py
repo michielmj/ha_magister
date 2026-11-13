@@ -16,8 +16,10 @@ from custom_components.magister.api import (
     MagisterAuth,
     MagisterAuthError,
     MagisterConnectionError,
+    MagisterLoginPageError,
 )
 
+from . import helpers
 from .helpers import (
     ACCOUNTS,
     AUTH_CODE,
@@ -1245,3 +1247,59 @@ async def test_password_limit_default_is_unlimited(
         clock.now = i * 10_000
         await auth.async_get_token()
     assert [s for s, _, _ in fake.posts].count("password") == 4
+
+
+async def test_reported_flag_is_reset_by_a_successful_login_and_new_credentials(
+    mocked: aioresponses, session: aiohttp.ClientSession
+) -> None:
+    """``final_failure_reported`` does not outlive the failure it belongs to."""
+    FakeLogin(
+        mocked,
+        challenges=[
+            {"action": "username"},
+            {"error": "InvalidUsername"},
+            {"action": "username"},
+            {"action": "password"},
+            {"redirectURL": RETURN_URL},
+        ],
+    )
+    auth = make_auth(session)
+    with pytest.raises(MagisterAuthError):
+        await auth.async_get_token()
+    auth.final_failure_reported = True
+    auth.update_credentials("new-password")
+    assert not auth.final_failure_reported
+
+    auth.final_failure_reported = True
+    assert await auth.async_get_token() == TOKEN
+    assert not auth.final_failure_reported
+    assert auth.backoff_remaining == 0
+
+
+async def test_changed_login_page_is_flagged_and_cleared(
+    mocked: aioresponses,
+    session: aiohttp.ClientSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing authCode is reported as a changed login page until a login works."""
+    FakeLogin(mocked)
+    clock = Clock()
+    auth = make_auth(session, clock=clock)
+    original = helpers.read_fixture
+    monkeypatch.setattr(
+        helpers,
+        "read_fixture",
+        lambda name: (
+            "var nothing=1;" if name == "login_bundle_excerpt.js" else original(name)
+        ),
+    )
+    with pytest.raises(MagisterLoginPageError):
+        await auth.async_get_token()
+    assert auth.login_page_changed
+    assert auth.backoff_remaining > 0
+    assert not auth.has_final_failure  # the password was never sent
+
+    monkeypatch.setattr(helpers, "read_fixture", original)
+    clock.now += 31
+    assert await auth.async_get_token() == TOKEN
+    assert not auth.login_page_changed
