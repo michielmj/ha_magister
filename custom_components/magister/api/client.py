@@ -15,7 +15,7 @@ from .utils import format_api_timestamp, normalize_host, parse_retry_after
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_STATUS_FILTER: Final = 1
+DEFAULT_STATUS_FILTER: Final[int | None] = None
 
 
 class MagisterClient:
@@ -53,8 +53,9 @@ class MagisterClient:
     ) -> list[Appointment]:
         """Return the appointments of a person between two aware datetimes.
 
-        ``status`` is the ``status=`` query parameter of the reference script
-        (``1``); pass ``None`` to omit it.
+        ``status`` is the optional ``status=`` query parameter. The default is no
+        filter: ``status=1`` hides cancelled lessons (Status 5), which the
+        integration wants to show.
         """
         params: dict[str, str] = {
             "van": format_api_timestamp(start),

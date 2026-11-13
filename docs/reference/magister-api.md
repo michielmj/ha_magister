@@ -4,10 +4,10 @@ Base URL: `https://<school>.magister.net`, header `Authorization: Bearer <access
 `Accept: application/json`. Timestamps are UTC with 7 fractional digits
 (`2026-11-09T07:30:00.0000000Z`); requests use `YYYY-MM-DDTHH:MM:SS.000Z`.
 
-Status of this document: structure taken from `docs/reference/magister_agenda.py` and the
-community libraries. **Everything marked "unconfirmed" must be confirmed from the PM's
-anonymized dumps** (`tools/magister_cli.py --dump`), which also writes
-`observed-codes.json` with counts per code, with and without the `status=1` filter.
+Status of this document: structure from `docs/reference/magister_agenda.py`; codes
+confirmed from the anonymized dump of school A (M1) where marked **confirmed**, otherwise
+community-reported and unconfirmed. `tools/magister_cli.py --dump` writes
+`observed-codes.json` to extend this for other schools.
 
 ## Endpoints
 
@@ -15,7 +15,7 @@ anonymized dumps** (`tools/magister_cli.py --dump`), which also writes
 |---|---|
 | `GET /api/account` | `Persoon{Id, Roepnaam, Tussenvoegsel, Achternaam, Voorletters}`, `Groep[{Naam}]` (`"Ouder"` for parent accounts) |
 | `GET /api/personen/{ouderId}/kinderen` | `Items[]` with the same person fields |
-| `GET /api/personen/{persoonId}/afspraken?status=1&van=<UTC>&tot=<UTC>` | `Items[]` of appointments |
+| `GET /api/personen/{persoonId}/afspraken?van=<UTC>&tot=<UTC>[&status=1]` | `Items[]` of appointments; **do not send `status=1`** (hides cancelled lessons) |
 
 Behaviour of the client (`api/client.py`): 401 -> one forced token refresh and retry, a
 second 401 -> `MagisterAuthError(invalid_auth)`; 429 -> `MagisterApiError(status=429)`;
@@ -44,44 +44,65 @@ Unknown or non-integer codes are kept (`int`) or turned into `None`; they never 
 
 ## Codes
 
-### `InfoType` (community-reported, **unconfirmed**)
+Legend: **confirmed** = observed in real data (school A, one child, 140 appointments from
+one week back to three weeks ahead; fixtures in `tests/fixtures/school_a/`);
+**community** = reported by community libraries, not yet observed here.
 
-| Code | Meaning | Prefix per HLD section 7 |
+### `status=1` query parameter: it hides cancelled lessons (confirmed)
+
+With `status=1` the API returned 130 items, without it 140. The 10 extra items are
+**exactly the items with `Status` 5**. So `status=1` removes cancelled lessons, and the
+integration **must fetch without the status filter** (`MagisterClient.async_get_appointments`
+defaults to `status=None` since M1) to be able to show `[Vervallen]` items.
+
+### `Status`
+
+| Code | Observed count | Meaning |
 |---|---|---|
-| 0 | none | |
-| 1 | homework | `[HW]` |
-| 2 | test (proefwerk) | `[Toets]` |
-| 3 | exam (tentamen) | `[Toets]` |
-| 4 | written quiz (schriftelijke overhoring) | `[SO]` |
-| 5 | oral quiz (mondelinge overhoring) | `[MO]` |
-| 6 | information | |
-| 7 | note | |
+| 1 | 72 (**confirmed** present) | normal scheduled item (shown by `status=1`) |
+| 3 | 10 (**confirmed** present) | shown by `status=1`; meaning not determined (possibly a changed item, all are lessons of one subject) |
+| 5 | 10 (**confirmed** present) | **cancelled** (hidden by `status=1`); all 10 are lessons |
+| 7 | 48 (**confirmed** present) | shown by `status=1`; exact meaning not determined (probably another scheduling state) |
+| 0, 2, 4, 6, 8+ | not observed | community, unconfirmed (4 is expected to be a second "cancelled" variant, manual vs. automatic) |
 
-### `Type` (community-reported, **unconfirmed**)
+The CLI marks Status 4 and 5 as `[VERVALLEN]`. Meanings of 1/3/7 beyond "not cancelled" are
+open; none of the observed items had `Afgerond` set.
 
-| Code | Meaning |
-|---|---|
-| 1 | personal appointment |
-| 2 | general |
-| 3 | school-wide |
-| 4 | internship |
-| 5 | intake |
-| 6 | free period / free |
-| 7 | KWT (choice hour) |
-| 13 | lesson |
-| 16 | planning |
+### `InfoType`
 
-### `Status` (**not recorded**; to be derived from the dumps)
+| Code | Observed count | Meaning | Prefix per HLD section 7 |
+|---|---|---|---|
+| 0 | 87 (**confirmed**) | none | |
+| 1 | 47 (**confirmed**) | homework | `[HW]` |
+| 2 | 2 (**confirmed**) | test (proefwerk) | `[Toets]` |
+| 3 | not observed | exam (tentamen), community, unconfirmed | `[Toets]` |
+| 4 | 4 (**confirmed**) | written quiz (schriftelijke overhoring), e.g. "Schriftcontrole", "s.o." | `[SO]` |
+| 5 | not observed | oral quiz (mondelinge overhoring), community, unconfirmed | `[MO]` |
+| 6 | not observed | information, community, unconfirmed | |
+| 7 | not observed | note, community, unconfirmed | |
 
-No reliable list is known to the developer. Community sources suggest several codes for
-"scheduled", "changed", "moved" and "cancelled" (manual and automatic variants). The
-dump tool counts the observed values; the table will be filled in after the PM shares the
-dumps. Open questions for that:
+Note: the 10 cancelled (Status 5) items include 3 with InfoType 1 (homework on a cancelled
+lesson).
 
-1. which `Status` values mean cancelled (`[Vervallen]`) and which mean changed/moved;
-2. whether the `status=1` query parameter hides cancelled lessons (compare
-   `appointments-<kind>.json` with `appointments-<kind>-without-status-filter.json`).
+### `Type`
 
-`MagisterClient.async_get_appointments(..., status=1)` keeps the reference script's
-default; pass `status=None` to omit the parameter if it turns out to hide cancelled
-lessons.
+| Code | Observed count | Meaning |
+|---|---|---|
+| 13 | 136 (**confirmed**) | lesson |
+| 7 | 4 (**confirmed** present) | observed for an "NT2" item; likely KWT / keuzewerktijd (choice hour) |
+| 1 | not observed | personal appointment, community, unconfirmed |
+| 2 | not observed | general, community, unconfirmed |
+| 3 | not observed | school-wide, community, unconfirmed |
+| 4 | not observed | internship, community, unconfirmed |
+| 5 | not observed | intake, community, unconfirmed |
+| 6 | not observed | free period, community, unconfirmed |
+| 16 | not observed | planning, community, unconfirmed |
+
+### Other observations
+
+* Timestamps have 7 fractional digits and `Z` (`2026-11-02T08:15:00.0000000Z`).
+* No item had `DuurtHeleDag` true, so all-day behaviour is still unconfirmed.
+* `Omschrijving` of lessons looks like `<subject code> - <teacher code(s)> - <class code>`.
+* Each item also has `Subtype`, `IsOnlineDeelname`, `WeergaveType`, `HerhaalStatus`,
+  `Herhaling`, `Groepen[{Code}]`, `HeeftBijlagen`, `Bijlagen`, `Opmerking`, `Aantekening`;
+  in this data set the last five were null/empty or constant and are not modelled.

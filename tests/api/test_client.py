@@ -70,7 +70,7 @@ async def test_get_children(
 async def test_get_appointments(
     mocked: aioresponses, session: aiohttp.ClientSession
 ) -> None:
-    """Appointments are requested with UTC timestamps and the status filter."""
+    """Appointments are requested with UTC timestamps and without status filter."""
     pattern = re.compile(rf"^{re.escape(BASE)}/api/personen/11/afspraken\?.*$")
     mocked.get(pattern, payload={"Items": [lesson(), lesson(Id=2, DuurtHeleDag=True)]})
     client, _ = make_client(session)
@@ -83,13 +83,13 @@ async def test_get_appointments(
     url = next(iter(mocked.requests.keys()))[1]
     assert url.query["van"] == "2026-11-09T00:00:00.000Z"
     assert url.query["tot"] == "2026-11-16T00:00:00.000Z"
-    assert url.query["status"] == "1"
+    assert "status" not in url.query
 
 
-async def test_get_appointments_without_status_and_raw(
+async def test_get_appointments_with_status_and_raw(
     mocked: aioresponses, session: aiohttp.ClientSession
 ) -> None:
-    """status=None omits the parameter; the raw getter returns the JSON."""
+    """An explicit status is sent; the raw getter returns the JSON."""
     pattern = re.compile(rf"^{re.escape(BASE)}/api/personen/11/afspraken\?.*$")
     mocked.get(pattern, payload={"Items": []})
     client, _ = make_client(session)
@@ -97,10 +97,10 @@ async def test_get_appointments_without_status_and_raw(
         11,
         datetime(2026, 1, 1, tzinfo=UTC),
         datetime(2026, 1, 2, tzinfo=UTC),
-        status=None,
+        status=1,
     )
     url = next(iter(mocked.requests.keys()))[1]
-    assert "status" not in url.query
+    assert url.query["status"] == "1"
 
     mocked.get(f"{BASE}/api/x", payload={"a": 1})
     assert await client.async_get_raw("/api/x") == {"a": 1}

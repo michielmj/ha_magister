@@ -308,3 +308,10 @@ async def test_password_never_sent_a_third_time_even_in_dump(
     assert "Skipped" in captured.out
     assert "STOPPED" in captured.err
     assert [s for s, _, _ in fake.posts].count("password") == 2
+
+
+def test_cancelled_items_are_marked() -> None:
+    """Status 4/5 lines carry a visible [VERVALLEN] marker."""
+    cancelled = {**ITEMS[0], "Status": 5}
+    assert "[VERVALLEN] Wiskunde" in cli.format_appointment(cancelled, TZ)
+    assert "[VERVALLEN]" not in cli.format_appointment(ITEMS[0], TZ)

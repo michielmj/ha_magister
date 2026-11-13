@@ -93,6 +93,7 @@ else:
     format_api_timestamp = _api.utils.format_api_timestamp
 
 MAX_PASSWORD_SUBMISSIONS = 2
+CANCELLED_STATUSES = frozenset({4, 5})  # 5 confirmed from data; 4 expected
 DAYS = ["ma", "di", "wo", "do", "vr", "za", "zo"]
 AUTH_HINTS = {
     "invalid_auth": "Wrong username or password (or the account is blocked).",
@@ -149,7 +150,8 @@ def format_appointment(item: dict[str, Any], tz: ZoneInfo) -> str:
         f"status={item.get('Status')} info={item.get('InfoType')} "
         f"type={item.get('Type')}"
     )
-    line = f"  {when}{hour}  {title}  <{codes}>"
+    cancelled = "[VERVALLEN] " if item.get("Status") in CANCELLED_STATUSES else ""
+    line = f"  {when}{hour}  {cancelled}{title}  <{codes}>"
     notes = html_to_text(item.get("Inhoud"))
     if notes:
         line += "\n      " + notes.replace("\n", "\n      ")
@@ -213,13 +215,12 @@ async def verify(
     for _, name in targets:
         print(f"        - {name}")
 
-    print("[3/4] This week's agenda ...")
+    print("[3/4] This week's agenda (no status filter) ...")
     week_start, week_end = week_window(tz, today)
     for person_id, name in targets:
         data = await client.async_get_raw(
             f"/api/personen/{person_id}/afspraken",
             {
-                "status": "1",
                 "van": format_api_timestamp(week_start),
                 "tot": format_api_timestamp(week_end),
             },

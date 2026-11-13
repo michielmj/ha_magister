@@ -1,0 +1,6160 @@
+{
+  "Items": [
+    {
+      "Id": 100000,
+      "Start": "2026-11-02T08:15:00.0000000Z",
+      "Einde": "2026-11-02T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D2,D1 - k1a",
+      "Lokatie": "020",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "020"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100001,
+      "Start": "2026-11-02T09:00:00.0000000Z",
+      "Einde": "2026-11-02T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: H1, opgave 73,74,75,76,77,78,79</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100002,
+      "Start": "2026-11-02T10:05:00.0000000Z",
+      "Einde": "2026-11-02T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "226",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100003,
+      "Start": "2026-11-02T10:50:00.0000000Z",
+      "Einde": "2026-11-02T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sk - D5 - k1a",
+      "Lokatie": "017",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 103,
+          "Naam": "scheikunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D5",
+          "Id": 9005,
+          "Naam": "Docent 5"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "017"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100004,
+      "Start": "2026-11-02T12:05:00.0000000Z",
+      "Einde": "2026-11-02T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Leren woorden Kapitel 2-2 (D-NL) en afmaken 8+9</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100005,
+      "Start": "2026-11-02T12:50:00.0000000Z",
+      "Einde": "2026-11-02T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "121",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Apprendre 1 p.81 leren<br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "121"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100006,
+      "Start": "2026-11-03T07:30:00.0000000Z",
+      "Einde": "2026-11-03T08:15:00.0000000Z",
+      "LesuurVan": 1,
+      "LesuurTotMet": 1,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Mentorles!<br>Neem een opgeladen laptop mee. Decaan komt langs voor vragen + profielkeuze uitleg.</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100007,
+      "Start": "2026-11-03T08:15:00.0000000Z",
+      "Einde": "2026-11-03T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "221",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Lees 2.1, maak 2 + 3</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "221"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100008,
+      "Start": "2026-11-03T09:00:00.0000000Z",
+      "Einde": "2026-11-03T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ec - D9 - k1a",
+      "Lokatie": "227",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: opg. 2.21 (en huiswerk vorige week woensdag ook afhebben opg. 2.20)</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 36,
+          "Naam": "economie"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D9",
+          "Id": 9009,
+          "Naam": "Docent 9"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "227"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100009,
+      "Start": "2026-11-03T10:05:00.0000000Z",
+      "Einde": "2026-11-03T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: H1, opgave 84,85,86,88,89,91</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100010,
+      "Start": "2026-11-03T10:50:00.0000000Z",
+      "Einde": "2026-11-03T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "te - D10 - k1a",
+      "Lokatie": "052",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 125,
+          "Naam": "tekenen"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D10",
+          "Id": 9010,
+          "Naam": "Docent 10"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "052"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100011,
+      "Start": "2026-11-03T12:05:00.0000000Z",
+      "Einde": "2026-11-03T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "225",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Schriftcontrole hoofdstuk 1<br></p>",
+      "Opmerking": null,
+      "InfoType": 4,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "225"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100012,
+      "Start": "2026-11-03T12:50:00.0000000Z",
+      "Einde": "2026-11-03T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "222",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "222"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100013,
+      "Start": "2026-11-04T08:15:00.0000000Z",
+      "Einde": "2026-11-04T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sl - D8 - k1a",
+      "Lokatie": "127",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>BRING your LAPTOP +headphones/earbuds. (We wisselen mentorles en de les Engels om)</p><p><i>Homework: Unit 2 lesson 2 exc: 2-5-8-9-10-11 and bring headphones/earbuds.</i></p><p><br></p><p><i>(Study irregular verbs p.286)</i></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1146,
+          "Naam": "studieles"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "127"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100014,
+      "Start": "2026-11-04T09:00:00.0000000Z",
+      "Einde": "2026-11-04T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "226",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p><span>Maken introductie 1 t/m 5</span><br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100015,
+      "Start": "2026-11-04T10:05:00.0000000Z",
+      "Einde": "2026-11-04T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "231",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "231"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100016,
+      "Start": "2026-11-04T10:50:00.0000000Z",
+      "Einde": "2026-11-04T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ec - D9 - k1a",
+      "Lokatie": "227",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>afmaken: opg. 2.23 financieringsbegroting</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 36,
+          "Naam": "economie"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D9",
+          "Id": 9009,
+          "Naam": "Docent 9"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "227"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100017,
+      "Start": "2026-11-04T12:05:00.0000000Z",
+      "Einde": "2026-11-04T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D2,D1 - k1a",
+      "Lokatie": "019",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "019"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100018,
+      "Start": "2026-11-04T12:50:00.0000000Z",
+      "Einde": "2026-11-04T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Woorden Kapitel 2 Lektion 2 herhalen D-NL</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100019,
+      "Start": "2026-11-05T07:30:00.0000000Z",
+      "Einde": "2026-11-05T08:15:00.0000000Z",
+      "LesuurVan": 1,
+      "LesuurTotMet": 1,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "222",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "222"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100020,
+      "Start": "2026-11-05T08:15:00.0000000Z",
+      "Einde": "2026-11-05T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "133",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Cursus spelling</p><p>maken online:</p><p>- paragraaf 9, opdr. 2, 3 en 5 (herhaling ww-spelling leerjaar 2)</p><p>- paragraaf 10, opdr. 1, 2, 3, 4, 6b en 7b (homofone werkwoordsvormen)</p><p><br></p><p>Gebruik indien nodig het schema ww-spelling op blz. 296.</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "133"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100021,
+      "Start": "2026-11-05T09:00:00.0000000Z",
+      "Einde": "2026-11-05T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Homework: Unit 2 lesson 2 listening exc: 1+3-4+7 You can leave your book at home.&nbsp;</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100022,
+      "Start": "2026-11-05T10:05:00.0000000Z",
+      "Einde": "2026-11-05T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D2,D1 - k1a",
+      "Lokatie": "020",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Maak de eerste 5 opdr van par 2.1</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "020"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100023,
+      "Start": "2026-11-05T10:50:00.0000000Z",
+      "Einde": "2026-11-05T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: H3, opgave 2,3,5,6,7</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100024,
+      "Start": "2026-11-05T12:05:00.0000000Z",
+      "Einde": "2026-11-05T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "te - D10 - k1a",
+      "Lokatie": "052",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 125,
+          "Naam": "tekenen"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D10",
+          "Id": 9010,
+          "Naam": "Docent 10"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "052"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100025,
+      "Start": "2026-11-05T12:50:00.0000000Z",
+      "Einde": "2026-11-05T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Herhalen woorden Kapitel 2 Lektionen 1+2</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100026,
+      "Start": "2026-11-06T08:15:00.0000000Z",
+      "Einde": "2026-11-06T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "019",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken opdr. 1 tot en met 5 van cursus Spelling.</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "019"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100027,
+      "Start": "2026-11-06T09:00:00.0000000Z",
+      "Einde": "2026-11-06T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "Z - D13 - k1a",
+      "Lokatie": "116",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1178,
+          "Naam": "z-uur"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D13",
+          "Id": 9013,
+          "Naam": "Docent 13"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "116 studieruimte"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100028,
+      "Start": "2026-11-06T10:05:00.0000000Z",
+      "Einde": "2026-11-06T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100029,
+      "Start": "2026-11-06T10:50:00.0000000Z",
+      "Einde": "2026-11-06T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "226",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p><span>Maken 2.1 1 t/m 2</span><br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100030,
+      "Start": "2026-11-06T12:05:00.0000000Z",
+      "Einde": "2026-11-06T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "lo - D14 - k1a",
+      "Lokatie": "003",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 81,
+          "Naam": "lichamelijke opvoeding"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D14",
+          "Id": 9014,
+          "Naam": "Docent 14"
+        }
+      ],
+      "Lokalen": [],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100031,
+      "Start": "2026-11-06T12:50:00.0000000Z",
+      "Einde": "2026-11-06T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "lo - D14 - k1a",
+      "Lokatie": "003",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 81,
+          "Naam": "lichamelijke opvoeding"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D14",
+          "Id": 9014,
+          "Naam": "Docent 14"
+        }
+      ],
+      "Lokalen": [],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100032,
+      "Start": "2026-11-09T08:15:00.0000000Z",
+      "Einde": "2026-11-09T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D1,D2 - k1a",
+      "Lokatie": "020",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Maak de opdrachten van het stencil krachten tekenen af en de opdrachten van par 1.1.</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "020"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100033,
+      "Start": "2026-11-09T09:00:00.0000000Z",
+      "Einde": "2026-11-09T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: H3, opgave 10,11,13,14,15</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100034,
+      "Start": "2026-11-09T10:05:00.0000000Z",
+      "Einde": "2026-11-09T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "226",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Lees 2.1 &gt; maak 4 + 5 (en zorg ervoor dat 2 + 3 van de vorige les ook af zijn)&nbsp;</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100035,
+      "Start": "2026-11-09T10:50:00.0000000Z",
+      "Einde": "2026-11-09T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "Z - D15 - k1a",
+      "Lokatie": "017",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1178,
+          "Naam": "z-uur"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D15",
+          "Id": 9015,
+          "Naam": "Docent 15"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "017"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100036,
+      "Start": "2026-11-09T12:05:00.0000000Z",
+      "Einde": "2026-11-09T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100037,
+      "Start": "2026-11-09T12:50:00.0000000Z",
+      "Einde": "2026-11-09T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "nt2",
+      "Lokatie": "120",
+      "Status": 7,
+      "Type": 7,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1283,
+          "Naam": "NT2"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D16",
+          "Id": 9016,
+          "Naam": "Docent 16"
+        },
+        {
+          "Docentcode": "D17",
+          "Id": 9017,
+          "Naam": "Docent 17"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "120"
+        }
+      ],
+      "Groepen": [],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100038,
+      "Start": "2026-11-10T07:30:00.0000000Z",
+      "Einde": "2026-11-10T08:15:00.0000000Z",
+      "LesuurVan": 1,
+      "LesuurTotMet": 1,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100039,
+      "Start": "2026-11-10T08:15:00.0000000Z",
+      "Einde": "2026-11-10T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "221",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "221"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100040,
+      "Start": "2026-11-10T09:00:00.0000000Z",
+      "Einde": "2026-11-10T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ec - D9 - k1a",
+      "Lokatie": "227",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: opg. 2.25 Casus blz. 175</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 36,
+          "Naam": "economie"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D9",
+          "Id": 9009,
+          "Naam": "Docent 9"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "227"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100041,
+      "Start": "2026-11-10T10:05:00.0000000Z",
+      "Einde": "2026-11-10T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: H3, opgave 16,17,18,20</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100042,
+      "Start": "2026-11-10T10:50:00.0000000Z",
+      "Einde": "2026-11-10T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "te - D10 - k1a",
+      "Lokatie": "052",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 125,
+          "Naam": "tekenen"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D10",
+          "Id": 9010,
+          "Naam": "Docent 10"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "052"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100043,
+      "Start": "2026-11-10T12:05:00.0000000Z",
+      "Einde": "2026-11-10T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "225",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p><span>Maken 2.1 3 t/m 7</span><br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "225"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100044,
+      "Start": "2026-11-10T12:50:00.0000000Z",
+      "Einde": "2026-11-10T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "222",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Vocabulaire Apprendre 1 en 2 leren</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "222"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100045,
+      "Start": "2026-11-11T08:15:00.0000000Z",
+      "Einde": "2026-11-11T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sl - D8 - k1a",
+      "Lokatie": "127",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1146,
+          "Naam": "studieles"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "127"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100046,
+      "Start": "2026-11-11T09:00:00.0000000Z",
+      "Einde": "2026-11-11T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "226",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p><span>Maken 2.1 7 t/m 9</span><br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100047,
+      "Start": "2026-11-11T10:05:00.0000000Z",
+      "Einde": "2026-11-11T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "231",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "231"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100048,
+      "Start": "2026-11-11T10:50:00.0000000Z",
+      "Einde": "2026-11-11T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ec - D9 - k1a",
+      "Lokatie": "227",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: opg. 2.26 Het resultaat blz. 176<br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 36,
+          "Naam": "economie"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D9",
+          "Id": 9009,
+          "Naam": "Docent 9"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "227"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100049,
+      "Start": "2026-11-11T12:05:00.0000000Z",
+      "Einde": "2026-11-11T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D1,D2 - k1a",
+      "Lokatie": "019",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>eerste 4 opgaven van paragraaf 2.2</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "019"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100050,
+      "Start": "2026-11-11T12:50:00.0000000Z",
+      "Einde": "2026-11-11T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Leren woorden Kapitel 2 Lektion 3 NL-D (HH) afmaken Blz. 105 Aufgaben 20+21 (alleen A+B)</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100051,
+      "Start": "2026-11-12T07:30:00.0000000Z",
+      "Einde": "2026-11-12T08:15:00.0000000Z",
+      "LesuurVan": 1,
+      "LesuurTotMet": 1,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "222",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "222"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100052,
+      "Start": "2026-11-12T08:15:00.0000000Z",
+      "Einde": "2026-11-12T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "133",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>doornemen de ppt over de samentrekking. Je kunt ook de video-uitleg bekijken.</p><p>Cursus Formuleren, paragraaf 2 (samentrekking controleren): maken opdr. 1, 2 en 3</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "133"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100053,
+      "Start": "2026-11-12T09:00:00.0000000Z",
+      "Einde": "2026-11-12T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100054,
+      "Start": "2026-11-12T10:05:00.0000000Z",
+      "Einde": "2026-11-12T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D1,D2 - k1a",
+      "Lokatie": "020",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "020"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100055,
+      "Start": "2026-11-12T10:50:00.0000000Z",
+      "Einde": "2026-11-12T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: H3, opgave 22,23,25,27,28</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100056,
+      "Start": "2026-11-12T12:05:00.0000000Z",
+      "Einde": "2026-11-12T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "te - D10 - k1a",
+      "Lokatie": "052",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 125,
+          "Naam": "tekenen"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D10",
+          "Id": 9010,
+          "Naam": "Docent 10"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "052"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100057,
+      "Start": "2026-11-12T12:50:00.0000000Z",
+      "Einde": "2026-11-12T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Herhalen woorden Kapitel 2 Lektion 3 NL-D!</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100058,
+      "Start": "2026-11-13T08:15:00.0000000Z",
+      "Einde": "2026-11-13T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "019",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Bekijk de instructievideo van Cursus Formuleren, paragraaf 3 (fouten met verwijswoorden).</p><p>Maken opdr. 1 tot en met 4 online&nbsp;</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "019"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100059,
+      "Start": "2026-11-13T09:00:00.0000000Z",
+      "Einde": "2026-11-13T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sk - D5 - k1a",
+      "Lokatie": "017",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 103,
+          "Naam": "scheikunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D5",
+          "Id": 9005,
+          "Naam": "Docent 5"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "017"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100060,
+      "Start": "2026-11-13T10:05:00.0000000Z",
+      "Einde": "2026-11-13T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 7,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100061,
+      "Start": "2026-11-13T10:50:00.0000000Z",
+      "Einde": "2026-11-13T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "226",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p><span>Maken 2.2 1 t/m 5</span><br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100062,
+      "Start": "2026-11-13T12:05:00.0000000Z",
+      "Einde": "2026-11-13T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "lo - D14 - k1a",
+      "Lokatie": "003",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 81,
+          "Naam": "lichamelijke opvoeding"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D14",
+          "Id": 9014,
+          "Naam": "Docent 14"
+        }
+      ],
+      "Lokalen": [],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100063,
+      "Start": "2026-11-13T12:50:00.0000000Z",
+      "Einde": "2026-11-13T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "lo - D14 - k1a",
+      "Lokatie": "003",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 81,
+          "Naam": "lichamelijke opvoeding"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D14",
+          "Id": 9014,
+          "Naam": "Docent 14"
+        }
+      ],
+      "Lokalen": [],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100064,
+      "Start": "2026-11-16T08:15:00.0000000Z",
+      "Einde": "2026-11-16T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D2,D1 - k1a",
+      "Lokatie": "020",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Maak de excel opdracht af.</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "020"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100065,
+      "Start": "2026-11-16T09:00:00.0000000Z",
+      "Einde": "2026-11-16T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken: H3, opgave 31,32,33,34</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100066,
+      "Start": "2026-11-16T10:05:00.0000000Z",
+      "Einde": "2026-11-16T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "226",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>lees 2.2, maak 2 + 3</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100067,
+      "Start": "2026-11-16T10:50:00.0000000Z",
+      "Einde": "2026-11-16T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sk - D5 - k1a",
+      "Lokatie": "017",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 103,
+          "Naam": "scheikunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D5",
+          "Id": 9005,
+          "Naam": "Docent 5"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "017"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100068,
+      "Start": "2026-11-16T12:05:00.0000000Z",
+      "Einde": "2026-11-16T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Leren grammatica onderdelen A+B+C</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100069,
+      "Start": "2026-11-16T12:50:00.0000000Z",
+      "Einde": "2026-11-16T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "228",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "228"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100070,
+      "Start": "2026-11-16T12:50:00.0000000Z",
+      "Einde": "2026-11-16T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "nt2",
+      "Lokatie": "120",
+      "Status": 1,
+      "Type": 7,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1283,
+          "Naam": "NT2"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D16",
+          "Id": 9016,
+          "Naam": "Docent 16"
+        },
+        {
+          "Docentcode": "D17",
+          "Id": 9017,
+          "Naam": "Docent 17"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "120"
+        }
+      ],
+      "Groepen": [],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100071,
+      "Start": "2026-11-17T07:30:00.0000000Z",
+      "Einde": "2026-11-17T08:15:00.0000000Z",
+      "LesuurVan": 1,
+      "LesuurTotMet": 1,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Bring your worksheet to class. We will talk about the passive. (+ U2 L4 reading exc: 1-2-3-4-5)</p><p><br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100072,
+      "Start": "2026-11-17T08:15:00.0000000Z",
+      "Einde": "2026-11-17T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "221",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "221"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100073,
+      "Start": "2026-11-17T09:00:00.0000000Z",
+      "Einde": "2026-11-17T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ec - D9 - k1a",
+      "Lokatie": "227",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>maken:opg. 2.28 blz. 178<br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 36,
+          "Naam": "economie"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D9",
+          "Id": 9009,
+          "Naam": "Docent 9"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "227"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100074,
+      "Start": "2026-11-17T10:05:00.0000000Z",
+      "Einde": "2026-11-17T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100075,
+      "Start": "2026-11-17T10:50:00.0000000Z",
+      "Einde": "2026-11-17T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "te - D10 - k1a",
+      "Lokatie": "052",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 125,
+          "Naam": "tekenen"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D10",
+          "Id": 9010,
+          "Naam": "Docent 10"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "052"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100076,
+      "Start": "2026-11-18T08:15:00.0000000Z",
+      "Einde": "2026-11-18T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sl - D8 - k1a",
+      "Lokatie": "127",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1146,
+          "Naam": "studieles"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "127"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100077,
+      "Start": "2026-11-18T09:00:00.0000000Z",
+      "Einde": "2026-11-18T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "226",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p><span>Maken 2.2 6 t/m 11</span><br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100078,
+      "Start": "2026-11-18T10:05:00.0000000Z",
+      "Einde": "2026-11-18T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "231",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Bekijk de instructievideo van Cursus Formuleren, paragraaf 4 en maak opdr 1 en 2</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "231"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100079,
+      "Start": "2026-11-18T10:50:00.0000000Z",
+      "Einde": "2026-11-18T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ec - D9 - k1a",
+      "Lokatie": "227",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 36,
+          "Naam": "economie"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D9",
+          "Id": 9009,
+          "Naam": "Docent 9"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "227"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100080,
+      "Start": "2026-11-18T12:05:00.0000000Z",
+      "Einde": "2026-11-18T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D2,D1 - k1a",
+      "Lokatie": "019",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "019"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100081,
+      "Start": "2026-11-19T07:30:00.0000000Z",
+      "Einde": "2026-11-19T08:15:00.0000000Z",
+      "LesuurVan": 1,
+      "LesuurTotMet": 1,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "222",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "222"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100082,
+      "Start": "2026-11-19T08:15:00.0000000Z",
+      "Einde": "2026-11-19T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "133",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "133"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100083,
+      "Start": "2026-11-19T09:00:00.0000000Z",
+      "Einde": "2026-11-19T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D2,D1 - k1a",
+      "Lokatie": "014",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "014"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100084,
+      "Start": "2026-11-19T10:05:00.0000000Z",
+      "Einde": "2026-11-19T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Schrijfvaardigheid: kaartje schrijven. Je gebruikt een woordenboek NL-D</p><p>Naar cijferinvoer</p>",
+      "Opmerking": null,
+      "InfoType": 2,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100085,
+      "Start": "2026-11-19T10:50:00.0000000Z",
+      "Einde": "2026-11-19T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100086,
+      "Start": "2026-11-20T08:15:00.0000000Z",
+      "Einde": "2026-11-20T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "019",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Leerstof: cursus spelling, paragraaf 9, 10 en 11.</p>",
+      "Opmerking": null,
+      "InfoType": 4,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "019"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100087,
+      "Start": "2026-11-20T09:00:00.0000000Z",
+      "Einde": "2026-11-20T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sk - D5 - k1a",
+      "Lokatie": "017",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 103,
+          "Naam": "scheikunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D5",
+          "Id": 9005,
+          "Naam": "Docent 5"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "017"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100088,
+      "Start": "2026-11-20T10:05:00.0000000Z",
+      "Einde": "2026-11-20T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100089,
+      "Start": "2026-11-20T10:50:00.0000000Z",
+      "Einde": "2026-11-20T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "226",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p><span>Maken 2.3 1 t/m 2</span><br></p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100090,
+      "Start": "2026-11-23T08:15:00.0000000Z",
+      "Einde": "2026-11-23T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D2,D1 - k1a",
+      "Lokatie": "020",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "020"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100091,
+      "Start": "2026-11-23T09:00:00.0000000Z",
+      "Einde": "2026-11-23T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100092,
+      "Start": "2026-11-23T10:05:00.0000000Z",
+      "Einde": "2026-11-23T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "226",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100093,
+      "Start": "2026-11-23T10:50:00.0000000Z",
+      "Einde": "2026-11-23T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sk - D5 - k1a",
+      "Lokatie": "017",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 103,
+          "Naam": "scheikunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D5",
+          "Id": 9005,
+          "Naam": "Docent 5"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "017"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100094,
+      "Start": "2026-11-23T12:05:00.0000000Z",
+      "Einde": "2026-11-23T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100095,
+      "Start": "2026-11-23T12:50:00.0000000Z",
+      "Einde": "2026-11-23T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "121",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "121"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100096,
+      "Start": "2026-11-23T12:50:00.0000000Z",
+      "Einde": "2026-11-23T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "nt2",
+      "Lokatie": "120",
+      "Status": 1,
+      "Type": 7,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1283,
+          "Naam": "NT2"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D16",
+          "Id": 9016,
+          "Naam": "Docent 16"
+        },
+        {
+          "Docentcode": "D17",
+          "Id": 9017,
+          "Naam": "Docent 17"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "120"
+        }
+      ],
+      "Groepen": [],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100097,
+      "Start": "2026-11-24T07:30:00.0000000Z",
+      "Einde": "2026-11-24T08:15:00.0000000Z",
+      "LesuurVan": 1,
+      "LesuurTotMet": 1,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>s.o. onregelmatige werkwoorden</p>",
+      "Opmerking": null,
+      "InfoType": 4,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100098,
+      "Start": "2026-11-24T08:15:00.0000000Z",
+      "Einde": "2026-11-24T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "221",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "221"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100099,
+      "Start": "2026-11-24T09:00:00.0000000Z",
+      "Einde": "2026-11-24T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ec - D9 - k1a",
+      "Lokatie": "227",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 36,
+          "Naam": "economie"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D9",
+          "Id": 9009,
+          "Naam": "Docent 9"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "227"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100100,
+      "Start": "2026-11-24T10:05:00.0000000Z",
+      "Einde": "2026-11-24T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100101,
+      "Start": "2026-11-24T10:50:00.0000000Z",
+      "Einde": "2026-11-24T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "te - D10 - k1a",
+      "Lokatie": "052",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 125,
+          "Naam": "tekenen"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D10",
+          "Id": 9010,
+          "Naam": "Docent 10"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "052"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100102,
+      "Start": "2026-11-24T12:05:00.0000000Z",
+      "Einde": "2026-11-24T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "225",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "225"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100103,
+      "Start": "2026-11-24T12:50:00.0000000Z",
+      "Einde": "2026-11-24T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "222",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "222"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100104,
+      "Start": "2026-11-25T08:15:00.0000000Z",
+      "Einde": "2026-11-25T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sl - D8 - k1a",
+      "Lokatie": "127",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1146,
+          "Naam": "studieles"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "127"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100105,
+      "Start": "2026-11-25T09:00:00.0000000Z",
+      "Einde": "2026-11-25T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "226",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100106,
+      "Start": "2026-11-25T10:05:00.0000000Z",
+      "Einde": "2026-11-25T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "231",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "231"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100107,
+      "Start": "2026-11-25T10:50:00.0000000Z",
+      "Einde": "2026-11-25T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ec - D9 - k1a",
+      "Lokatie": "227",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 36,
+          "Naam": "economie"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D9",
+          "Id": 9009,
+          "Naam": "Docent 9"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "227"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100108,
+      "Start": "2026-11-25T12:05:00.0000000Z",
+      "Einde": "2026-11-25T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D1,D2 - k1a",
+      "Lokatie": "019",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>(practicum luchtweerstand)</p>",
+      "Opmerking": null,
+      "InfoType": 1,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "019"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100109,
+      "Start": "2026-11-25T12:50:00.0000000Z",
+      "Einde": "2026-11-25T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100110,
+      "Start": "2026-11-26T07:30:00.0000000Z",
+      "Einde": "2026-11-26T08:15:00.0000000Z",
+      "LesuurVan": 1,
+      "LesuurTotMet": 1,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "222",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Unité 2 app 1 t/m 5<br></p><p>werkwoorden: avoir, être, aller, faire (présent, passé composé, imparfait, futur)</p>",
+      "Opmerking": null,
+      "InfoType": 4,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "222"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100111,
+      "Start": "2026-11-26T08:15:00.0000000Z",
+      "Einde": "2026-11-26T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "133",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "133"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100112,
+      "Start": "2026-11-26T09:00:00.0000000Z",
+      "Einde": "2026-11-26T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100113,
+      "Start": "2026-11-26T10:05:00.0000000Z",
+      "Einde": "2026-11-26T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D1,D2 - k1a",
+      "Lokatie": "020",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "020"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100114,
+      "Start": "2026-11-26T10:50:00.0000000Z",
+      "Einde": "2026-11-26T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100115,
+      "Start": "2026-11-26T12:05:00.0000000Z",
+      "Einde": "2026-11-26T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "te - D10 - k1a",
+      "Lokatie": "052",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 125,
+          "Naam": "tekenen"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D10",
+          "Id": 9010,
+          "Naam": "Docent 10"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "052"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100116,
+      "Start": "2026-11-26T12:50:00.0000000Z",
+      "Einde": "2026-11-26T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100117,
+      "Start": "2026-11-27T08:15:00.0000000Z",
+      "Einde": "2026-11-27T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ne - D12 - k1a",
+      "Lokatie": "019",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 96,
+          "Naam": "Nederlandse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D12",
+          "Id": 9012,
+          "Naam": "Docent 12"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "019"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100118,
+      "Start": "2026-11-27T09:00:00.0000000Z",
+      "Einde": "2026-11-27T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sk - D5 - k1a",
+      "Lokatie": "017",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 103,
+          "Naam": "scheikunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D5",
+          "Id": 9005,
+          "Naam": "Docent 5"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "017"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100119,
+      "Start": "2026-11-27T10:05:00.0000000Z",
+      "Einde": "2026-11-27T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "en - D8 - k1a",
+      "Lokatie": "125",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 40,
+          "Naam": "Engelse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D8",
+          "Id": 9008,
+          "Naam": "Docent 8"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "125"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100120,
+      "Start": "2026-11-27T10:50:00.0000000Z",
+      "Einde": "2026-11-27T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "gs - D11 - k1a",
+      "Lokatie": "226",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": "<p>Vaardighedentoets Tussen de Oorlogen 2.1-2.3 (2x)</p>",
+      "Opmerking": null,
+      "InfoType": 2,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 48,
+          "Naam": "geschiedenis"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D11",
+          "Id": 9011,
+          "Naam": "Docent 11"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100121,
+      "Start": "2026-11-27T12:05:00.0000000Z",
+      "Einde": "2026-11-27T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "lo - D14 - k1a",
+      "Lokatie": "003",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 81,
+          "Naam": "lichamelijke opvoeding"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D14",
+          "Id": 9014,
+          "Naam": "Docent 14"
+        }
+      ],
+      "Lokalen": [],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100122,
+      "Start": "2026-11-27T12:50:00.0000000Z",
+      "Einde": "2026-11-27T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "lo - D14 - k1a",
+      "Lokatie": "003",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 81,
+          "Naam": "lichamelijke opvoeding"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D14",
+          "Id": 9014,
+          "Naam": "Docent 14"
+        }
+      ],
+      "Lokalen": [],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100123,
+      "Start": "2026-11-30T08:15:00.0000000Z",
+      "Einde": "2026-11-30T09:00:00.0000000Z",
+      "LesuurVan": 2,
+      "LesuurTotMet": 2,
+      "DuurtHeleDag": false,
+      "Omschrijving": "na - D1,D2 - k1a",
+      "Lokatie": "020",
+      "Status": 3,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1145,
+          "Naam": "natuurkunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D1",
+          "Id": 9001,
+          "Naam": "Docent 1"
+        },
+        {
+          "Docentcode": "D2",
+          "Id": 9002,
+          "Naam": "Docent 2"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "020"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100124,
+      "Start": "2026-11-30T09:00:00.0000000Z",
+      "Einde": "2026-11-30T09:45:00.0000000Z",
+      "LesuurVan": 3,
+      "LesuurTotMet": 3,
+      "DuurtHeleDag": false,
+      "Omschrijving": "wi - D3 - k1a",
+      "Lokatie": "235",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 119,
+          "Naam": "wiskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D3",
+          "Id": 9003,
+          "Naam": "Docent 3"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "235"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100125,
+      "Start": "2026-11-30T10:05:00.0000000Z",
+      "Einde": "2026-11-30T10:50:00.0000000Z",
+      "LesuurVan": 4,
+      "LesuurTotMet": 4,
+      "DuurtHeleDag": false,
+      "Omschrijving": "ak - D4 - k1a",
+      "Lokatie": "226",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1,
+          "Naam": "aardrijkskunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D4",
+          "Id": 9004,
+          "Naam": "Docent 4"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "226"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100126,
+      "Start": "2026-11-30T10:50:00.0000000Z",
+      "Einde": "2026-11-30T11:35:00.0000000Z",
+      "LesuurVan": 5,
+      "LesuurTotMet": 5,
+      "DuurtHeleDag": false,
+      "Omschrijving": "sk - D5 - k1a",
+      "Lokatie": "017",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 103,
+          "Naam": "scheikunde"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D5",
+          "Id": 9005,
+          "Naam": "Docent 5"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "017"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100127,
+      "Start": "2026-11-30T12:05:00.0000000Z",
+      "Einde": "2026-11-30T12:50:00.0000000Z",
+      "LesuurVan": 6,
+      "LesuurTotMet": 6,
+      "DuurtHeleDag": false,
+      "Omschrijving": "du - D6 - k1a",
+      "Lokatie": "123",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 33,
+          "Naam": "Duitse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D6",
+          "Id": 9006,
+          "Naam": "Docent 6"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "123"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100128,
+      "Start": "2026-11-30T12:50:00.0000000Z",
+      "Einde": "2026-11-30T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "nt2",
+      "Lokatie": "120",
+      "Status": 1,
+      "Type": 7,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 1283,
+          "Naam": "NT2"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D16",
+          "Id": 9016,
+          "Naam": "Docent 16"
+        },
+        {
+          "Docentcode": "D17",
+          "Id": 9017,
+          "Naam": "Docent 17"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "120"
+        }
+      ],
+      "Groepen": [],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    },
+    {
+      "Id": 100129,
+      "Start": "2026-11-30T12:50:00.0000000Z",
+      "Einde": "2026-11-30T13:35:00.0000000Z",
+      "LesuurVan": 7,
+      "LesuurTotMet": 7,
+      "DuurtHeleDag": false,
+      "Omschrijving": "fa - D7 - k1a",
+      "Lokatie": "121",
+      "Status": 1,
+      "Type": 13,
+      "Subtype": 1,
+      "IsOnlineDeelname": false,
+      "WeergaveType": 0,
+      "Inhoud": null,
+      "Opmerking": null,
+      "InfoType": 0,
+      "Aantekening": null,
+      "Afgerond": false,
+      "HerhaalStatus": 0,
+      "Herhaling": null,
+      "Vakken": [
+        {
+          "Id": 42,
+          "Naam": "Franse taal"
+        }
+      ],
+      "Docenten": [
+        {
+          "Docentcode": "D7",
+          "Id": 9007,
+          "Naam": "Docent 7"
+        }
+      ],
+      "Lokalen": [
+        {
+          "Naam": "121"
+        }
+      ],
+      "Groepen": [
+        {
+          "Code": "K1a"
+        }
+      ],
+      "HeeftBijlagen": false,
+      "Bijlagen": null
+    }
+  ],
+  "TotalCount": 130
+}
