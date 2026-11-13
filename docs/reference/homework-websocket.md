@@ -35,7 +35,7 @@ are not repeated. After an entry reload the new entity pushes its list once to e
 `available: false` means that the data is older than 24 h, the entry is not loaded, or the entity was
 removed. `items` then holds the last known list, which can be empty. The card shows a "not available" state.
 
-Item (sorted by `due`, then `lesson_hour`, then `uid`):
+Item (sorted by `due`, then `lesson_hour` (null sorts as 0, i.e. first), then `uid`):
 
 | Field | Type | Meaning |
 |---|---|---|
