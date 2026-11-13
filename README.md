@@ -176,6 +176,11 @@ The integration ships its own Lovelace card, **Magister Homework planner**, one 
 loaded automatically (no resource to add by hand, also not with HACS) and shows the homework
 and tests of the child's Homework to-do list, grouped per day, with a progress control per item.
 
+<p>
+  <img src="docs/assets/homework-card-en-light.png" alt="Homework planner card, light theme" width="360">
+  <img src="docs/assets/homework-card-en-dark.png" alt="Homework planner card, dark theme" width="360">
+</p>
+
 **Add it:** open a dashboard, choose *Edit dashboard > Add card*, search for **Magister** and pick
 *Magister Homework planner*. Choose the child's Homework list in the visual editor.
 
@@ -190,7 +195,7 @@ and tests of the child's Homework to-do list, grouped per day, with a progress c
 ```yaml
 type: custom:magister-homework-card
 entity: todo.kind_myschool_homework
-title: Homework Anna
+title: Homework Kind
 show_completed: false
 show_past: false
 days_ahead: 7

@@ -6,6 +6,7 @@ import {
   formatDay,
   groupByDay,
   normalizeConfig,
+  optimisticOverlay,
   snapToStep,
   todayIso,
   toggleTarget,
@@ -13,7 +14,7 @@ import {
   type NormalizedConfig,
   type Overlay,
 } from "./logic";
-import { format, textsFor, typeLabel, type Texts } from "./translations";
+import { format, languageOf, textsFor, typeLabel, type Texts } from "./translations";
 import type {
   CardConfig,
   Hass,
@@ -28,11 +29,23 @@ import type {
 const SUBSCRIBE = "magister/homework/subscribe";
 const SET_PROGRESS = "magister/homework/set_progress";
 const TOAST_MS = 6000;
+/** Retry of a failed subscribe: 30 s, doubling, at most 10 minutes. */
+const RETRY_START_MS = 30_000;
+const RETRY_MAX_MS = 600_000;
 
 type LoadError = "not_found" | "unauthorized" | "load_failed";
 
 const PAPERCLIP =
   "M16.5,6V17.5A4,4 0 0,1 12.5,21.5A4,4 0 0,1 8.5,17.5V5A2.5,2.5 0 0,1 11,2.5A2.5,2.5 0 0,1 13.5,5V15.5A1,1 0 0,1 12.5,16.5A1,1 0 0,1 11.5,15.5V6H10V15.5A2.5,2.5 0 0,0 12.5,18A2.5,2.5 0 0,0 15,15.5V5A4,4 0 0,0 11,1A4,4 0 0,0 7,5V17.5A5.5,5.5 0 0,0 12.5,23A5.5,5.5 0 0,0 18,17.5V6H16.5Z";
+
+/** Unsubscribe without letting a rejected promise escape. */
+function safeUnsubscribe(unsubscribe: Unsubscribe): void {
+  try {
+    void Promise.resolve(unsubscribe()).catch(() => undefined);
+  } catch {
+    // already closed
+  }
+}
 
 export class MagisterHomeworkCard extends LitElement {
   static override properties = {
@@ -57,7 +70,14 @@ export class MagisterHomeworkCard extends LitElement {
   private _subscribedEntity = "";
   private _unsubscribe: Unsubscribe | undefined;
   private _generation = 0;
-  private _tokens = new Map<string, number>();
+  /** The request that last changed an item: only its outcome touches the view. */
+  private readonly _tokens = new Map<string, number>();
+  private _nextToken = 0;
+  private _retryTimer: ReturnType<typeof setTimeout> | undefined;
+  private _retryDelay = RETRY_START_MS;
+  private _hassKey = "";
+  private _dayTimer: ReturnType<typeof setInterval> | undefined;
+  private _shownDay = "";
   /** Items ticked off in this view: they stay visible until the card is reloaded. */
   private readonly _touched = new Set<string>();
   private _toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -66,6 +86,9 @@ export class MagisterHomeworkCard extends LitElement {
   };
   private readonly _onReady = () => {
     this._offline = false;
+    // A reconnect: try again at once after a failed subscribe (a working one is
+    // resubscribed by the connection itself).
+    if (this._loadError) this._retry();
   };
 
   constructor() {
@@ -91,7 +114,18 @@ export class MagisterHomeworkCard extends LitElement {
 
   setConfig(config: Partial<CardConfig>): void {
     const next = normalizeConfig(config);
-    if (next.entity !== this._config?.entity) this._resetSubscription();
+    if (next.entity !== this._config?.entity) {
+      // Another child: nothing of the old list may stay on screen.
+      this._resetSubscription();
+      this._payload = undefined;
+      this._loadError = undefined;
+      this._offline = false;
+      this._overlay = new Map();
+      this._expanded = new Set();
+      this._tokens.clear();
+      this._touched.clear();
+      this._retryDelay = RETRY_START_MS;
+    }
     this._config = next;
     this.requestUpdate();
     this._ensureSubscription();
@@ -99,7 +133,12 @@ export class MagisterHomeworkCard extends LitElement {
 
   set hass(hass: Hass | undefined) {
     this._hass = hass;
-    this.requestUpdate();
+    // Home Assistant sets hass on every state change: render only when it matters.
+    const key = `${hass?.locale?.language ?? ""}|${hass?.language ?? ""}|${hass?.config?.time_zone ?? ""}`;
+    if (key !== this._hassKey || !this._payload) {
+      this._hassKey = key;
+      this.requestUpdate();
+    }
     this._ensureSubscription();
   }
 
@@ -121,12 +160,18 @@ export class MagisterHomeworkCard extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this._ensureSubscription();
+    // Re-render when the day changes while the dashboard stays open.
+    this._dayTimer = setInterval(() => {
+      if (this._today() !== this._shownDay) this.requestUpdate();
+    }, 60_000);
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this._resetSubscription();
     if (this._toastTimer) clearTimeout(this._toastTimer);
+    if (this._dayTimer) clearInterval(this._dayTimer);
+    this._dayTimer = undefined;
   }
 
   // -- subscription --
@@ -135,6 +180,8 @@ export class MagisterHomeworkCard extends LitElement {
     const hass = this._hass;
     const entity = this._config?.entity;
     if (!this.isConnected || !hass?.connection || !entity) return;
+    // Also after a failed subscribe: that is retried on reconnect or after a back-off,
+    // not on every hass update.
     if (this._subscribedEntity === entity && this._connection === hass.connection) return;
     this._resetSubscription();
     this._attach(hass.connection);
@@ -153,12 +200,11 @@ export class MagisterHomeworkCard extends LitElement {
           if (generation === this._generation) {
             this._unsubscribe = unsubscribe;
           } else {
-            unsubscribe();
+            safeUnsubscribe(unsubscribe);
           }
         },
         (error: unknown) => {
           if (generation !== this._generation) return;
-          this._subscribedEntity = "";
           const code = (error as WsError | undefined)?.code;
           this._loadError =
             code === "not_found" || code === "invalid_format"
@@ -166,21 +212,39 @@ export class MagisterHomeworkCard extends LitElement {
               : code === "unauthorized"
                 ? "unauthorized"
                 : "load_failed";
+          this._scheduleRetry();
         },
       );
+  }
+
+  private _scheduleRetry(): void {
+    if (this._retryTimer) clearTimeout(this._retryTimer);
+    this._retryTimer = setTimeout(() => {
+      this._retryTimer = undefined;
+      this._retry();
+    }, this._retryDelay);
+    this._retryDelay = Math.min(this._retryDelay * 2, RETRY_MAX_MS);
+  }
+
+  private _retry(): void {
+    this._resetSubscription();
+    this._ensureSubscription();
   }
 
   private _attach(connection: HassConnection): void {
     connection.addEventListener?.("disconnected", this._onDisconnected);
     connection.addEventListener?.("ready", this._onReady);
     this._connection = connection;
+    if (connection.connected === false) this._offline = true;
   }
 
   /** Unsubscribe (also while the subscribe call is still pending) and forget the connection. */
   private _resetSubscription(): void {
     this._generation++;
-    this._unsubscribe?.();
+    if (this._unsubscribe) safeUnsubscribe(this._unsubscribe);
     this._unsubscribe = undefined;
+    if (this._retryTimer) clearTimeout(this._retryTimer);
+    this._retryTimer = undefined;
     this._connection?.removeEventListener?.("disconnected", this._onDisconnected);
     this._connection?.removeEventListener?.("ready", this._onReady);
     this._connection = undefined;
@@ -190,6 +254,7 @@ export class MagisterHomeworkCard extends LitElement {
   private _onPayload(payload: HomeworkPayload): void {
     this._payload = payload;
     this._loadError = undefined;
+    this._retryDelay = RETRY_START_MS;
     this._offline = false;
     // Confirmed overlays are replaced by the pushed state; requests still in flight stay.
     const kept = new Map<string, Overlay>();
@@ -204,14 +269,14 @@ export class MagisterHomeworkCard extends LitElement {
   private async _setProgress(uid: string, progress: number): Promise<void> {
     const hass = this._hass;
     const entity = this._config?.entity;
-    if (!hass || !entity || !this._payload?.available) return;
-    const token = (this._tokens.get(uid) ?? 0) + 1;
+    const source = this._payload?.items.find((candidate) => candidate.uid === uid);
+    if (!hass || !entity || !source || !this._payload?.available || this._offline) return;
+    const token = ++this._nextToken;
     this._tokens.set(uid, token);
     if (progress >= 100) this._touched.add(uid);
-    this._overlay = new Map(this._overlay).set(uid, {
-      progress,
-      completed: progress >= 100,
-    });
+    const shown = applyOverlay([source], this._overlay)[0] ?? source;
+    const optimistic = optimisticOverlay(shown, progress);
+    this._overlay = new Map(this._overlay).set(uid, optimistic);
     try {
       const stored = await hass.callWS<SetProgressResult>({
         type: SET_PROGRESS,
@@ -226,17 +291,17 @@ export class MagisterHomeworkCard extends LitElement {
       if (current?.progress === stored.progress) {
         next.delete(uid);
       } else {
-        next.set(uid, { progress: stored.progress, completed: stored.completed });
+        next.set(uid, { ...optimistic, progress: stored.progress, completed: stored.completed });
       }
       this._overlay = next;
     } catch (error) {
+      // An older request that failed must not undo or announce anything.
+      if (this._tokens.get(uid) !== token) return;
+      this._tokens.delete(uid);
+      const next = new Map(this._overlay);
+      next.delete(uid);
+      this._overlay = next;
       const code = (error as WsError | undefined)?.code;
-      if (this._tokens.get(uid) === token) {
-        this._tokens.delete(uid);
-        const next = new Map(this._overlay);
-        next.delete(uid);
-        this._overlay = next;
-      }
       const texts = this._texts();
       this._showToast(code === "unauthorized" ? texts.save_unauthorized : texts.save_failed);
     }
@@ -267,7 +332,8 @@ export class MagisterHomeworkCard extends LitElement {
   }
 
   private _today(): string {
-    return todayIso(new Date(), this._hass?.config?.time_zone);
+    this._shownDay = todayIso(new Date(), this._hass?.config?.time_zone);
+    return this._shownDay;
   }
 
   private _visibleItems(): HomeworkItem[] {
@@ -285,7 +351,7 @@ export class MagisterHomeworkCard extends LitElement {
   private _dayTitle(group: DayGroup, texts: Texts): string {
     if (group.kind === "today") return texts.today;
     if (group.kind === "tomorrow") return texts.tomorrow;
-    return formatDay(group.date, this._language());
+    return formatDay(group.date, languageOf(this._language()) === "nl" ? "nl" : "en-GB");
   }
 
   // -- rendering --
@@ -311,6 +377,7 @@ export class MagisterHomeworkCard extends LitElement {
     if (this._loadError) return html`<p class="state error">${texts[this._loadError]}</p>`;
     if (!this._payload) return html`<p class="state">${texts.loading}</p>`;
     const available = this._payload.available;
+    const enabled = available && !this._offline;
     const groups = groupByDay(this._visibleItems(), this._today());
     const banners = html`${!available
       ? html`<p class="banner" role="status">${texts.unavailable}</p>`
@@ -332,7 +399,7 @@ export class MagisterHomeworkCard extends LitElement {
             <section class="day" aria-labelledby="day-${group.date}">
               <h4 id="day-${group.date}" class=${group.kind}>${this._dayTitle(group, texts)}</h4>
               <ul>
-                ${group.items.map((item) => this._renderItem(item, texts, available))}
+                ${group.items.map((item) => this._renderItem(item, texts, enabled))}
               </ul>
             </section>
           `,
@@ -393,7 +460,10 @@ export class MagisterHomeworkCard extends LitElement {
   }
 
   private _renderProgress(item: HomeworkItem, texts: Texts, enabled: boolean): TemplateResult {
-    const selected = snapToStep(item.progress);
+    // A stored value between the steps (say 40 %) leaves every radio unchecked; the
+    // nearest step takes the tab stop and the tint.
+    const nearest = snapToStep(item.progress);
+    const exact = (STEPS as readonly number[]).includes(item.progress);
     return html`<div class="progress">
       <div
         class="segments"
@@ -404,26 +474,28 @@ export class MagisterHomeworkCard extends LitElement {
           (step) => html`<button
             type="button"
             role="radio"
-            class="segment ${step === selected ? "selected" : ""} ${step < selected ? "below" : ""}"
-            aria-checked=${step === selected ? "true" : "false"}
+            class="segment ${step === nearest ? "selected" : ""} ${step < nearest ? "below" : ""} ${exact ? "" : "between"}"
+            aria-checked=${exact && step === nearest ? "true" : "false"}
             aria-label=${format(texts.percent, { n: step })}
-            tabindex=${step === selected ? 0 : -1}
+            tabindex=${step === nearest ? 0 : -1}
             ?disabled=${!enabled}
-            @click=${() => void this._setProgress(item.uid, step)}
+            @click=${() => {
+              if (step !== item.progress) void this._setProgress(item.uid, step);
+            }}
             @keydown=${(event: KeyboardEvent) => {
-              this._onSegmentKey(event, item.uid, selected);
+              this._onSegmentKey(event, item.uid, item.progress);
             }}
           >
             ${step}
           </button>`,
         )}
       </div>
-      <span class="percent" aria-hidden="true">${format(texts.percent, { n: item.progress })}</span>
+      <span class="percent">${format(texts.percent, { n: item.progress })}</span>
     </div>`;
   }
 
-  private _onSegmentKey(event: KeyboardEvent, uid: string, selected: number): void {
-    const index = STEPS.indexOf(selected as (typeof STEPS)[number]);
+  private _onSegmentKey(event: KeyboardEvent, uid: string, progress: number): void {
+    const index = STEPS.indexOf(snapToStep(progress) as (typeof STEPS)[number]);
     let next: number;
     switch (event.key) {
       case "ArrowRight":
@@ -445,11 +517,11 @@ export class MagisterHomeworkCard extends LitElement {
     }
     event.preventDefault();
     const target = STEPS[next];
-    if (target === undefined || target === selected) return;
+    if (target === undefined || target === progress) return;
     const group = event.currentTarget as HTMLElement;
     void this._setProgress(uid, target);
     void this.updateComplete.then(() => {
-      group.parentElement?.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
+      group.parentElement?.querySelector<HTMLElement>('[tabindex="0"]')?.focus();
     });
   }
 
@@ -661,6 +733,9 @@ export class MagisterHomeworkCard extends LitElement {
     }
     .segment.below {
       background: color-mix(in srgb, var(--primary-color) 22%, transparent);
+    }
+    .segment.between.selected {
+      background: color-mix(in srgb, var(--primary-color) 55%, transparent);
     }
     .segment.selected {
       background: var(--primary-color);

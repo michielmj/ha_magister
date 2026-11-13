@@ -15,7 +15,7 @@ export function editorSchema(): FormSchema[] {
     {
       name: "entity",
       required: true,
-      selector: { entity: { domain: "todo", integration: "magister" } },
+      selector: { entity: { filter: { domain: "todo", integration: "magister" } } },
     },
     { name: "title", selector: { text: {} } },
     { name: "show_completed", selector: { boolean: {} } },
@@ -39,29 +39,32 @@ export function formData(config: Partial<CardConfig>): Record<string, unknown> {
 }
 
 /**
- * The config after a form change. Defaults and empty values are left out, so the YAML
- * stays short; the card type is kept.
+ * The config after a form change. Only the five managed keys change (defaults and empty
+ * values are removed, so the YAML stays short); every other key (grid_options,
+ * visibility, view_layout, card_mod, ...) is kept.
  */
 export function configFromForm(
   previous: Partial<CardConfig>,
   value: Record<string, unknown>,
 ): CardConfig {
-  const config: CardConfig = { type: previous.type ?? "custom:magister-homework-card", entity: "" };
-  if (typeof value["entity"] === "string") config.entity = value["entity"];
-  if (typeof value["title"] === "string" && value["title"].trim() !== "") {
-    config.title = value["title"];
-  }
+  const config = {
+    ...previous,
+    type: previous.type ?? "custom:magister-homework-card",
+    entity: typeof value["entity"] === "string" ? value["entity"] : (previous.entity ?? ""),
+  };
+  const title = value["title"];
+  if (typeof title === "string" && title.trim() !== "") config.title = title;
+  else delete config.title;
   if (value["show_completed"] === true) config.show_completed = true;
+  else delete config.show_completed;
   if (value["show_past"] === true) config.show_past = true;
-  const days = Number(value["days_ahead"]);
-  if (
-    value["days_ahead"] !== "" &&
-    value["days_ahead"] !== undefined &&
-    Number.isFinite(days) &&
-    days >= 0 &&
-    days !== DEFAULT_DAYS_AHEAD
-  ) {
+  else delete config.show_past;
+  const raw = value["days_ahead"];
+  const days = raw === "" || raw === undefined || raw === null ? Number.NaN : Number(raw);
+  if (Number.isFinite(days) && days >= 0 && days !== DEFAULT_DAYS_AHEAD) {
     config.days_ahead = Math.min(Math.floor(days), MAX_DAYS_AHEAD);
+  } else {
+    delete config.days_ahead;
   }
   return config;
 }

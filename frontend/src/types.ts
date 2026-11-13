@@ -42,7 +42,7 @@ export interface CardConfig {
   title?: string;
 }
 
-export type Unsubscribe = () => void;
+export type Unsubscribe = () => Promise<void> | void;
 
 /** The part of home-assistant-js-websocket's Connection that the card uses. */
 export interface HassConnection {
@@ -52,6 +52,8 @@ export interface HassConnection {
     subscribeMessage: Record<string, unknown>,
     options?: { resubscribe?: boolean },
   ): Promise<Unsubscribe>;
+  /** False while the socket is down (js-websocket). */
+  connected?: boolean;
   addEventListener?(type: string, listener: () => void): void;
   removeEventListener?(type: string, listener: () => void): void;
 }

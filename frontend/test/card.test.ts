@@ -37,7 +37,7 @@ class FakeConnection {
     this.listeners.get(type)?.delete(listener);
   };
   emit(type: string): void {
-    this.listeners.get(type)?.forEach((listener) => {
+    [...(this.listeners.get(type) ?? [])].forEach((listener) => {
       listener();
     });
   }
@@ -249,7 +249,7 @@ describe("rendering", () => {
     const { card, connection } = await mount();
     connection.push(payload(items));
     await flush(card);
-    expect(texts(card, "h4")).toEqual(["Today", "Tomorrow", "Monday, November 16"]);
+    expect(texts(card, "h4")).toEqual(["Today", "Tomorrow", "Monday 16 November"]);
     expect(texts(card, ".subject")).toEqual(["Wiskunde", "Engels", "Duits"]);
   });
 
@@ -269,7 +269,7 @@ describe("rendering", () => {
     connection.push(payload(items));
     await flush(card);
     expect(texts(card, "h3.section")).toEqual(["Earlier"]);
-    expect(texts(card, "h4")[0]).toBe("Wednesday, November 11");
+    expect(texts(card, "h4")[0]).toBe("Wednesday 11 November");
     expect(texts(card, ".subject")).toEqual(["Gisteren", "Wiskunde", "Klaar", "Engels", "Duits", "Te ver"]);
     const done = root(card).querySelector<HTMLInputElement>('li.done input[type="checkbox"]');
     expect(done?.checked).toBe(true);
@@ -358,8 +358,10 @@ describe("progress control", () => {
     expect(group?.getAttribute("aria-label")).toBe("Progress of Wiskunde");
     const radios = [...root(card).querySelectorAll<HTMLButtonElement>('[role="radio"]')];
     expect(radios.map((radio) => radio.textContent.trim())).toEqual(["0", "25", "50", "75", "100"]);
-    expect(radios.map((radio) => radio.getAttribute("aria-checked"))).toEqual(["false", "false", "true", "false", "false"]);
+    // 40 % lies between the steps: nothing is checked, the nearest step is the tab stop
+    expect(radios.map((radio) => radio.getAttribute("aria-checked"))).toEqual(["false", "false", "false", "false", "false"]);
     expect(radios.map((radio) => radio.tabIndex)).toEqual([-1, -1, 0, -1, -1]);
+    expect(root(card).querySelector(".percent")?.getAttribute("aria-hidden")).toBeNull();
     expect(radios[3]?.getAttribute("aria-label")).toBe("75%");
     expect(texts(card, ".percent")).toEqual(["40%"]);
   });
@@ -446,7 +448,7 @@ describe("checkbox, optimistic UI and rollback", () => {
     checkbox(card)?.dispatchEvent(new Event("change"));
     expect(callWS).toHaveBeenCalledWith(expect.objectContaining({ item: "u1", progress: 40 }));
     await flush(card);
-    expect(checked(card)).toEqual(["50"]); // 40 % shown on the nearest step
+    expect(checked(card)).toEqual([]); // 40 % is between the steps
     expect(texts(card, ".percent")).toEqual(["40%"]);
   });
 
@@ -540,11 +542,55 @@ describe("checkbox, optimistic UI and rollback", () => {
     expect(checked(card)).toEqual(["75"]);
     calls[0]?.reject({ code: "boom" });
     await flush(card);
-    expect(checked(card)).toEqual(["75"]); // the old failure shows a message but keeps the newer tap
-    expect(root(card).querySelector('[role="alert"]')).not.toBeNull();
+    expect(checked(card)).toEqual(["75"]); // the old failure keeps the newer tap, silently
+    expect(root(card).querySelector('[role="alert"]')).toBeNull();
     calls[1]?.resolve({ progress: 75, completed: false });
     await flush(card);
     expect(checked(card)).toEqual(["75"]);
+  });
+
+  it("tick, 75 %, tick, untick: the untick restores 75 even with requests in flight", async () => {
+    const callWS = vi.fn().mockReturnValue(new Promise(() => undefined)); // never answers
+    const { card } = await setup(callWS, [item({ uid: "u1" })]);
+    const radios = (): NodeListOf<HTMLButtonElement> =>
+      root(card).querySelectorAll<HTMLButtonElement>('[role="radio"]');
+    radios()[3]?.click(); // 75
+    await flush(card);
+    checkbox(card)?.dispatchEvent(new Event("change")); // tick -> 100
+    await flush(card);
+    expect(callWS).toHaveBeenLastCalledWith(expect.objectContaining({ progress: 100 }));
+    checkbox(card)?.dispatchEvent(new Event("change")); // untick -> 75, not 0
+    expect(callWS).toHaveBeenLastCalledWith(expect.objectContaining({ progress: 75 }));
+  });
+
+  it("clicking the step that is already selected sends nothing", async () => {
+    const callWS = vi.fn().mockResolvedValue({ progress: 50, completed: false });
+    const { card } = await setup(callWS, [item({ uid: "u1", progress: 50, last_partial: 50 })]);
+    root(card).querySelectorAll<HTMLButtonElement>('[role="radio"]')[2]?.click();
+    expect(callWS).not.toHaveBeenCalled();
+    root(card).querySelectorAll<HTMLButtonElement>('[role="radio"]')[3]?.click();
+    expect(callWS).toHaveBeenCalledTimes(1);
+  });
+
+  it("a between-steps value can be set to its nearest step by clicking it", async () => {
+    const callWS = vi.fn().mockResolvedValue({ progress: 50, completed: false });
+    const { card } = await setup(callWS, [item({ uid: "u1", progress: 40, last_partial: 40 })]);
+    root(card).querySelectorAll<HTMLButtonElement>('[role="radio"]')[2]?.click();
+    expect(callWS).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the controls and refuses changes while the connection is down", async () => {
+    const callWS = vi.fn();
+    const { card, connection } = await setup(callWS, [item({ uid: "u1" })]);
+    connection.emit("disconnected");
+    await flush(card);
+    expect(checkbox(card)?.disabled).toBe(true);
+    expect(root(card).querySelector<HTMLButtonElement>(".segment")?.disabled).toBe(true);
+    checkbox(card)?.dispatchEvent(new Event("change"));
+    expect(callWS).not.toHaveBeenCalled();
+    connection.emit("ready");
+    await flush(card);
+    expect(checkbox(card)?.disabled).toBe(false);
   });
 
   it("does not send anything while Magister is not available", async () => {
@@ -555,5 +601,106 @@ describe("checkbox, optimistic UI and rollback", () => {
     await flush(card);
     checkbox(card)?.dispatchEvent(new Event("change"));
     expect(callWS).not.toHaveBeenCalled();
+  });
+});
+
+describe("failed subscribe, retry and entity change", () => {
+  it("does not retry on every hass update; retries on ready and after a back-off", async () => {
+    const connection = new FakeConnection();
+    connection.reject = { code: "boom" };
+    const { card, hass } = await mount({}, undefined, connection);
+    for (let i = 0; i < 5; i++) card.hass = { ...hass };
+    await flush(card);
+    expect(connection.subscribes).toBe(1);
+
+    connection.emit("ready"); // reconnect: retry at once
+    await flush(card);
+    expect(connection.subscribes).toBe(2);
+
+    // back-off: 30 s after the first failure, 60 s after the second, 120 s after the third
+    vi.advanceTimersByTime(59_000);
+    await flush(card);
+    expect(connection.subscribes).toBe(2);
+    vi.advanceTimersByTime(2_000);
+    await flush(card);
+    expect(connection.subscribes).toBe(3);
+    vi.advanceTimersByTime(119_000);
+    await flush(card);
+    expect(connection.subscribes).toBe(3);
+    vi.advanceTimersByTime(2_000);
+    await flush(card);
+    expect(connection.subscribes).toBe(4);
+  });
+
+  it("recovers when a retry succeeds", async () => {
+    const connection = new FakeConnection();
+    connection.reject = { code: "boom" };
+    const { card } = await mount({}, undefined, connection);
+    connection.reject = undefined;
+    vi.advanceTimersByTime(31_000);
+    await flush(card);
+    connection.push(payload([item()]));
+    await flush(card);
+    expect(texts(card, ".subject")).toEqual(["Wiskunde"]);
+    expect(texts(card, ".state")).toEqual([]);
+  });
+
+  it("stops retrying when the card is removed", async () => {
+    const connection = new FakeConnection();
+    connection.reject = { code: "boom" };
+    const { card } = await mount({}, undefined, connection);
+    card.remove();
+    vi.advanceTimersByTime(700_000);
+    await flush(card);
+    expect(connection.subscribes).toBe(1);
+  });
+
+  it("an entity change drops the old child's data and shows loading", async () => {
+    const { card, connection } = await mount();
+    connection.push(payload([item({ uid: "old", subject: "Oud kind" })]));
+    await flush(card);
+    expect(texts(card, ".subject")).toEqual(["Oud kind"]);
+    card.setConfig({ type: "x", entity: "todo.other" });
+    await flush(card);
+    expect(texts(card, ".subject")).toEqual([]);
+    expect(texts(card, ".state")).toEqual(["Loading…"]);
+  });
+
+  it("an answer for the old entity does not touch the new one", async () => {
+    let resolve: (value: unknown) => void = () => undefined;
+    const callWS = vi.fn().mockReturnValue(new Promise((r) => (resolve = r)));
+    const connection = new FakeConnection();
+    const { card } = await mount({}, makeHass(connection, callWS), connection);
+    connection.push(payload([item({ uid: "u1" })]));
+    await flush(card);
+    root(card).querySelectorAll<HTMLButtonElement>('[role="radio"]')[3]?.click();
+    card.setConfig({ type: "x", entity: "todo.other" });
+    connection.push(payload([item({ uid: "u1", subject: "Nieuw" })]));
+    await flush(card);
+    resolve({ progress: 75, completed: false });
+    await flush(card);
+    expect(root(card).querySelectorAll('[aria-checked="true"]')).toHaveLength(1);
+    expect(root(card).querySelector('[aria-checked="true"]')?.textContent.trim()).toBe("0");
+  });
+
+  it("does not re-render for a hass update that changes nothing relevant", async () => {
+    const { card, connection, hass } = await mount();
+    connection.push(payload([item()]));
+    await flush(card);
+    const spy = vi.spyOn(card, "requestUpdate");
+    card.hass = { ...hass };
+    card.hass = { ...hass };
+    expect(spy).not.toHaveBeenCalled();
+    card.hass = { ...hass, language: "nl" };
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("survives an unsubscribe that rejects", async () => {
+    const connection = new FakeConnection();
+    connection.unsubscribe.mockRejectedValue(new Error("closed"));
+    const { card } = await mount({}, undefined, connection);
+    card.remove();
+    await flush(card);
+    expect(connection.unsubscribe).toHaveBeenCalled();
   });
 });

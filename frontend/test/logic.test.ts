@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   applyOverlay,
+  optimisticOverlay,
   filterItems,
   formatDay,
   groupByDay,
@@ -70,7 +71,7 @@ describe("dates", () => {
 
   it("formats a day in the language of the user", () => {
     expect(formatDay("2026-11-16", "nl")).toBe("maandag 16 november");
-    expect(formatDay("2026-11-16", "en")).toMatch(/Monday/);
+    expect(formatDay("2026-11-16", "en-GB")).toBe("Monday 16 November");
     expect(formatDay("kapot", "nl")).toBe("kapot");
   });
 });
@@ -151,7 +152,7 @@ describe("groupByDay", () => {
 describe("applyOverlay", () => {
   it("replaces progress and completed of the affected items only", () => {
     const items = [item({ uid: "a" }), item({ uid: "b", progress: 25 })];
-    const result = applyOverlay(items, new Map([["a", { progress: 100, completed: true }]]));
+    const result = applyOverlay(items, new Map([["a", { progress: 100, completed: true, last_partial: 0 }]]));
     expect(result[0]).toMatchObject({ uid: "a", progress: 100, completed: true });
     expect(result[1]).toBe(items[1]);
     expect(items[0]?.progress).toBe(0);
@@ -192,5 +193,24 @@ describe("normalizeConfig", () => {
 
   it("caps days_ahead", () => {
     expect(normalizeConfig({ entity: "todo.a", days_ahead: 99999 }).days_ahead).toBe(365);
+  });
+});
+
+describe("optimisticOverlay", () => {
+  it("below 100 the value is the last partial", () => {
+    expect(optimisticOverlay(item({ progress: 0 }), 75)).toEqual({
+      progress: 75,
+      completed: false,
+      last_partial: 75,
+    });
+  });
+
+  it("reaching 100 keeps the progress from before as the last partial", () => {
+    expect(optimisticOverlay(item({ progress: 75, last_partial: 75 }), 100)).toEqual({
+      progress: 100,
+      completed: true,
+      last_partial: 75,
+    });
+    expect(optimisticOverlay(item({ progress: 100, completed: true, last_partial: 40 }), 100).last_partial).toBe(40);
   });
 });

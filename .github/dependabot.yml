@@ -15,3 +15,6 @@ updates:
     directory: /frontend
     schedule:
       interval: weekly
+    groups:
+      frontend-dev-dependencies:
+        dependency-type: development

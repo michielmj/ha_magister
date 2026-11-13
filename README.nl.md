@@ -188,6 +188,11 @@ kaart wordt automatisch geladen (je hoeft zelf geen resource toe te voegen, ook 
 toont het huiswerk en de toetsen van de Huiswerklijst van het kind, per dag gegroepeerd, met een
 voortgangsbediening per item.
 
+<p>
+  <img src="docs/assets/homework-card-nl-light.png" alt="Huiswerkplanner-kaart, light theme" width="360">
+  <img src="docs/assets/homework-card-nl-dark.png" alt="Huiswerkplanner-kaart, dark theme" width="360">
+</p>
+
 **Toevoegen:** open een dashboard, kies *Dashboard bewerken > Kaart toevoegen*, zoek op
 **Magister** en kies *Magister Homework planner*. Kies in de visuele editor de Huiswerklijst van
 het kind.
@@ -203,7 +208,7 @@ het kind.
 ```yaml
 type: custom:magister-homework-card
 entity: todo.kind_myschool_homework
-title: Huiswerk Anna
+title: Huiswerk Kind
 show_completed: false
 show_past: false
 days_ahead: 7

@@ -15,7 +15,7 @@ describe("editor schema", () => {
     ]);
     expect(schema[0]).toMatchObject({
       required: true,
-      selector: { entity: { domain: "todo", integration: "magister" } },
+      selector: { entity: { filter: { domain: "todo", integration: "magister" } } },
     });
     expect(schema[1]?.selector).toHaveProperty("text");
     expect(schema[2]?.selector).toHaveProperty("boolean");
@@ -46,6 +46,36 @@ describe("form <-> config", () => {
         days_ahead: 7,
       }),
     ).toEqual({ type: "custom:magister-homework-card", entity: "todo.a" });
+  });
+
+  it("keeps the keys it does not manage and removes defaults from the managed ones", () => {
+    const previous = {
+      type: "custom:magister-homework-card",
+      entity: "todo.a",
+      show_past: true,
+      title: "Oud",
+      days_ahead: 3,
+      grid_options: { columns: 12 },
+      visibility: [{ condition: "user", users: ["x"] }],
+      view_layout: { column: 2 },
+      card_mod: { style: "ha-card { color: red; }" },
+    };
+    const config = configFromForm(previous, {
+      entity: "todo.a",
+      title: "",
+      show_completed: true,
+      show_past: false,
+      days_ahead: 7,
+    });
+    expect(config).toEqual({
+      type: "custom:magister-homework-card",
+      entity: "todo.a",
+      show_completed: true,
+      grid_options: { columns: 12 },
+      visibility: [{ condition: "user", users: ["x"] }],
+      view_layout: { column: 2 },
+      card_mod: { style: "ha-card { color: red; }" },
+    });
   });
 
   it("stores changed options", () => {

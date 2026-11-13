@@ -2,12 +2,21 @@
 
 ## Unreleased
 
-- Homework planner card (`custom:magister-homework-card`, NL/EN, visual editor) shipped with the
-  integration and loaded automatically. The integration now depends on `frontend` and `http`.
-- Homework planner backend: a to-do list per child with the homework and test items,
-  progress in percent stored in Home Assistant, the service `magister.set_homework_progress`,
-  a WebSocket API for the upcoming card, weighted progress sensors (tomorrow, this week, next
-  week) and an options menu with homework weights.
+## 1.1.0
+
+Homework planner.
+
+- A **Homework to-do list per child** with the homework and test items (Huiswerk, Proefwerk,
+  Tentamen, SO, MO), cancelled lessons marked. Progress in percent is stored in Home Assistant
+  only (nothing is written back to Magister); the service `magister.set_homework_progress` and
+  a WebSocket API (`docs/reference/homework-websocket.md`) change it.
+- **Three progress sensors per child**: tomorrow, this week and next week, as a weighted average,
+  with an options menu **Homework weights** (per type and per subject).
+- The **Homework planner card** (`custom:magister-homework-card`, Dutch and English, with a
+  visual editor) is shipped with the integration and loaded automatically; no resource to add.
+  Add it via the dashboard editor (search "Magister"). See the README.
+- The integration now declares the dependencies `frontend` and `http` in its manifest (it
+  serves and registers the card).
 - Every child gets new entities after upgrading: a Homework to-do list and three progress
   sensors. With `weeks_ahead` set to 1, a repair notice appears because the next-week sensor
   needs at least 2 weeks ahead (that sensor stays unavailable until you raise it).

@@ -131,6 +131,20 @@ export function groupByDay(
 export interface Overlay {
   progress: number;
   completed: boolean;
+  /** What unticking restores, kept in step with the optimistic progress. */
+  last_partial: number;
+}
+
+/**
+ * The optimistic state after setting `progress` on an item as shown now. It mirrors the
+ * backend: below 100 the value itself is the last partial; reaching 100 keeps the value
+ * from before (so tick, untick restores it even while requests are still in flight).
+ */
+export function optimisticOverlay(item: HomeworkItem, progress: number): Overlay {
+  let lastPartial = item.last_partial;
+  if (progress < 100) lastPartial = progress;
+  else if (item.progress < 100) lastPartial = item.progress;
+  return { progress, completed: progress >= 100, last_partial: lastPartial };
 }
 
 /** The items with the optimistic (not yet confirmed) progress applied. */
