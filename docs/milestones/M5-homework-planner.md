@@ -59,7 +59,7 @@ Writing to Magister, archiving older homework, editing homework text, adding cus
   - This makes the planner usable in HA's own to-do view, the mobile app, voice and automations.
 - **Service** `magister.set_homework_progress` (`entity_id` of the to-do entity, `item` uid, `progress` 0–100) for
   automations and the card.
-- **WebSocket API** for the card:
+- **WebSocket API** for the card. The exact contract is in `docs/reference/homework-websocket.md`:
   - `magister/homework/subscribe` (entity_id). It sends the full item list (all fields above plus
     progress) and pushes updates on changes.
   - `magister/homework/set_progress`.
