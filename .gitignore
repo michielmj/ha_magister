@@ -22,3 +22,10 @@ home-assistant.log*
 .vscode/
 .DS_Store
 *.whl
+
+# Frontend (the built bundle in custom_components/magister/frontend IS committed)
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/.vite/
+*.tsbuildinfo

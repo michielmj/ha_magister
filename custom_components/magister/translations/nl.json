@@ -73,6 +73,22 @@
       "agenda": {
         "name": "Agenda"
       }
+    },
+    "todo": {
+      "homework": {
+        "name": "Huiswerk"
+      }
+    },
+    "sensor": {
+      "homework_tomorrow": {
+        "name": "Huiswerk morgen"
+      },
+      "homework_week": {
+        "name": "Huiswerk deze week"
+      },
+      "homework_next_week": {
+        "name": "Huiswerk volgende week"
+      }
     }
   },
   "exceptions": {
@@ -87,11 +103,25 @@
     },
     "login_blocked": {
       "message": "Inloggen bij Magister is geblokkeerd na herhaalde fouten. Herlaad de integratie om nog één keer te proberen, of gebruik Opnieuw configureren om de gegevens te wijzigen."
+    },
+    "homework_item_not_found": {
+      "message": "Dit huiswerkitem staat niet (meer) in de lijst."
+    },
+    "homework_status_only": {
+      "message": "Alleen de status van een huiswerkitem kan worden gewijzigd; de items komen uit Magister."
     }
   },
   "options": {
     "step": {
       "init": {
+        "title": "Magister-opties",
+        "description": "Wat wil je wijzigen?",
+        "menu_options": {
+          "general": "Algemene instellingen",
+          "weights": "Huiswerkgewichten"
+        }
+      },
+      "general": {
         "title": "Magister-opties",
         "description": "Kies de kinderen, hoeveel van de agenda wordt opgehaald en hoe vaak die wordt ververst.",
         "data": {
@@ -105,6 +135,28 @@
           "weeks_ahead": "1 tot 12 weken na de huidige week. Sensoren voor de eerste afspraak kunnen hooguit 7 x dit aantal - 1 dagen vooruitkijken.",
           "update_interval": "15 tot 360 minuten."
         }
+      },
+      "weights": {
+        "title": "Huiswerkgewichten",
+        "description": "Kies het kind. De gewichten bepalen hoe zwaar een item meetelt in de voortgangssensoren voor huiswerk.",
+        "data": {
+          "child": "Kind"
+        }
+      },
+      "weights_types": {
+        "title": "Gewichten per soort",
+        "description": "Hoe zwaar elke soort meetelt voor {child}. 1 is normaal, 0 laat het buiten het gemiddelde (het blijft in de lijst), 10 is het maximum. Stappen van 0,5.",
+        "data": {
+          "homework": "Huiswerk",
+          "test": "Proefwerk",
+          "exam": "Tentamen",
+          "written_quiz": "SO (schriftelijke overhoring)",
+          "oral_quiz": "MO (mondelinge overhoring)"
+        }
+      },
+      "weights_subjects": {
+        "title": "Gewichten per vak",
+        "description": "Hoe zwaar elk vak meetelt. 1 is normaal, 0 laat het buiten het gemiddelde. Vakken die nu niet in de gegevens staan, behouden hun opgeslagen gewicht."
       }
     },
     "error": {
@@ -113,7 +165,8 @@
     },
     "abort": {
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",
-      "cannot_connect": "De kinderen konden niet bij Magister worden opgehaald. Probeer het later opnieuw."
+      "cannot_connect": "De kinderen konden niet bij Magister worden opgehaald. Probeer het later opnieuw.",
+      "not_loaded": "De integratie is niet geladen. Wacht tot die draait en probeer het opnieuw."
     }
   },
   "config_subentries": {
@@ -173,6 +226,26 @@
     "child_in_multiple_entries": {
       "title": "Een kind staat bij meer dan één login",
       "description": "Een kind is bij meer dan één Magister-login van deze school ingesteld. Haal het bij één login weg: open Configureren bij die login en haal het kind uit de selectie."
+    },
+    "homework_next_week_outside_window": {
+      "title": "Huiswerk: volgende week valt buiten het venster",
+      "description": "De sensor \"Huiswerk volgende week\" van {entry} heeft minstens 2 weken vooruit nodig, maar er is {weeks_ahead} ingesteld. De sensor is niet beschikbaar. Verhoog het aantal weken vooruit in de opties."
+    }
+  },
+  "services": {
+    "set_homework_progress": {
+      "name": "Huiswerkvoortgang instellen",
+      "description": "Stelt de voortgang van een huiswerkitem in procenten in. 100 betekent klaar. Er wordt niets naar Magister geschreven.",
+      "fields": {
+        "item": {
+          "name": "Item",
+          "description": "Het id (uid) van het huiswerkitem in de takenlijst."
+        },
+        "progress": {
+          "name": "Voortgang",
+          "description": "Voortgang in procenten, 0 tot 100."
+        }
+      }
     }
   }
 }

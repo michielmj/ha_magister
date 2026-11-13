@@ -40,6 +40,8 @@ from .const import (
 if TYPE_CHECKING:
     import aiohttp
 
+    from .homework import HomeworkManager
+
 _LOGGER = logging.getLogger(__name__)
 
 type MagisterData = dict[int, list[Appointment]]
@@ -53,6 +55,7 @@ class MagisterRuntimeData:
     auth: MagisterAuth
     client: MagisterClient
     coordinator: MagisterCoordinator
+    homework: HomeworkManager
     snapshot: str = ""
 
 

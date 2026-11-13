@@ -21,6 +21,7 @@ from .api import (
     find_first_appointment,
     lesson_hours,
 )
+from .api.homework import PERIODS
 from .api.mapping import LOCAL_TZ
 from .const import (
     CHILD_ID,
@@ -36,6 +37,7 @@ from .const import (
 )
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
 from .entity import MagisterEntity, child_key
+from .homework_sensor import MagisterHomeworkSensor, async_sync_next_week_issue
 
 PARALLEL_UPDATES = 0
 
@@ -50,9 +52,22 @@ async def async_setup_entry(
     entry: MagisterConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Add a sensor for each first-appointment sub-entry."""
+    """Add the homework progress sensors and the first-appointment sensors."""
     coordinator = entry.runtime_data.coordinator
     host: str = entry.data[CONF_HOST]
+    async_add_entities(
+        MagisterHomeworkSensor(
+            coordinator,
+            entry.runtime_data.homework,
+            host,
+            int(child[CHILD_ID]),
+            str(child[CHILD_SHORT_NAME]),
+            period,
+        )
+        for child in entry.data[CONF_CHILDREN]
+        for period in PERIODS
+    )
+    async_sync_next_week_issue(hass, entry)
     device_registry = dr.async_get(hass)
     children = {int(child[CHILD_ID]): child for child in entry.data[CONF_CHILDREN]}
     for subentry in entry.subentries.values():

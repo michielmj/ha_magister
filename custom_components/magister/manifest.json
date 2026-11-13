@@ -3,10 +3,11 @@
   "name": "Magister",
   "codeowners": ["@michielmj"],
   "config_flow": true,
+  "dependencies": ["frontend", "http"],
   "documentation": "https://github.com/michielmj/ha_magister",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/michielmj/ha_magister/issues",
   "requirements": ["pyotp>=2.10.0"],
-  "version": "1.0.0"
+  "version": "1.1.0"
 }

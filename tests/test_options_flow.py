@@ -26,6 +26,7 @@ from custom_components.magister.const import (
     CONF_INTERVAL,
     CONF_WEEKS_AHEAD,
     CONF_WEEKS_BACK,
+    CONF_WEIGHTS,
     DOMAIN,
 )
 from custom_components.magister.pending import drop_login
@@ -69,10 +70,21 @@ async def _setup(
     return fake, entry
 
 
-async def _init(hass: HomeAssistant, entry: Any) -> Any:
+async def _open_general(hass: HomeAssistant, entry: Any) -> Any:
+    """Open the options menu and choose the general settings."""
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["type"] is FlowResultType.FORM
+    assert result["type"] is FlowResultType.MENU
     assert result["step_id"] == "init"
+    assert result["menu_options"] == ["general", "weights"]
+    return await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "general"}
+    )
+
+
+async def _init(hass: HomeAssistant, entry: Any) -> Any:
+    result = await _open_general(hass, entry)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "general"
     return result
 
 
@@ -342,7 +354,7 @@ async def test_fetch_errors_abort(
     """Problems while reading the children list abort the flow."""
     _, entry = await _setup(hass, mocked)
     with patch.object(MagisterClient, "async_get_account", side_effect=error):
-        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await _open_general(hass, entry)
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == reason
 
@@ -351,7 +363,7 @@ async def test_no_kept_login_aborts(hass: HomeAssistant, mocked: aioresponses) -
     """Without a kept login (entry not set up) the form cannot read the children."""
     _, entry = await _setup(hass, mocked)
     drop_login(hass, entry.entry_id)
-    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await _open_general(hass, entry)
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "cannot_connect"
 
@@ -370,7 +382,7 @@ async def test_child_of_another_login_is_not_offered(
     options = result["data_schema"].schema[keys[CONF_CHILDREN]].config["options"]
     assert [o["value"] for o in options] == ["1001"]
     flow = hass.config_entries.options._progress[result["flow_id"]]
-    result = await flow.async_step_init(
+    result = await flow.async_step_general(
         {
             CONF_CHILDREN: ["1001", "1002"],
             CONF_WEEKS_BACK: 1,
@@ -409,3 +421,218 @@ async def test_existing_duplicate_child_stays_offered_and_saveable(
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert [c["id"] for c in entry.data[CONF_CHILDREN]] == [1001, 1002]
+
+
+# -- homework weights ---------------------------------------------------------------
+
+
+async def _open_weights(hass: HomeAssistant, entry: Any) -> Any:
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.MENU
+    return await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "weights"}
+    )
+
+
+async def test_weights_flow_saves_only_non_default_values(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Types, then subjects; stored sparsely; no reload and no Magister request."""
+    fake, entry = await _setup(hass, mocked)
+    runtime = entry.runtime_data
+    requests = len(fake.appointment_requests)
+    result = await _open_weights(hass, entry)  # one child: no child selection
+    assert result["step_id"] == "weights_types"
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert list(keys) == ["homework", "test", "exam", "written_quiz", "oral_quiz"]
+    assert keys["test"].description["suggested_value"] == 1.0
+    selector = result["data_schema"].schema[keys["test"]]
+    assert (selector.config["min"], selector.config["max"]) == (0, 10)
+    assert selector.config["step"] == 0.5
+    assert result["description_placeholders"] == {"child": "Kind A"}
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            "homework": 1,
+            "test": 3,
+            "exam": 2.5,
+            "written_quiz": 1,
+            "oral_quiz": 1,
+        },
+    )
+    assert result["step_id"] == "weights_subjects"
+    names = [str(k) for k in result["data_schema"].schema]
+    assert names[0] == "aardrijkskunde"
+    assert "Duitse taal" in names and "wiskunde" in names
+    assert len(names) == len({n.casefold() for n in names})
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {name: (0.5 if name == "Duitse taal" else 1) for name in names},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options[CONF_WEIGHTS] == {
+        str(CHILD_ID): {
+            "types": {"test": 3.0, "exam": 2.5},
+            "subjects": {"Duitse taal": 0.5},
+        }
+    }
+    assert entry.runtime_data is runtime
+    assert len(fake.appointment_requests) == requests
+    weights = hass.states.get("sensor.kind_school_homework_next_week").attributes[
+        "weights"
+    ]
+    assert weights["types"]["test"] == 3.0 and weights["types"]["exam"] == 2.5
+    assert weights["subjects"]["Duitse taal"] == 0.5
+
+
+async def test_weights_flow_keeps_absent_subjects_and_resets_to_default(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Saved weights of subjects not in the data stay; 1 removes a stored weight."""
+    fake = FakeMagister(mocked)
+    entry = make_entry(
+        options={
+            CONF_WEIGHTS: {
+                str(CHILD_ID): {
+                    "types": {"test": 4},
+                    "subjects": {"oud vak": 3, "DUITSE TAAL": 2},
+                },
+                "9999": {"types": {"exam": 2}},
+            }
+        }
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    result = await _open_weights(hass, entry)
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["test"].description["suggested_value"] == 4.0
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"homework": 1, "test": 1, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
+    )
+    keys = {str(k): k for k in result["data_schema"].schema}
+    # the stored weight shows under the subject as it is written in the data
+    assert keys["Duitse taal"].description["suggested_value"] == 2.0
+    assert "oud vak" not in keys
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {name: 1 for name in keys}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_WEIGHTS] == {
+        str(CHILD_ID): {"types": {}, "subjects": {"oud vak": 3}},
+        "9999": {"types": {"exam": 2}},
+    }
+    assert fake.appointment_requests
+
+
+async def test_weights_flow_removes_empty_weights(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """With everything back at 1 the weights option disappears."""
+    _, entry = await _setup(hass, mocked)
+    hass.config_entries.async_update_entry(
+        entry,
+        options={CONF_WEIGHTS: {str(CHILD_ID): {"types": {"test": 4}}}},
+    )
+    await hass.async_block_till_done()
+    result = await _open_weights(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"homework": 1, "test": 1, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {str(k): 1 for k in result["data_schema"].schema}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert CONF_WEIGHTS not in entry.options
+
+
+async def test_weights_flow_without_subjects_skips_that_step(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A child without homework data only gets the type weights."""
+    fake = FakeMagister(mocked)
+    fake.appointments[CHILD_ID] = []
+    entry = make_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    result = await _open_weights(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"homework": 2, "test": 1, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_WEIGHTS] == {
+        str(CHILD_ID): {"types": {"homework": 2.0}, "subjects": {}}
+    }
+
+
+async def test_weights_flow_asks_for_the_child(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """With several children the first step selects the child."""
+    _, entry = await _setup(
+        hass,
+        mocked,
+        children=[(1001, "Anna"), (1002, "Bram")],
+        magister_children=TWO_CHILDREN,
+    )
+    result = await _open_weights(hass, entry)
+    assert result["step_id"] == "weights"
+    options = next(iter(result["data_schema"].schema.values())).config["options"]
+    assert [(o["value"], o["label"]) for o in options] == [
+        ("1001", "Anna"),
+        ("1002", "Bram"),
+    ]
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"child": "1002"}
+    )
+    assert result["step_id"] == "weights_types"
+    assert result["description_placeholders"] == {"child": "Bram"}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"homework": 1, "test": 5, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {str(k): 1 for k in result["data_schema"].schema}
+    )
+    assert entry.options[CONF_WEIGHTS]["1002"]["types"] == {"test": 5.0}
+    assert "1001" not in entry.options[CONF_WEIGHTS]
+
+
+async def test_weights_need_a_loaded_entry(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """The subject list comes from the loaded data."""
+    _, entry = await _setup(hass, mocked)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    result = await _open_weights(hass, entry)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "not_loaded"
+
+
+async def test_general_settings_keep_the_weights(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Saving the general options does not drop the stored weights."""
+    _, entry = await _setup(hass, mocked)
+    weights = {str(CHILD_ID): {"types": {"test": 4.0}}}
+    hass.config_entries.async_update_entry(entry, options={CONF_WEIGHTS: weights})
+    await hass.async_block_till_done()
+    result = await _init(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_CHILDREN: [str(CHILD_ID)],
+            CONF_WEEKS_BACK: 2,
+            CONF_WEEKS_AHEAD: 3,
+            CONF_INTERVAL: 30,
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_WEIGHTS] == weights
+    assert entry.options[CONF_WEEKS_BACK] == 2

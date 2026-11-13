@@ -56,12 +56,22 @@ async def test_entry_lifecycle(hass: HomeAssistant, mocked: aioresponses) -> Non
 
     entity_registry = er.async_get(hass)
     entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
-    assert [e.unique_id for e in entities] == [f"school.magister.net:{CHILD_ID}"]
+    assert sorted(e.unique_id for e in entities) == sorted(
+        [
+            f"school.magister.net:{CHILD_ID}",
+            f"school.magister.net:{CHILD_ID}:homework",
+            f"school.magister.net:{CHILD_ID}:homework:tomorrow",
+            f"school.magister.net:{CHILD_ID}:homework:week",
+            f"school.magister.net:{CHILD_ID}:homework:next_week",
+        ]
+    )
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.NOT_LOADED
-    assert hass.states.get(entities[0].entity_id).state == "unavailable"
+    assert all(
+        hass.states.get(entity.entity_id).state == "unavailable" for entity in entities
+    )
 
     assert await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()

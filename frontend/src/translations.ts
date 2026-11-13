@@ -1,0 +1,115 @@
+export type Language = "nl" | "en";
+
+const nl = {
+  today: "Vandaag",
+  tomorrow: "Morgen",
+  earlier: "Eerder",
+  no_homework: "Geen huiswerk 🎉",
+  loading: "Laden…",
+  unavailable:
+    "Magister is niet beschikbaar. Je ziet het laatst bekende huiswerk; wijzigen kan nu niet.",
+  offline: "Verbinding met Home Assistant verbroken. Opnieuw verbinden…",
+  choose_entity: "Kies een Magister-huiswerklijst in de kaartinstellingen.",
+  not_found: "Deze huiswerklijst is niet gevonden.",
+  unauthorized: "Je hebt geen toegang tot deze huiswerklijst.",
+  load_failed: "Het huiswerk kon niet worden geladen.",
+  save_failed: "Opslaan mislukt. De wijziging is teruggedraaid.",
+  save_unauthorized: "Geen rechten om voortgang te wijzigen.",
+  dismiss: "Sluiten",
+  cancelled: "Les vervallen",
+  attachments: "Bijlagen in Magister",
+  lesson_hour: "Uur {n}",
+  mark_done: "Markeer {subject} als klaar",
+  mark_open: "Markeer {subject} als niet klaar",
+  progress_of: "Voortgang van {subject}",
+  percent: "{n} %",
+  expand: "Toon de volledige tekst",
+  collapse: "Toon minder",
+  type: {
+    1: "Huiswerk",
+    2: "Proefwerk",
+    3: "Tentamen",
+    4: "SO",
+    5: "MO",
+  },
+  editor: {
+    entity: "Huiswerklijst (to-do van een kind)",
+    title: "Titel (optioneel)",
+    show_completed: "Toon afgerond huiswerk",
+    show_past: "Toon eerdere dagen",
+    days_ahead: "Dagen vooruit",
+  },
+};
+
+export type Texts = typeof nl;
+
+const en: Texts = {
+  today: "Today",
+  tomorrow: "Tomorrow",
+  earlier: "Earlier",
+  no_homework: "No homework",
+  loading: "Loading…",
+  unavailable:
+    "Magister is not available. You see the last known homework; changes are not possible now.",
+  offline: "Connection to Home Assistant lost. Reconnecting…",
+  choose_entity: "Choose a Magister homework list in the card settings.",
+  not_found: "This homework list was not found.",
+  unauthorized: "You have no access to this homework list.",
+  load_failed: "The homework could not be loaded.",
+  save_failed: "Saving failed. The change was rolled back.",
+  save_unauthorized: "No permission to change progress.",
+  dismiss: "Dismiss",
+  cancelled: "Lesson cancelled",
+  attachments: "Attachments in Magister",
+  lesson_hour: "Period {n}",
+  mark_done: "Mark {subject} as done",
+  mark_open: "Mark {subject} as not done",
+  progress_of: "Progress of {subject}",
+  percent: "{n}%",
+  expand: "Show the full text",
+  collapse: "Show less",
+  type: {
+    1: "Homework",
+    2: "Test",
+    3: "Exam",
+    4: "Short test",
+    5: "Oral test",
+  },
+  editor: {
+    entity: "Homework list (a child's to-do)",
+    title: "Title (optional)",
+    show_completed: "Show completed homework",
+    show_past: "Show earlier days",
+    days_ahead: "Days ahead",
+  },
+};
+
+export const TRANSLATIONS: Record<Language, Texts> = { nl, en };
+
+/** Dutch for any Dutch locale (nl, nl-BE, ...), English otherwise (the default). */
+export function languageOf(language: string | undefined): Language {
+  return language?.toLowerCase().startsWith("nl") ? "nl" : "en";
+}
+
+export function textsFor(language: string | undefined): Texts {
+  return TRANSLATIONS[languageOf(language)];
+}
+
+/** Replace `{name}` placeholders. */
+export function format(
+  template: string,
+  values: Record<string, string | number>,
+): string {
+  return template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    key in values ? String(values[key]) : match,
+  );
+}
+
+/** The translated label of an info type; the item's own (Dutch) label for unknown types. */
+export function typeLabel(
+  texts: Texts,
+  infoType: number,
+  fallback: string,
+): string {
+  return (texts.type as Record<number, string>)[infoType] ?? fallback;
+}

@@ -73,6 +73,22 @@
       "agenda": {
         "name": "Agenda"
       }
+    },
+    "todo": {
+      "homework": {
+        "name": "Homework"
+      }
+    },
+    "sensor": {
+      "homework_tomorrow": {
+        "name": "Homework tomorrow"
+      },
+      "homework_week": {
+        "name": "Homework this week"
+      },
+      "homework_next_week": {
+        "name": "Homework next week"
+      }
     }
   },
   "exceptions": {
@@ -87,11 +103,25 @@
     },
     "login_blocked": {
       "message": "Logging in to Magister is blocked after repeated failures. Reload the integration to try once more, or use Reconfigure to change the credentials."
+    },
+    "homework_item_not_found": {
+      "message": "This homework item does not exist (any more) in the list."
+    },
+    "homework_status_only": {
+      "message": "Only the status of a homework item can be changed; the items come from Magister."
     }
   },
   "options": {
     "step": {
       "init": {
+        "title": "Magister options",
+        "description": "What do you want to change?",
+        "menu_options": {
+          "general": "General settings",
+          "weights": "Homework weights"
+        }
+      },
+      "general": {
         "title": "Magister options",
         "description": "Choose the children, how much of the agenda is fetched and how often it is refreshed.",
         "data": {
@@ -105,6 +135,28 @@
           "weeks_ahead": "1 to 12 weeks after the current week. First-appointment sensors can look at most 7 x this number - 1 days ahead.",
           "update_interval": "15 to 360 minutes."
         }
+      },
+      "weights": {
+        "title": "Homework weights",
+        "description": "Choose the child. The weights decide how much an item counts in the homework progress sensors.",
+        "data": {
+          "child": "Child"
+        }
+      },
+      "weights_types": {
+        "title": "Weights per type",
+        "description": "How much each type counts for {child}. 1 is normal, 0 leaves it out of the average (it stays in the list), 10 is the maximum. Steps of 0.5.",
+        "data": {
+          "homework": "Homework",
+          "test": "Test (proefwerk)",
+          "exam": "Exam (tentamen)",
+          "written_quiz": "Written quiz (SO)",
+          "oral_quiz": "Oral quiz (MO)"
+        }
+      },
+      "weights_subjects": {
+        "title": "Weights per subject",
+        "description": "How much each subject counts. 1 is normal, 0 leaves it out of the average. Subjects that are not in the data now keep their saved weight."
       }
     },
     "error": {
@@ -113,7 +165,8 @@
     },
     "abort": {
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",
-      "cannot_connect": "Could not read the children from Magister. Try again later."
+      "cannot_connect": "Could not read the children from Magister. Try again later.",
+      "not_loaded": "The integration is not loaded. Wait until it is running and try again."
     }
   },
   "config_subentries": {
@@ -173,6 +226,26 @@
     "child_in_multiple_entries": {
       "title": "Several logins list the same child",
       "description": "A child is configured under more than one Magister login for this school. Remove it from one login: open Configure on that login and deselect the child."
+    },
+    "homework_next_week_outside_window": {
+      "title": "Homework: next week is outside the window",
+      "description": "The sensor \"Homework next week\" of {entry} needs at least 2 weeks ahead, but {weeks_ahead} is set. The sensor is unavailable. Increase the weeks ahead in the options."
+    }
+  },
+  "services": {
+    "set_homework_progress": {
+      "name": "Set homework progress",
+      "description": "Sets the progress of a homework item in percent. 100 marks it as done. Nothing is written to Magister.",
+      "fields": {
+        "item": {
+          "name": "Item",
+          "description": "The id (uid) of the homework item in the to-do list."
+        },
+        "progress": {
+          "name": "Progress",
+          "description": "Progress in percent, 0 to 100."
+        }
+      }
     }
   }
 }
