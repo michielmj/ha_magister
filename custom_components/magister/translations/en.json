@@ -279,7 +279,7 @@
       "name_too_long": "The name can be at most 40 characters.",
       "name_exists": "This child already has a label with this name.",
       "name_invalid_chars": "The name cannot contain [ or ].",
-      "guidelines_too_long": "The guidelines are too long."
+      "guidelines_too_long": "The guidelines are too long (at most 4000 characters)."
     },
     "abort": {
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",

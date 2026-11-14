@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -29,6 +31,7 @@ from custom_components.magister.const import (
     CONF_COACH,
     DOMAIN,
 )
+from custom_components.magister.todo import MagisterHomeworkTodo
 
 from .api.helpers import RETURN_URL
 from .ha_helpers import NOW, FakeMagister, make_entry
@@ -218,7 +221,8 @@ async def test_unlinked_and_anonymous_get_nothing(
         assert (
             await call(hass, user_id, "add_subtask", item=PROEFWERK, title="x")
         ).data["error"] == "not_linked"
-    assert not hass.data.get("sentinel")
+    manager = student.entry.runtime_data.homework
+    assert not any(item.subtasks for item in manager.items(1001))
 
 
 async def test_disabled_coach_and_inactive_user_have_no_access(
@@ -413,7 +417,7 @@ async def test_read_tools(hass: HomeAssistant, student: Any) -> None:
         for d in homework["items"]
     )
     default = await ok(hass, student.id, "list_homework")
-    assert all(i["date"] >= "2026-11-13" for i in default["items"])
+    assert any(i["date"] < "2026-11-13" for i in default["items"])  # overdue
 
     progress = await ok(hass, student.id, "get_progress")
     assert set(progress["progress"]) == {"next_day", "week", "next_week"}
@@ -433,6 +437,27 @@ async def test_include_completed(hass: HomeAssistant, student: Any) -> None:
     )
     done = next(i for i in everything["items"] if i["id"] == HOMEWORK)
     assert done["completed"] is True
+
+
+async def test_overdue_items(hass: HomeAssistant, student: Any) -> None:
+    """Open overdue items are listed by default; completed ones and a start date not."""
+    default = await ok(hass, student.id, "list_homework")
+    overdue = [i for i in default["items"] if i["date"] < "2026-11-13"]
+    assert overdue
+    assert all(not i["completed"] for i in overdue)
+    plain = await ok(hass, student.id, "list_homework", include_overdue=False)
+    assert all(i["date"] >= "2026-11-13" for i in plain["items"])
+    assert len(plain["items"]) == len(default["items"]) - len(overdue)
+    ranged = await ok(hass, student.id, "list_homework", start="2026-11-13")
+    assert [i["id"] for i in ranged["items"]] == [i["id"] for i in plain["items"]]
+    # Completing an overdue item takes it off the default list.
+    first = overdue[0]["id"]
+    await ok(hass, student.id, "set_progress", id=first, progress=100)
+    again = await ok(hass, student.id, "list_homework")
+    assert first not in {i["id"] for i in again["items"]}
+    # An `end` before today still bounds the overdue items.
+    bounded = await ok(hass, student.id, "list_homework", end="2026-11-05")
+    assert all(i["date"] <= "2026-11-05" for i in bounded["items"])
 
 
 # -- write tools ------------------------------------------------------------------
@@ -734,8 +759,8 @@ async def test_prompt_contents(hass: HomeAssistant, student: Any) -> None:
     prompt = api.api_prompt
     assert "Today is 2026-11-13 (Friday)" in prompt
     assert "Europe/Amsterdam" in prompt
-    for rule in ("derived progress", "rolling", "next_day", "item_has_subtasks"):
-        assert rule in prompt or rule == "rolling"
+    for rule in ("derived progress", "next_day", "item_has_subtasks"):
+        assert rule in prompt, rule
     assert "moves forward day by day" in prompt
     assert "Kind (id 1001)" in prompt
     assert DEFAULT_GUIDELINES in prompt
@@ -810,3 +835,345 @@ async def test_unloaded_entry_gives_no_access(
     assert async_accessible_children(hass, student.id) == []
     with pytest.raises(HomeAssistantError):  # the API is gone with the last entry
         await call(hass, student.id, "list_children")
+
+
+# -- fix round --------------------------------------------------------------------
+
+
+def _rewrite_entry_data(
+    entry: MockConfigEntry, *, host: str | None = None, child_id: int | None = None
+) -> None:
+    """Change the stored host or child id of a set-up entry, without a reload."""
+    data = dict(entry.data)
+    if host is not None:
+        data["host"] = host
+    if child_id is not None:
+        data["children"] = [{**data["children"][0], "id": child_id}]
+    object.__setattr__(entry, "data", MappingProxyType(data))
+
+
+async def test_colliding_child_ids_across_schools_get_distinct_ids(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """The same child id at two schools: tagged ids, never an ambiguous reference."""
+    parent = await make_user(hass, "Ouder")
+    steps = [
+        {"action": "username"},
+        {"action": "password"},
+        {"redirectURL": RETURN_URL},
+    ]
+    FakeMagister(mocked, children=TWO_CHILDREN, challenges=[*steps, *steps])
+    options = coach_options(
+        **{
+            "1001": {"enabled": True, "users": [parent.id]},
+            "1002": {"enabled": True, "users": [parent.id]},
+        }
+    )
+    first = make_entry(
+        children=[(1001, "Anna A")], unique_id="school.magister.net:1", options=options
+    )
+    second = make_entry(
+        children=[(1002, "Bram B")], unique_id="school.magister.net:2", options=options
+    )
+    for entry in (first, second):
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert [c.id for c in async_accessible_children(hass, parent.id)] == [
+        "1001",
+        "1002",
+    ]
+    _rewrite_entry_data(second, host="other.example.org", child_id=1001)
+    children = async_accessible_children(hass, parent.id)
+    ids = [c.id for c in children]
+    assert len(set(ids)) == 2
+    assert all(re.fullmatch(r"1001-[0-9a-f]{4}", i) for i in ids)
+    assert not any("example" in i or "magister" in i for i in ids)
+    assert ids == [c.id for c in async_accessible_children(hass, parent.id)]
+    listed = (await ok(hass, parent.id, "list_children"))["children"]
+    assert [c["id"] for c in listed] == ids
+    # A bare id is ambiguous now (the name is too); the tagged id picks one child.
+    assert await fails(hass, parent.id, "get_progress", child="1001") == (
+        "child_not_found"
+    )
+    assert await fails(hass, parent.id, "get_progress") == "child_required"
+    data = await ok(hass, parent.id, "get_progress", child=ids[0])
+    assert data["child"] == ids[0]
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(parent.id))
+    assert all(i in api.api_prompt for i in ids)
+    assert "other.example.org" not in api.api_prompt
+
+
+async def test_same_child_under_two_entries_is_listed_once(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Legacy: one child in two entries of the same school is one coachable child."""
+    parent = await make_user(hass, "Ouder")
+    steps = [
+        {"action": "username"},
+        {"action": "password"},
+        {"redirectURL": RETURN_URL},
+    ]
+    FakeMagister(mocked, children=TWO_CHILDREN, challenges=[*steps, *steps])
+    options = coach_options(**{"1001": {"enabled": True, "users": [parent.id]}})
+    first = make_entry(
+        children=[(1001, "Anna A")], unique_id="school.magister.net:1", options=options
+    )
+    second = make_entry(
+        children=[(1002, "Bram B")], unique_id="school.magister.net:2", options=options
+    )
+    for entry in (first, second):
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    _rewrite_entry_data(second, child_id=1001)
+    children = async_accessible_children(hass, parent.id)
+    assert [(c.id, c.entry.entry_id) for c in children] == [("1001", first.entry_id)]
+
+
+async def test_entity_must_belong_to_the_childs_entry(
+    hass: HomeAssistant, student: Any
+) -> None:
+    """An entity of the same unique id under another config entry is refused."""
+    from homeassistant.helpers import entity_registry as er
+
+    registry = er.async_get(hass)
+    other = MockConfigEntry(domain=DOMAIN, title="x")
+    other.add_to_hass(hass)
+    entry = registry.async_get("todo.kind_school_homework")
+    assert entry is not None and entry.config_entry_id == student.entry.entry_id
+    # A todo entity of this unique id is found, but it belongs to a foreign entry.
+    object.__setattr__(entry, "config_entry_id", other.entry_id)
+    assert await fails(hass, student.id, "add_subtask", item=PROEFWERK, title="x") == (
+        "not_found"
+    )
+
+
+async def test_system_user_has_no_access(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A system-generated user that is linked still gets nothing."""
+    system = await hass.auth.async_create_system_user("Systeem")
+    await setup_coach(
+        hass, mocked, coach_options(**{"1001": {"enabled": True, "users": [system.id]}})
+    )
+    assert await fails(hass, system.id, "list_homework") == "not_linked"
+    assert (await ok(hass, system.id, "list_children"))["children"] == []
+
+
+async def test_writes_to_another_child_are_refused_for_every_tool(
+    hass: HomeAssistant, mocked: aioresponses, logbook: list[Any]
+) -> None:
+    """Anna's user can use no write tool on Bram, nor reach Bram's subtasks."""
+    anna, bram = await make_user(hass, "Anna"), await make_user(hass, "Bram")
+    await setup_coach(
+        hass,
+        mocked,
+        coach_options(
+            **{
+                "1001": {"enabled": True, "users": [anna.id]},
+                "1002": {"enabled": True, "users": [bram.id]},
+            }
+        ),
+        two=True,
+    )
+    sub = (await ok(hass, bram.id, "add_subtask", item=PROEFWERK, title="Van Bram"))[
+        "item"
+    ]["subtasks"][0]["id"]
+    await ok(hass, bram.id, "add_label", appointment=HOMEWORK, label="Proefwerk")
+    logged = len(logbook)
+    writes: list[tuple[str, dict[str, Any]]] = [
+        ("add_subtask", {"item": PROEFWERK, "title": "x"}),
+        ("update_subtask", {"subtask": sub, "title": "y"}),
+        ("delete_subtask", {"subtask": sub}),
+        ("set_progress", {"id": sub, "progress": 50}),
+        ("set_progress", {"id": HOMEWORK, "progress": 50}),
+        ("add_label", {"appointment": HOMEWORK, "label": "default_test"}),
+        ("remove_label", {"appointment": HOMEWORK, "label": "Proefwerk"}),
+        ("set_label_override", {"appointment": HOMEWORK, "mode": "disable"}),
+        ("set_label_override", {"appointment": HOMEWORK, "mode": "clear"}),
+    ]
+    for tool, args in writes:
+        for wrong in ("1002", "Bram", 1002):
+            assert await fails(hass, anna.id, tool, child=wrong, **args) == (
+                "child_not_found"
+            ), (tool, wrong)
+        if "subtask" in args or (tool == "set_progress" and ":sub:" in args["id"]):
+            # Without `child` the id is read as Anna's: Bram's subtask does not exist.
+            assert await fails(hass, anna.id, tool, **args) in (
+                "subtask_not_found",
+                "item_not_found",
+            ), tool
+    assert len(logbook) == logged
+    bram_manager = next(
+        iter(hass.config_entries.async_entries(DOMAIN))
+    ).runtime_data.homework
+    titles = [s.title for i in bram_manager.items(1002) for s in i.subtasks]
+    assert titles == ["Van Bram"]
+    assert not any(item.subtasks for item in bram_manager.items(1001))
+    assert [lb.name for i in bram_manager.items(1002) for lb in i.manual_labels] == [
+        "Proefwerk"
+    ]
+    assert bram_manager.progress(f"school.magister.net:1002:{HOMEWORK}") == 0
+
+
+async def test_noop_writes_are_not_logged(
+    hass: HomeAssistant, student: Any, logbook: list[Any]
+) -> None:
+    """Nothing changed, nothing in the logbook; real changes still are."""
+    await ok(hass, student.id, "set_progress", id=HOMEWORK, progress=50)
+    assert len(logbook) == 1
+    again = await ok(hass, student.id, "set_progress", id=HOMEWORK, progress=50)
+    assert again["progress"] == 50
+    assert len(logbook) == 1
+    await ok(hass, student.id, "set_progress", id=HOMEWORK, progress=0)
+    assert len(logbook) == 2
+
+    await ok(hass, student.id, "set_label_override", appointment=HOMEWORK, mode="clear")
+    assert len(logbook) == 2  # there was no override
+    await ok(
+        hass, student.id, "set_label_override", appointment=HOMEWORK, mode="disable"
+    )
+    await ok(
+        hass, student.id, "set_label_override", appointment=HOMEWORK, mode="disable"
+    )
+    assert len(logbook) == 3
+    await ok(hass, student.id, "set_label_override", appointment=HOMEWORK, mode="clear")
+    assert len(logbook) == 4
+
+    sub = (
+        await ok(
+            hass,
+            student.id,
+            "add_subtask",
+            item=PROEFWERK,
+            title="Woordjes",
+            date="2026-11-16",
+        )
+    )["item"]["subtasks"][0]["id"]
+    assert len(logbook) == 5
+    await ok(hass, student.id, "update_subtask", subtask=sub, title="Woordjes")
+    await ok(hass, student.id, "update_subtask", subtask=sub, date="2026-11-16")
+    await ok(
+        hass,
+        student.id,
+        "update_subtask",
+        subtask=sub,
+        title="Woordjes",
+        date="2026-11-16",
+    )
+    assert len(logbook) == 5
+    await ok(hass, student.id, "update_subtask", subtask=sub, title="Hoofdstuk 1")
+    assert len(logbook) == 6
+    await ok(hass, student.id, "set_progress", id=sub, progress=25)
+    await ok(hass, student.id, "set_progress", id=sub, progress=25)
+    assert len(logbook) == 7
+
+
+async def test_unexpected_errors_are_generic(
+    hass: HomeAssistant,
+    student: Any,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bug inside a tool never leaks its message (uids, hosts) to the client."""
+
+    def boom(*_: Any, **__: Any) -> None:
+        raise RuntimeError("secret school.magister.net:1001:100065 detail")
+
+    monkeypatch.setattr(MagisterHomeworkTodo, "add_subtask", boom)
+    caplog.set_level(logging.INFO)
+    result = await call(hass, student.id, "add_subtask", item=PROEFWERK, title="x")
+    assert result.error
+    assert result.data["error"] == "internal_error"
+    assert "magister.net" not in json.dumps(result.data)
+    assert "secret" not in json.dumps(result.data)
+    assert "add_subtask" in caplog.text
+    assert "magister.net" not in caplog.text
+
+
+async def test_ids_with_a_trailing_newline_are_rejected(
+    hass: HomeAssistant, student: Any
+) -> None:
+    """``fullmatch``: ``100065\\n`` is not an id."""
+    for tool, args in (
+        ("add_subtask", {"item": f"{PROEFWERK}\n", "title": "x"}),
+        ("set_progress", {"id": f"{HOMEWORK}\n", "progress": 10}),
+        ("update_subtask", {"subtask": f"{PROEFWERK}:sub:ab\n", "title": "x"}),
+        ("add_label", {"appointment": f"{HOMEWORK}\n", "label": "proefwerk"}),
+        ("set_label_override", {"appointment": f"{HOMEWORK}\n", "mode": "clear"}),
+    ):
+        assert await fails(hass, student.id, tool, **args) == "invalid_format", tool
+
+
+async def test_full_names_are_never_used(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A short name that fell back to the full name becomes ``Kind <n>``."""
+    user = await make_user(hass)
+    FakeMagister(mocked, children=TWO_CHILDREN)
+    entry = make_entry(
+        children=[(1001, "Anna Jansen"), (1002, "Bram B")],
+        options=coach_options(
+            **{
+                "1001": {"enabled": True, "users": [user.id]},
+                "1002": {"enabled": True, "users": [user.id]},
+            }
+        ),
+    )
+    data = {**entry.data}
+    data["children"] = [
+        {"id": 1001, "name": "Anna Jansen", "short_name": "Anna Jansen"},
+        {"id": 1002, "name": "Bram B", "short_name": "Bram"},
+    ]
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=entry.title,
+        unique_id=entry.unique_id,
+        data=data,
+        options=dict(entry.options),
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    children = (await ok(hass, user.id, "list_children"))["children"]
+    assert [c["name"] for c in children] == ["Kind 1", "Bram"]
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(user.id))
+    assert "Anna" not in api.api_prompt
+    assert "Jansen" not in api.api_prompt
+    assert "Kind 1 (id 1001)" in api.api_prompt
+
+
+async def test_no_leaks_in_errors_and_logbook(
+    hass: HomeAssistant, student: Any, logbook: list[Any]
+) -> None:
+    """Error texts and logbook messages hold no host, uid or teacher data either."""
+    await ok(hass, student.id, "add_subtask", item=PROEFWERK, title="x")
+    await ok(hass, student.id, "set_progress", id=HOMEWORK, progress=50)
+    await ok(hass, student.id, "add_label", appointment=HOMEWORK, label="proefwerk")
+    await ok(
+        hass, student.id, "set_label_override", appointment=HOMEWORK, mode="disable"
+    )
+    results = [
+        await call(hass, student.id, tool, **args)
+        for tool, args in (
+            ("add_subtask", {"item": "999", "title": "x"}),
+            ("add_subtask", {"item": "other.host:1002:5", "title": "x"}),
+            ("update_subtask", {"subtask": f"{PROEFWERK}:sub:nope", "title": "x"}),
+            ("delete_subtask", {"subtask": f"{PROEFWERK}:sub:nope"}),
+            ("set_progress", {"id": "999", "progress": 10}),
+            ("set_progress", {"id": PROEFWERK, "progress": 10}),
+            ("add_label", {"appointment": "999", "label": "proefwerk"}),
+            ("remove_label", {"appointment": HOMEWORK, "label": "zzz"}),
+            ("get_schedule", {"start": "x", "end": "y"}),
+            ("get_progress", {"child": "9999"}),
+        )
+    ]
+    assert all(r.error for r in results), [r.data for r in results if not r.error]
+    text = json.dumps([r.data for r in results]) + json.dumps(
+        [e.data for e in logbook], default=str
+    )
+    assert logbook
+    for forbidden in ("magister.net", "school.magister", "1001:", "Docent"):
+        assert forbidden not in text, forbidden
+    assert not re.search(r"\w+\.\w+:\d+:\d+", text)

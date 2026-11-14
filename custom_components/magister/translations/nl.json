@@ -279,7 +279,7 @@
       "name_too_long": "De naam mag maximaal 40 tekens zijn.",
       "name_exists": "Dit kind heeft al een label met deze naam.",
       "name_invalid_chars": "De naam mag geen [ of ] bevatten.",
-      "guidelines_too_long": "De richtlijnen zijn te lang."
+      "guidelines_too_long": "De richtlijnen zijn te lang (maximaal 4000 tekens)."
     },
     "abort": {
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",

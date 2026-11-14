@@ -9,13 +9,20 @@ schedule without teachers. Item ids are the appointment ids, without the school 
 
 Business rules and validation are those of the WebSocket API and the services: the write
 tools call the same methods of the homework to-do entity.
+
+Access control: the coach intentionally skips Home Assistant's entity ``POLICY_CONTROL``
+check. Linking a user to a child (an administrator does that in the options) is the
+explicit grant; the tools are the only door and they only reach the linked children.
 """
 
 from __future__ import annotations
 
+import hashlib
+import logging
 import re
+from collections import Counter
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from typing import Any, Final
 
@@ -45,6 +52,7 @@ from .api.mapping import CANCELLED_STATUSES, LOCAL_TZ
 from .coach_text import DEFAULT_GUIDELINES, PLANNER_RULES
 from .const import (
     CHILD_ID,
+    CHILD_NAME,
     CHILD_SHORT_NAME,
     COACH_ENABLED,
     COACH_GUIDELINES,
@@ -63,6 +71,7 @@ from .homework import (
     Payload,
     appointment_to_dict,
     item_to_dict,
+    override_to_dict,
     progress_payload,
     strict_progress,
     subtask_title,
@@ -76,6 +85,8 @@ from .ws_api import (
     INVALID_INPUT,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 COACH_API_ID: Final = "magister_coach"
 COACH_API_NAME: Final = "Magister huiswerkcoach"
 _UNREGISTER: Final = f"{DOMAIN}_coach_api"
@@ -83,11 +94,12 @@ _UNREGISTER: Final = f"{DOMAIN}_coach_api"
 ERR_NOT_LINKED: Final = "not_linked"
 ERR_CHILD_REQUIRED: Final = "child_required"
 ERR_CHILD_NOT_FOUND: Final = "child_not_found"
+ERR_INTERNAL: Final = "internal_error"
 
 MAX_SCHEDULE_DAYS: Final = 31
 LOG_NAME: Final = "Magister"
-_ID = re.compile(r"^\d+(:sub:[A-Za-z0-9_-]+)?$")
-_APPOINTMENT_ID = re.compile(r"^\d+$")
+_ID = re.compile(r"\d+(:sub:[A-Za-z0-9_-]+)?")
+_APPOINTMENT_ID = re.compile(r"\d+")
 
 NOT_LINKED_HELP: Final = (
     "This Home Assistant user is not linked to a child. An administrator can link the "
@@ -103,11 +115,12 @@ class CoachChild:
     child_id: int
     name: str
     guidelines: str
+    suffix: str = ""
 
     @property
     def id(self) -> str:
-        """The id the tools use."""
-        return str(self.child_id)
+        """The id the tools use (with a short entry suffix when ids collide)."""
+        return f"{self.child_id}-{self.suffix}" if self.suffix else str(self.child_id)
 
     @property
     def manager(self) -> HomeworkManager:
@@ -154,17 +167,37 @@ def guidelines_of(settings: dict[str, Any]) -> str:
     )
 
 
+def coach_name(child: dict[str, Any], position: int) -> str:
+    """The name the coach uses: never a full name (``Kind 1`` when only that is known).
+
+    The stored short name is the first name or the initials, but falls back to the full
+    name when Magister gave neither; a full name has spaces and equals the stored name.
+    """
+    short = str(child[CHILD_SHORT_NAME]).strip()
+    if short and not (short == str(child.get(CHILD_NAME, "")).strip() and " " in short):
+        return short
+    return f"Kind {position + 1}"
+
+
+def _entry_suffix(entry: MagisterConfigEntry) -> str:
+    """A short stable tag of an entry (not the school host)."""
+    return hashlib.sha256(entry.entry_id.encode()).hexdigest()[:4]
+
+
 @callback
 def async_accessible_children(
     hass: HomeAssistant, user_id: str | None
 ) -> list[CoachChild]:
     """The children whose coach is enabled and linked to the (active) user."""
     children: list[CoachChild] = []
+    seen: set[tuple[str, int]] = set()
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.state is not ConfigEntryState.LOADED:
             continue
-        for child in entry.data[CONF_CHILDREN]:
+        for position, child in enumerate(entry.data[CONF_CHILDREN]):
             child_id = int(child[CHILD_ID])
+            if (str(entry.data[CONF_HOST]), child_id) in seen:
+                continue  # the same child under two entries (legacy): the first wins
             settings = coach_settings(entry, child_id)
             users = settings.get(COACH_USERS)
             if (
@@ -172,15 +205,22 @@ def async_accessible_children(
                 and isinstance(users, list)
                 and user_id in users
             ):
+                seen.add((str(entry.data[CONF_HOST]), child_id))
                 children.append(
                     CoachChild(
                         entry,
                         child_id,
-                        str(child[CHILD_SHORT_NAME]),
+                        coach_name(child, position),
                         guidelines_of(settings),
                     )
                 )
-    return children
+    # Children of different schools can share an id: tell those apart by a short tag of
+    # their entry, so that a reference never means two children.
+    counts = Counter(c.child_id for c in children)
+    return [
+        replace(c, suffix=_entry_suffix(c.entry)) if counts[c.child_id] > 1 else c
+        for c in children
+    ]
 
 
 async def async_user_children(
@@ -232,7 +272,7 @@ def public_id(uid: str) -> str:
 def _full_uid(child: CoachChild, public: Any, *, subtask_ok: bool) -> str:
     """The uid of an item (or subtask) id of the tools, for this child only."""
     pattern = _ID if subtask_ok else _APPOINTMENT_ID
-    if not isinstance(public, str) or not pattern.match(public):
+    if not isinstance(public, str) or not pattern.fullmatch(public):
         raise CoachError(ERR_INVALID_FORMAT, "The id is not a valid id of this tool")
     return f"{child.host}:{child.child_id}:{public}"
 
@@ -329,13 +369,22 @@ class CoachCall:
     @property
     def entity(self) -> MagisterHomeworkTodo:
         """The child's homework to-do entity (the shared business logic)."""
-        entity_id = er.async_get(self.hass).async_get_entity_id(
+        registry = er.async_get(self.hass)
+        entity_id = registry.async_get_entity_id(
             TODO_DOMAIN,
             DOMAIN,
             f"{self.child.host}:{self.child.child_id}:homework",
         )
+        registered = registry.async_get(entity_id) if entity_id else None
         component = self.hass.data.get(DATA_COMPONENT)
-        entity = component.get_entity(entity_id) if component and entity_id else None
+        entity = (
+            component.get_entity(entity_id)
+            if component
+            and entity_id
+            and registered is not None
+            and registered.config_entry_id == self.child.entry.entry_id
+            else None
+        )
         if not isinstance(entity, MagisterHomeworkTodo):
             raise CoachError(ERR_NOT_FOUND, "Homework to-do list entity not found")
         return entity
@@ -424,6 +473,14 @@ class CoachTool(llm.Tool):
             )
         except ServiceValidationError:
             return error_result(ERR_ITEM_NOT_FOUND, "Homework item not found")
+        except Exception as err:
+            _LOGGER.error(
+                "The coach tool %s failed unexpectedly (%s)",
+                self.name,
+                type(err).__name__,
+            )
+            _LOGGER.debug("Details of the failed coach tool", exc_info=True)
+            return error_result(ERR_INTERNAL, "The tool failed; try again later")
 
     needs_child = True
 
@@ -510,7 +567,8 @@ class ListHomeworkTool(CoachTool):
         "The homework and tests of a child in the planner, sorted by date, with their "
         "labels, text, due date, progress, whether the progress is derived from "
         "subtasks, and the subtasks (current date, overdue, created_by). By default "
-        "from today on and without completed items."
+        "from today on and without completed items, plus the open items that are "
+        "overdue (due before today; see include_overdue)."
     )
     parameters = _schema(
         {
@@ -523,6 +581,14 @@ class ListHomeworkTool(CoachTool):
                 default=False,
                 description="Also list completed and disabled items",
             ): bool,
+            probatio.Optional(
+                "include_overdue",
+                default=True,
+                description=(
+                    "Also list open items due before today (only when `start` is not "
+                    "given)"
+                ),
+            ): bool,
         }
     )
     annotations = READ_ONLY
@@ -532,13 +598,22 @@ class ListHomeworkTool(CoachTool):
         manager = call.manager
         start = _date_arg(call.args["start"]) if "start" in call.args else None
         end = _date_arg(call.args["end"]) if "end" in call.args else None
-        start = start or manager.today()
+        today = manager.today()
+        overdue = call.args["include_overdue"] and start is None
+        first = start or today
+
+        def wanted(item: Any) -> bool:
+            if end is not None and item.due_date > end:
+                return False
+            done = manager.is_completed(item)
+            if item.due_date >= first:
+                return call.args["include_completed"] or not done
+            return bool(overdue) and item.due_date < today and not done
+
         items = [
             item_to_dict(manager, item)
             for item in manager.items(call.child.child_id)
-            if item.due_date >= start
-            and (end is None or item.due_date <= end)
-            and (call.args["include_completed"] or not manager.is_completed(item))
+            if wanted(item)
         ]
         return {
             "child": call.child.id,
@@ -651,10 +726,12 @@ class UpdateSubtaskTool(CoachTool):
         )
         planned = _date_arg(call.args["date"]) if "date" in call.args else None
         before = call.manager.find_subtask(uid)
+        was = (before.title, before.planned) if before else None
         parent = _title_of(call.child, uid.split(":sub:")[0])
         item = call.entity.update_subtask(uid, title, planned)
-        name = title or (before.title if before else "")
-        call.log(f"deelstap '{name}' gewijzigd bij {parent}")
+        after = call.manager.find_subtask(uid)
+        if after is not None and (after.title, after.planned) != was:
+            call.log(f"deelstap '{after.title}' gewijzigd bij {parent}")
         return {"item": _public_item(item)}
 
 
@@ -708,11 +785,14 @@ class SetProgressTool(CoachTool):
         uid = call.uid("id", subtask_ok=True)
         progress = _check(strict_progress, call.args["progress"])
         entity = call.entity
+        previous = entity.stored_progress(uid)
         entity.set_progress(uid, progress)
         stored = entity.stored_progress(uid)
         parent_uid = uid.split(":sub:")[0]
         parent = _title_of(call.child, parent_uid)
-        if (sub := call.manager.find_subtask(uid)) is not None:
+        if stored == previous:
+            pass  # nothing changed: no logbook entry
+        elif (sub := call.manager.find_subtask(uid)) is not None:
             call.log(
                 f"voortgang van deelstap '{sub.title}' ({parent}) op {stored}% gezet"
             )
@@ -811,8 +891,11 @@ class SetLabelOverrideTool(CoachTool):
         mode = call.args["mode"]
         title = _title_of(call.child, uid)
         entity = call.entity
+        was = override_to_dict(call.manager.find_item(call.child.child_id, uid))
         item = entity.set_override(uid, mode, call.args.get("label"), by_name=True)
-        if mode == MODE_REPLACE:
+        if (item["override"] if item else None) == was:
+            pass  # nothing changed: no logbook entry
+        elif mode == MODE_REPLACE:
             label = entity.label_option(call.args["label"], by_name=True)
             call.log(f"Magister-label van {title} vervangen door '{label.name}'")
         elif mode == MODE_DISABLE:

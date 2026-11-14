@@ -6,6 +6,8 @@
   schedule, homework, progress, label options) and write tools (subtasks, progress, labels, label overrides) for
   HA's MCP Server and conversation agents. Opt-in per child, linked to HA users under Configure > AI-coach, with
   editable coaching guidelines. Writes are logged in the logbook. No teacher data is shared.
+- Downgrading to an earlier version drops the AI marker (`created_by`): subtasks added by the coach then read as
+  added by the user.
 - **Subtasks** carry `created_by` (`"user"` or `"ai"`); the store is now 1.5 (older files read as `"user"`).
 
 ## 1.5.0

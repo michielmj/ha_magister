@@ -33,6 +33,10 @@ automatically, or own client id/secret. Settings: Authentication "Sign in now".
 - Needs: HA externally reachable over HTTPS on 443 (Nabu Casa Cloud URL or reverse proxy). Not suitable for HA at home only.
 - Security: every OAuth login grants the student's HA user; keep the user non-admin and limit it to the coach
   (HA users cannot be restricted to one endpoint; the same user can use the HA app, so use a dedicated user).
+- **Isolation holds only for the coach API.** The coach tools only reach the children linked to the user, but the
+  user's token is a normal HA token. A non-admin HA user can still read all entity states over HA's REST/WebSocket
+  API and in the app, including the calendars of all children, whose event descriptions contain teacher names and
+  codes. Treat the token (and the user's HA login) as access to that data.
 
 ## Option (b): local bridge with a long-lived token (home network)
 Claude Desktop supports local stdio MCP servers in `claude_desktop_config.json` (docs: separate mechanism, local network;
@@ -57,6 +61,13 @@ not available in claude.ai or cloud sessions). Bridge a stdio client to HA's Str
 `npx mcp-remote http://homeassistant.local:8123/api/mcp --header "Authorization: Bearer <token>" --allow-http`.
 Check the flags of the installed version.) The token is created on the student's HA profile (Security, Long-lived
 access tokens) and is stored in plain text in the Claude config on that computer.
+
+Security of (b):
+- The long-lived token sits in plain text in `claude_desktop_config.json`. The same caveat applies: besides the coach
+  API, that token can read all entity states over HA's REST/WebSocket API (all children's calendars, with teacher names
+  and codes in the event descriptions). Isolation holds only for the coach API.
+- `http://` on the LAN sends the bearer token unencrypted. Use HTTPS where available (reverse proxy or Nabu Casa).
+- Phase B's README privacy section must carry both points (isolation only for the coach API; HTTPS recommended).
 
 ## Settings in HA (both options)
 1. A non-admin HA user per student.

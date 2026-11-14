@@ -286,3 +286,14 @@ async def test_created_by_in_payload_and_store(
         for s in saved["data"]["items"][uid(PROEFWERK)]["subtasks"]
     }
     assert stored == {"Oud": "user", "Van AI": "ai", "Vreemd": "user", "Nieuw": "user"}
+
+
+async def test_diagnostics_users_none(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A stored ``users: null`` does not break the diagnostics."""
+    entry = await setup_coach(
+        hass, mocked, coach_options(**{"1001": {"enabled": True, "users": None}})
+    )
+    data = await async_get_config_entry_diagnostics(hass, entry)
+    assert data["coach"] == {"enabled_children": 1, "linked_users": 0}

@@ -64,7 +64,7 @@ def _coach_counts(entry: MagisterConfigEntry) -> dict[str, int]:
         else []
     )
     enabled = [v for v in settings if v.get(COACH_ENABLED)]
-    users = {u for v in enabled for u in v.get(COACH_USERS, [])}
+    users = {u for v in enabled for u in (v.get(COACH_USERS) or [])}
     return {"enabled_children": len(enabled), "linked_users": len(users)}
 
 
