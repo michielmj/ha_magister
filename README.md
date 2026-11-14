@@ -168,7 +168,10 @@ data:
   its entity id and history are kept, only the name changed. **With nothing due the
   value is 100 %**; the attribute `items: 0` tells that apart from "all done". Attributes:
   `items`, `completed`, `open`, `tests` (tests and quizzes), `period_start`, `period_end` and
-  `weights` (the weights in use). The sensors update on every change, each refresh and at
+  `weights` (the weights in use). For the next-school-day sensor `period_start` and
+  `period_end` span the whole range, including the free weekend days, which are not counted. With 0
+  weeks back the weekend before this Monday lies outside the fetched window (no practical effect).
+  The sensors update on every change, each refresh and at
   midnight, without extra requests to Magister, and follow the 24 hour availability rule.
   "Next week" needs at least 2 weeks ahead; with 1 week ahead that sensor is unavailable and a
   repair notice explains it.
@@ -189,8 +192,9 @@ data:
   - **Configure > Labels:** choose a child, then add a label (name and kind: homework or test),
     rename it or change its kind, or delete it. The list starts with the five Magister names
     (Huiswerk is *homework*, the others *test*). A label that is still on a lesson cannot be
-    deleted. Changing labels does not reload the integration. Set a label's weight under
-    **Homework weights**.
+    deleted. Changing labels does not reload the integration. Set the weight of a custom label
+    under **Homework weights**; the five Magister names use the type weights (also when
+    renamed). Label names cannot contain `[` or `]`.
   - **Services** `magister.add_homework_label` (fields `appointment`, `label`, `note`) and
     `magister.remove_homework_label` (fields `appointment`, `label`) target the to-do entity.
     `appointment` is the item uid (`host:childId:appointmentId`), `label` the label's id or its

@@ -438,14 +438,12 @@ async def _open_weights(hass: HomeAssistant, entry: Any) -> Any:
 async def _submit_types(
     hass: HomeAssistant, result: Any, values: dict[str, Any]
 ) -> Any:
-    """Submit the type weights and leave the labels step at its defaults."""
+    """Submit the type weights; with only default labels there is no labels step."""
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], values
     )
-    assert result["step_id"] == "weights_labels"
-    return await hass.config_entries.options.async_configure(
-        result["flow_id"], {str(k): 1 for k in result["data_schema"].schema}
-    )
+    assert result["step_id"] == "weights_subjects"
+    return result
 
 
 async def test_weights_flow_saves_only_non_default_values(
@@ -578,9 +576,8 @@ async def test_weights_flow_without_subjects_skips_that_step(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     result = await _open_weights(hass, entry)
-    result = await _submit_types(
-        hass,
-        result,
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
         {"homework": 2, "test": 1, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -759,6 +756,7 @@ async def test_labels_flow_name_errors(
         ("   ", "name_required"),
         ("x" * 41, "name_too_long"),
         ("proefWERK", "name_exists"),
+        ("[Proef]", "name_invalid_chars"),
     ):
         result = await hass.config_entries.options.async_configure(
             result["flow_id"], {"name": name, "kind": "test"}

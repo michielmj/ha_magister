@@ -95,7 +95,9 @@ class MagisterCalendar(MagisterEntity, CalendarEntity):
     async def async_added_to_hass(self) -> None:
         """Follow label changes (the titles carry the manual labels)."""
         await super().async_added_to_hass()
-        self.async_on_remove(self._manager.async_add_listener(self._handle_labels))
+        self.async_on_remove(
+            self._manager.async_add_label_listener(self._handle_labels)
+        )
 
     @callback
     def _handle_labels(self) -> None:

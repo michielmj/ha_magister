@@ -179,7 +179,10 @@ data:
   met vrijdag. Sinds 1.3.0 heet de eerste sensor niet meer "Huiswerk morgen": de entiteits-id en
   de historie blijven behouden, alleen de naam is veranderd. **Zonder items is de waarde 100 %**; het attribuut `items: 0` maakt het
   verschil met "alles klaar". Attributen: `items`, `completed`, `open`, `tests` (toetsen en
-  overhoringen), `period_start`, `period_end` en `weights` (de gebruikte gewichten). De sensoren
+  overhoringen), `period_start`, `period_end` en `weights` (de gebruikte gewichten). Bij de sensor voor de volgende schooldag omvatten
+  `period_start` en `period_end` het hele bereik, ook de vrije weekenddagen, die niet meetellen. Bij
+  0 weken terug valt het weekend vóór deze maandag buiten het opgehaalde venster (geen praktisch
+  effect). De sensoren
   worden bijgewerkt bij elke wijziging, elke verversing en om middernacht, zonder extra verzoeken
   aan Magister, en volgen de beschikbaarheidsregel van 24 uur. "Volgende week" heeft minstens
   2 weken vooruit nodig; bij 1 week vooruit is die sensor niet beschikbaar en legt een
@@ -202,8 +205,9 @@ data:
   - **Configureren > Labels:** kies een kind en voeg een label toe (naam en soort: huiswerk of
     toets), hernoem het of wijzig de soort, of verwijder het. De lijst begint met de vijf namen van
     Magister (Huiswerk is *huiswerk*, de rest *toets*). Een label dat nog op een les staat kan niet
-    worden verwijderd. Labels wijzigen laadt de integratie niet opnieuw. Het gewicht van een label
-    stel je in onder **Huiswerkgewichten**.
+    worden verwijderd. Labels wijzigen laadt de integratie niet opnieuw. Het gewicht van een eigen label
+    stel je in onder **Huiswerkgewichten**; de vijf Magister-namen gebruiken de soortgewichten (ook
+    na hernoemen). Labelnamen mogen geen `[` of `]` bevatten.
   - **Services** `magister.add_homework_label` (velden `appointment`, `label`, `note`) en
     `magister.remove_homework_label` (velden `appointment`, `label`) richten zich op de
     to-do-entiteit. `appointment` is de uid van het item (`host:kindId:afspraakId`), `label` de id

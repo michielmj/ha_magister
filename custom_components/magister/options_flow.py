@@ -35,6 +35,7 @@ from .api.homework import (
     WEIGHT_MIN,
     LabelOption,
     Weights,
+    default_label_type_key,
     label_options_to_stored,
     merge_subject_weights,
     subjects_of,
@@ -311,7 +312,11 @@ class MagisterOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Weights per manual label of the child (by label name)."""
         assert self._weights_child is not None
-        options = self._label_options(self._weights_child)
+        options = [
+            o
+            for o in self._label_options(self._weights_child)
+            if default_label_type_key(o.id) is None
+        ]
         if user_input is not None:
             by_name = {o.name: o.id for o in options}
             self._label_weights = {
@@ -419,6 +424,8 @@ class MagisterOptionsFlow(OptionsFlow):
         assert self._labels_child is not None
         if not name:
             return "name_required"
+        if "[" in name or "]" in name:
+            return "name_invalid_chars"
         if len(name) > LABEL_NAME_MAX:
             return "name_too_long"
         wanted = name.casefold()
@@ -569,6 +576,9 @@ class MagisterOptionsFlow(OptionsFlow):
             self._labels_child, label_id
         ):
             return self._label_select("label_delete", {"base": "label_in_use"})
+        self.config_entry.runtime_data.homework.drop_label_references(
+            self._labels_child, label_id
+        )
         return self._save_labels(
             [o for o in self._label_options(self._labels_child) if o.id != label_id]
         )

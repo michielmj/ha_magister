@@ -49,7 +49,8 @@ from .coordinator import fetch_window
 if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
 
-STORE_VERSION: Final = 2
+STORE_VERSION: Final = 1
+STORE_MINOR_VERSION: Final = 2
 SAVE_DELAY: Final = 5.0
 PRUNE_AFTER: Final = timedelta(days=14)
 
@@ -143,12 +144,15 @@ class _HomeworkStore(Store[dict[str, Any]]):
     async def _async_migrate_func(
         self, old_major_version: int, old_minor_version: int, old_data: dict[str, Any]
     ) -> dict[str, Any]:
-        """v1 (progress only) to v2 (adds ``labels`` to every item)."""
-        if old_major_version == 1:
+        """1.1 (progress only) to 1.2 (adds ``labels`` to every item).
+
+        The major version stays 1 so that an older release can still read the file.
+        """
+        if old_major_version == 1 and old_minor_version < 2:
             items = old_data.get("items")
             return {
                 "items": {
-                    uid: {**entry, LABELS: []}
+                    uid: {LABELS: [], **entry}
                     for uid, entry in (items if isinstance(items, dict) else {}).items()
                     if isinstance(entry, dict)
                 }
@@ -179,10 +183,14 @@ class HomeworkManager:
         self._coordinator = coordinator
         self._host: str = entry.data[CONF_HOST]
         self._store = _HomeworkStore(
-            hass, STORE_VERSION, f"{DOMAIN}.homework.{entry.entry_id}"
+            hass,
+            STORE_VERSION,
+            f"{DOMAIN}.homework.{entry.entry_id}",
+            minor_version=STORE_MINOR_VERSION,
         )
         self._progress: dict[str, dict[str, Any]] = {}
         self._listeners: list[CALLBACK_TYPE] = []
+        self._label_listeners: list[CALLBACK_TYPE] = []
         self._items: dict[int, list[HomeworkItem]] = {}
         self._items_source: Mapping[int, Any] | None = None
         self._dirty = False
@@ -268,9 +276,12 @@ class HomeworkManager:
 
     def find_appointment(self, child_id: int, uid: str) -> Appointment | None:
         """The appointment of ``child_id`` with item uid ``uid`` in the window."""
-        data = self._coordinator.data or {}
         return next(
-            (a for a in data.get(child_id, []) if self.uid_of(child_id, a.id) == uid),
+            (
+                a
+                for a in self._appointments(child_id)
+                if self.uid_of(child_id, a.id) == uid
+            ),
             None,
         )
 
@@ -282,7 +293,10 @@ class HomeworkManager:
             for a in data.get(child_id, [])
             if a.start.astimezone(LOCAL_TZ).date() == day
         ]
-        return sorted(found, key=lambda a: (a.start, a.period_start or 0, a.id))
+        return sorted(
+            found,
+            key=lambda a: (a.start, a.period_start or 0, self.uid_of(child_id, a.id)),
+        )
 
     def window_dates(self) -> tuple[date, date]:
         """The fetch window as ``(first day, day after the last)``."""
@@ -301,13 +315,33 @@ class HomeworkManager:
         return default_label_options() if parsed is None else parsed
 
     def label_in_use(self, child_id: int, label_id: str) -> bool:
-        """Whether any appointment of the child still has this manual label."""
+        """Whether an appointment in the current data still has this manual label."""
+        present = {self.uid_of(child_id, a.id) for a in self._appointments(child_id)}
         return any(
             stored["id"] == label_id
             for uid, entry in self._progress.items()
-            if uid_child_id(uid) == child_id
+            if uid in present
             for stored in entry[LABELS]
         )
+
+    def _appointments(self, child_id: int) -> list[Appointment]:
+        return list((self._coordinator.data or {}).get(child_id, []))
+
+    @callback
+    def drop_label_references(self, child_id: int, label_id: str) -> None:
+        """Forget a deleted label on appointments that are no longer present."""
+        changed = False
+        for uid in list(self._progress):
+            entry = self._progress[uid]
+            if uid_child_id(uid) != child_id:
+                continue
+            kept = [s for s in entry[LABELS] if s["id"] != label_id]
+            if len(kept) != len(entry[LABELS]):
+                entry[LABELS] = kept
+                self._drop_if_empty(uid)
+                changed = True
+        if changed:
+            self._labels_changed()
 
     @callback
     def add_label(
@@ -348,6 +382,8 @@ class HomeworkManager:
     def _labels_changed(self) -> None:
         self._items_source = None
         self._changed()
+        for listener in list(self._label_listeners):
+            listener()
 
     def _drop_if_empty(self, uid: str) -> None:
         entry = self._progress.get(uid)
@@ -477,6 +513,8 @@ class HomeworkManager:
     def async_options_changed(self) -> None:
         """Weights or labels changed in the options: recompute without a reload."""
         self._items_source = None
+        for listener in list(self._label_listeners):
+            listener()
         for listener in list(self._listeners):
             listener()
 
@@ -491,6 +529,18 @@ class HomeworkManager:
         def remove() -> None:
             if listener in self._listeners:
                 self._listeners.remove(listener)
+
+        return remove
+
+    @callback
+    def async_add_label_listener(self, listener: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """Call ``listener`` when labels or label options changed."""
+        self._label_listeners.append(listener)
+
+        @callback
+        def remove() -> None:
+            if listener in self._label_listeners:
+                self._label_listeners.remove(listener)
 
         return remove
 
@@ -561,7 +611,10 @@ class HomeworkManager:
 async def async_remove_store(hass: HomeAssistant, entry_id: str) -> None:
     """Delete the progress store of a removed config entry."""
     await _HomeworkStore(
-        hass, STORE_VERSION, f"{DOMAIN}.homework.{entry_id}"
+        hass,
+        STORE_VERSION,
+        f"{DOMAIN}.homework.{entry_id}",
+        minor_version=STORE_MINOR_VERSION,
     ).async_remove()
 
 

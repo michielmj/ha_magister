@@ -169,7 +169,7 @@
       },
       "weights_labels": {
         "title": "Gewichten per label",
-        "description": "Hoeveel elk handmatig label meetelt voor {child}. 1 is normaal, 0 laat het buiten het gemiddelde. Een item met meerdere labels telt mee met het hoogste labelgewicht. Stappen van 0,5."
+        "description": "Hoeveel elk eigen label meetelt voor {child}. 1 is normaal, 0 laat het buiten het gemiddelde. De Magister-namen (Huiswerk, Proefwerk, ...) gebruiken de soortgewichten, ook als ze zijn hernoemd. Een item met meerdere labels telt mee met het hoogste labelgewicht. Stappen van 0,5."
       },
       "weights_subjects": {
         "title": "Gewichten per vak",
@@ -228,7 +228,8 @@
       "label_in_use": "Dit label staat nog op een of meer lessen. Verwijder het eerst van die lessen.",
       "name_required": "Vul een naam in.",
       "name_too_long": "De naam mag maximaal 40 tekens zijn.",
-      "name_exists": "Dit kind heeft al een label met deze naam."
+      "name_exists": "Dit kind heeft al een label met deze naam.",
+      "name_invalid_chars": "De naam mag geen [ of ] bevatten."
     },
     "abort": {
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",
@@ -321,7 +322,7 @@
       "fields": {
         "appointment": {
           "name": "Afspraak",
-          "description": "De id (uid) van de afspraak, zoals <host>:<kindId>:<afspraakId>."
+          "description": "De id (uid) van de afspraak: host:kindId:afspraakId, bijvoorbeeld myschool.magister.net:1001:100070."
         },
         "label": {
           "name": "Label",

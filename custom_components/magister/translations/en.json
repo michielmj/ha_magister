@@ -169,7 +169,7 @@
       },
       "weights_labels": {
         "title": "Weights per label",
-        "description": "How much each manual label counts for {child}. 1 is normal, 0 leaves it out of the average. An item with several labels counts with its highest label weight. Steps of 0.5."
+        "description": "How much each custom label counts for {child}. 1 is normal, 0 leaves it out of the average. The Magister names (Huiswerk, Proefwerk, ...) use the type weights, also when renamed. An item with several labels counts with its highest label weight. Steps of 0.5."
       },
       "weights_subjects": {
         "title": "Weights per subject",
@@ -228,7 +228,8 @@
       "label_in_use": "This label is still used on one or more lessons. Remove it from those lessons first.",
       "name_required": "Enter a name.",
       "name_too_long": "The name can be at most 40 characters.",
-      "name_exists": "This child already has a label with this name."
+      "name_exists": "This child already has a label with this name.",
+      "name_invalid_chars": "The name cannot contain [ or ]."
     },
     "abort": {
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",
@@ -321,7 +322,7 @@
       "fields": {
         "appointment": {
           "name": "Appointment",
-          "description": "The id (uid) of the appointment, like <host>:<childId>:<appointmentId>."
+          "description": "The id (uid) of the appointment: host:childId:appointmentId, for example myschool.magister.net:1001:100070."
         },
         "label": {
           "name": "Label",

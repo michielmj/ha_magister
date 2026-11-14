@@ -75,7 +75,7 @@ async def add(client: Any, appointment: int, label: str, **fields: Any) -> Any:
 async def test_store_migrates_from_v1(
     hass: HomeAssistant, mocked: aioresponses, hass_storage: dict[str, Any]
 ) -> None:
-    """A v1 store (progress only) is read and rewritten as v2 with labels."""
+    """A 1.1 store (progress only) is read and rewritten as 1.2 with labels."""
     from .ha_helpers import make_entry
 
     entry = make_entry()
@@ -106,7 +106,7 @@ async def test_store_migrates_from_v1(
     assert manager.stored_entries == 1
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert saved["version"] == 2
+    assert (saved["version"], saved["minor_version"]) == (1, 2)
     assert saved["data"]["items"][uid(MONDAY_HOMEWORK)]["labels"] == []
 
 
@@ -119,8 +119,8 @@ async def test_store_loads_labels_leniently(
     entry = make_entry(options=OPTIONS)
     key = f"{DOMAIN}.homework.{entry.entry_id}"
     hass_storage[key] = {
-        "version": 2,
-        "minor_version": 1,
+        "version": 1,
+        "minor_version": 2,
         "key": key,
         "data": {
             "items": {
@@ -642,3 +642,82 @@ async def test_diagnostics_count_manual_labels_only(
     assert CONF_LABELS not in diagnostics["entry"]["options"]
     text = str(diagnostics)
     assert "geheim" not in text and "Toetsweek" not in text and "Extra" not in text
+
+
+async def test_store_v1_2_loads_unchanged(
+    hass: HomeAssistant, mocked: aioresponses, hass_storage: dict[str, Any]
+) -> None:
+    """A file already at 1.2 is not migrated; a file without minor version is 1.1."""
+    from .ha_helpers import FakeMagister, make_entry
+
+    entry = make_entry(options=OPTIONS)
+    key = f"{DOMAIN}.homework.{entry.entry_id}"
+    hass_storage[key] = {
+        "version": 1,
+        "minor_version": 2,
+        "key": key,
+        "data": {
+            "items": {
+                uid(MONDAY_NO_LABEL): {
+                    "progress": 0,
+                    "last_partial": 0,
+                    "labels": [{"id": "tw", "note": "n", "added": ""}],
+                },
+            }
+        },
+    }
+    FakeMagister(mocked)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    item = entry.runtime_data.homework.find_item(CHILD_ID, uid(MONDAY_NO_LABEL))
+    assert item is not None and item.manual_labels[0].note == "n"
+
+
+async def test_default_labels_use_the_type_weights(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A default label on an untyped item weighs like its type; renaming keeps it."""
+    _, entry = await setup_homework(
+        hass,
+        mocked,
+        options={
+            CONF_LABELS: {
+                str(CHILD_ID): [
+                    {"id": "default_test", "name": "Toets", "kind": "test"},
+                    TOETSWEEK,
+                ]
+            },
+            CONF_WEIGHTS: {
+                str(CHILD_ID): {"types": {"test": 3}, "labels": {"default_test": 9}}
+            },
+        },
+    )
+    await label_service(hass, "add_homework_label", MONDAY_NO_LABEL, "default_test")
+    await label_service(hass, "add_homework_label", MONDAY_OTHER, "tw")
+    manager = entry.runtime_data.homework
+    weights = manager.weights(CHILD_ID)
+    item = manager.find_item(CHILD_ID, uid(MONDAY_NO_LABEL))
+    assert item is not None and item.info_type is None
+    assert weights.item_weight(item) == 3.0  # types["test"], not labels[...]
+    other = manager.find_item(CHILD_ID, uid(MONDAY_OTHER))
+    assert other is not None and weights.item_weight(other) == 1.0
+
+
+async def test_orphan_references_are_dropped_with_the_label(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """In use counts only present appointments; deleting drops the stale ones."""
+    fake, entry = await setup_homework(hass, mocked, options=OPTIONS)
+    manager = entry.runtime_data.homework
+    await label_service(hass, "add_homework_label", MONDAY_NO_LABEL, "tw")
+    fake.appointments[CHILD_ID] = [
+        a for a in fake.appointments[CHILD_ID] if a["Id"] != MONDAY_NO_LABEL
+    ]
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert manager.stored_entries == 1
+    assert not manager.label_in_use(CHILD_ID, "tw")
+    manager.drop_label_references(CHILD_ID, "tw")
+    assert manager.stored_entries == 0
+    manager.drop_label_references(CHILD_ID, "tw")  # nothing left: a no-op

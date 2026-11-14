@@ -77,6 +77,12 @@ def default_label_options() -> list[LabelOption]:
     ]
 
 
+def default_label_type_key(label_id: str) -> str | None:
+    """The type key of a default label id (``default_<key>``), else ``None``."""
+    key = label_id.removeprefix("default_")
+    return key if key != label_id and key in TYPE_KEYS else None
+
+
 def parse_label_options(raw: Any) -> list[LabelOption] | None:
     """Label options from stored options; ``None`` when not configured (default)."""
     if not isinstance(raw, list):
@@ -286,7 +292,9 @@ class Weights:
         return self.types.get(key, DEFAULT_WEIGHT)
 
     def label_weight(self, label_id: str) -> float:
-        """Weight of a manual label."""
+        """Weight of a manual label; the default labels use their type's weight."""
+        if (key := default_label_type_key(label_id)) is not None:
+            return self.types.get(key, DEFAULT_WEIGHT)
         return self.labels.get(label_id, DEFAULT_WEIGHT)
 
     def subject_weight(self, subject: str) -> float:
