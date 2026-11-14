@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError
@@ -17,11 +18,13 @@ from homeassistant.helpers.typing import ConfigType
 
 from .api import MagisterAuth, MagisterClient
 from .card import async_register_card
+from .coach import async_register_coach_api, async_unregister_coach_api
 from .const import (
     CHILD_ID,
     CHILD_SHORT_NAME,
     CONF_CHILD_ID,
     CONF_CHILDREN,
+    CONF_COACH,
     CONF_HOST,
     CONF_LABELS,
     CONF_TOTP_SECRET,
@@ -132,6 +135,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
     async_sync_duplicate_issues(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    # One LLM API for the whole instance; each tool call checks its own access.
+    async_register_coach_api(hass)
     return True
 
 
@@ -175,14 +180,15 @@ def config_snapshot(entry: MagisterConfigEntry) -> str:
     """The parts of an entry that need a reload when they change.
 
     Credentials are left out: reauth and reconfigure schedule their own reload. So are
-    the homework weights and label options, which are applied without a reload.
+    the homework weights, label options and AI coach settings, which are applied
+    without a reload.
     """
     return json.dumps(
         {
             "options": {
                 key: value
                 for key, value in entry.options.items()
-                if key not in (CONF_WEIGHTS, CONF_LABELS)
+                if key not in (CONF_WEIGHTS, CONF_LABELS, CONF_COACH)
             },
             "children": [child[CHILD_ID] for child in entry.data[CONF_CHILDREN]],
             "subentries": {
@@ -243,6 +249,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagisterConfigEntry) ->
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         await entry.runtime_data.homework.async_flush()
+        if not any(
+            other.entry_id != entry.entry_id
+            and other.state
+            in (ConfigEntryState.LOADED, ConfigEntryState.SETUP_IN_PROGRESS)
+            for other in hass.config_entries.async_entries(DOMAIN)
+        ):
+            async_unregister_coach_api(hass)
     return unloaded
 
 

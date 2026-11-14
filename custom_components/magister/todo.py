@@ -20,6 +20,7 @@ from homeassistant.helpers.service import async_register_platform_entity_service
 from homeassistant.util import dt as dt_util
 
 from .api.homework import (
+    CREATED_BY_USER,
     MODE_CLEAR,
     MODE_DISABLE,
     MODE_REPLACE,
@@ -403,9 +404,17 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         self._manager.set_progress(uid, progress)
 
     @callback
-    def add_subtask(self, item: str, title: str, planned: Day | None) -> Payload:
+    def add_subtask(
+        self,
+        item: str,
+        title: str,
+        planned: Day | None,
+        created_by: str = CREATED_BY_USER,
+    ) -> Payload:
         """Add a subtask; returns the updated item (``LabelError`` on failure)."""
-        parent = self._manager.add_subtask(self._child_id, item, title, planned)
+        parent = self._manager.add_subtask(
+            self._child_id, item, title, planned, created_by
+        )
         return item_dict(self._manager, parent)
 
     @callback

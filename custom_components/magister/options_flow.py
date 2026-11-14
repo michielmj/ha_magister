@@ -14,6 +14,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -22,6 +23,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
     TextSelector,
+    TextSelectorConfig,
 )
 
 from .api import MagisterApiError, MagisterAuthError, MagisterConnectionError, Person
@@ -40,11 +42,18 @@ from .api.homework import (
     merge_subject_weights,
     subjects_of,
 )
+from .coach import coach_settings, guidelines_of
+from .coach_text import DEFAULT_GUIDELINES
 from .const import (
     CHILD_ID,
     CHILD_NAME,
     CHILD_SHORT_NAME,
+    COACH_ENABLED,
+    COACH_GUIDELINES,
+    COACH_RESET,
+    COACH_USERS,
     CONF_CHILDREN,
+    CONF_COACH,
     CONF_HOST,
     CONF_INTERVAL,
     CONF_LABELS,
@@ -52,6 +61,7 @@ from .const import (
     CONF_WEEKS_BACK,
     CONF_WEIGHTS,
     DOMAIN,
+    GUIDELINES_MAX,
     INTERVAL_MAX,
     INTERVAL_MIN,
     INTERVAL_MINUTES,
@@ -123,6 +133,7 @@ class MagisterOptionsFlow(OptionsFlow):
         self._label_weights: dict[str, float] = {}
         self._labels_child: int | None = None
         self._label_id: str | None = None
+        self._coach_child: int | None = None
 
     async def _async_fetch_children(self, entry: ConfigEntry) -> str | None:
         """Read the current children list; return an abort reason on failure.
@@ -159,7 +170,7 @@ class MagisterOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Choose between the general settings, the homework weights and the labels."""
         return self.async_show_menu(
-            step_id="init", menu_options=["general", "weights", "labels"]
+            step_id="init", menu_options=["general", "weights", "labels", "coach"]
         )
 
     async def async_step_general(
@@ -582,3 +593,120 @@ class MagisterOptionsFlow(OptionsFlow):
         return self._save_labels(
             [o for o in self._label_options(self._labels_child) if o.id != label_id]
         )
+
+    # -- AI coach -----------------------------------------------------------
+
+    async def async_step_coach(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Choose the child whose AI coach is set up."""
+        names = self._child_names()
+        if user_input is not None or len(names) == 1:
+            self._coach_child = (
+                int(user_input["child"]) if user_input else next(iter(names))
+            )
+            return await self.async_step_coach_settings()
+        return self.async_show_form(
+            step_id="coach",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required("child"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(value=str(child_id), label=name)
+                                for child_id, name in names.items()
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def async_step_coach_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Enable the coach, link HA users and edit the coaching guidelines."""
+        assert self._coach_child is not None
+        entry = self.config_entry
+        users = {
+            user.id: user.name or user.id
+            for user in await self.hass.auth.async_get_users()
+            if user.is_active and not user.system_generated
+        }
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if (
+                len(str(user_input.get(COACH_GUIDELINES) or "").strip())
+                > GUIDELINES_MAX
+            ):
+                errors[COACH_GUIDELINES] = "guidelines_too_long"
+            else:
+                return self._save_coach(user_input, set(users))
+        settings = coach_settings(entry, self._coach_child)
+        linked = settings.get(COACH_USERS)
+        suggested = user_input or {
+            COACH_ENABLED: settings.get(COACH_ENABLED) is True,
+            COACH_USERS: [u for u in linked or [] if u in users],
+            COACH_GUIDELINES: guidelines_of(settings),
+            COACH_RESET: False,
+        }
+        schema = probatio.Schema(
+            {
+                probatio.Required(COACH_ENABLED): BooleanSelector(),
+                probatio.Optional(COACH_USERS): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            SelectOptionDict(value=user_id, label=name)
+                            for user_id, name in users.items()
+                        ],
+                        multiple=True,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                probatio.Optional(COACH_GUIDELINES): TextSelector(
+                    TextSelectorConfig(multiline=True)
+                ),
+                probatio.Optional(COACH_RESET): BooleanSelector(),
+            }
+        )
+        return self.async_show_form(
+            step_id="coach_settings",
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+            errors=errors,
+            description_placeholders={
+                "child": self._child_names()[self._coach_child],
+                "max": str(GUIDELINES_MAX),
+            },
+        )
+
+    def _save_coach(
+        self, user_input: dict[str, Any], valid_users: set[str]
+    ) -> ConfigFlowResult:
+        """Store the coach settings of the child (applied without a reload)."""
+        entry = self.config_entry
+        text = str(user_input.get(COACH_GUIDELINES) or "").strip()
+        if user_input.get(COACH_RESET) or text == DEFAULT_GUIDELINES.strip():
+            text = ""
+        stored: dict[str, Any] = {
+            key: dict(value)
+            for key, value in (entry.options.get(CONF_COACH) or {}).items()
+        }
+        setting: dict[str, Any] = {
+            COACH_ENABLED: bool(user_input[COACH_ENABLED]),
+            COACH_USERS: sorted(
+                {u for u in user_input.get(COACH_USERS) or [] if u in valid_users}
+            ),
+        }
+        if text:
+            setting[COACH_GUIDELINES] = text
+        if setting[COACH_ENABLED] or setting[COACH_USERS] or text:
+            stored[str(self._coach_child)] = setting
+        else:
+            stored.pop(str(self._coach_child), None)
+        options = dict(entry.options)
+        if stored:
+            options[CONF_COACH] = stored
+        else:
+            options.pop(CONF_COACH, None)
+        return self.async_create_entry(data=options)

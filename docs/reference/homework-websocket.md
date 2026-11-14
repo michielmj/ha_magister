@@ -96,6 +96,7 @@ Subtask (since 1.5.0):
 | `progress` | int | 0–100 |
 | `completed` | bool | `progress >= 100` |
 | `last_partial` | int | 0–99 |
+| `created_by` | string | `"user"` or `"ai"` (since 1.6.0). `"ai"` when created through the AI coach (LLM API); subtasks stored before 1.6.0 read as `"user"` |
 
 Errors: `not_found` (unknown entity, or not a Magister homework list), `invalid_format` (not a todo entity),
 `unauthorized` (no read permission).

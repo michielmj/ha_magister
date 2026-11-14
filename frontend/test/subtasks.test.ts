@@ -197,6 +197,46 @@ describe("rendering", () => {
     expect(row(card, "a")).not.toBeNull();
   });
 
+  it("marks subtasks created by the AI coach, and only those", async () => {
+    const { card } = await setup(
+      [
+        test([
+          sub("a", { created_by: "ai" }),
+          sub("b", { created_by: "user" }),
+          sub("c"),
+        ]),
+      ],
+      { config: { show_completed: true } },
+    );
+    const badge = row(card, "a").querySelector(".ai-badge");
+    expect(badge?.textContent.trim()).toBe("AI");
+    expect(badge?.getAttribute("aria-label")).toBe("Created by AI coach");
+    expect(badge?.getAttribute("title")).toBe("Created by AI coach");
+    expect(badge?.getAttribute("role")).toBe("img");
+    expect(row(card, "a").querySelector(".sub-title")?.textContent).toBe("Stap a");
+    expect(row(card, "b").querySelector(".ai-badge")).toBeNull();
+    expect(row(card, "c").querySelector(".ai-badge")).toBeNull(); // missing field = user
+  });
+
+  it("words the AI marker in Dutch", async () => {
+    const { card } = await setup([test([sub("a", { created_by: "ai" })])], {
+      language: "nl",
+    });
+    const badge = row(card, "a").querySelector(".ai-badge");
+    expect(badge?.getAttribute("aria-label")).toBe("Aangemaakt door AI-coach");
+    expect(badge?.getAttribute("title")).toBe("Aangemaakt door AI-coach");
+  });
+
+  it("keeps the AI marker through an optimistic edit", () => {
+    const parent = test([sub("a", { created_by: "ai" })]);
+    const edited = applySubtaskEdits(
+      [parent],
+      new Map([[`${PARENT}:sub:a`, { title: "Nieuw" }]]),
+      TODAY,
+    )[0];
+    expect(edited?.subtasks?.[0]?.created_by).toBe("ai");
+  });
+
   it("follows the card language", async () => {
     const { card } = await setup(items(), { language: "nl" });
     expect(row(card, "b").querySelector(".ref")?.textContent).toMatch(/^voor Proefwerk Engels \(di 17 nov\)$/);

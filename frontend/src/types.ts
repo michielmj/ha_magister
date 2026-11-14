@@ -49,6 +49,8 @@ export interface Subtask {
   completed: boolean;
   /** The value that unticking restores (0-99). */
   last_partial: number;
+  /** Since 1.6.0: who created the subtask. A missing field counts as "user". */
+  created_by?: "user" | "ai";
 }
 
 export interface HomeworkItem {
