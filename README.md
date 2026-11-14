@@ -238,7 +238,7 @@ data:
 - **Subtasks** (since 1.5.0). Any homework item, especially a test, can be split into up to 20
   **subtasks** with a title (1 to 100 characters) and a planned day, for example *H4 woordjes*
   on Friday. The planned day is today or later and at most the lesson's day (it defaults to
-  today). An open subtask **rolls forward day by day** (weekends included) to the next day, but
+  today). If the lesson is today or in the past, only the lesson's day is allowed. An open subtask **rolls forward day by day** (weekends included) to the next day, but
   never past the lesson; once the lesson has passed it stays on that day, marked overdue. A
   completed subtask stays on the day it was completed. Subtasks use the same progress steps as
   items (0/25/50/75/100; ticking sets 100, unticking restores the last value below 100). **An
@@ -247,7 +247,7 @@ data:
   brings the item's own progress back. In the progress sensors the item is replaced by its
   subtasks: each counts with the item's weight divided by the number of subtasks, in the period
   of its current day (the `items` and `completed` attributes count these entries). In Home
-  Assistant's to-do view each subtask is listed as `↳ <label>: <title>` with its current day as
+  Assistant's to-do view each subtask is listed as `↳ <subject>: <title>` with its current day as
   due date and can be ticked; the item itself cannot be ticked while it has subtasks. The count
   of the list shows the open entries (items without subtasks and subtasks) due today or later.
   Subtasks are hidden and not counted while the item is disabled. They are stored in Home

@@ -144,7 +144,7 @@
       "message": "Een huiswerkitem kan maximaal 20 deelstappen hebben."
     },
     "homework_invalid_date": {
-      "message": "De datum moet vandaag of later zijn en niet na de datum van het huiswerk (of precies de datum van het huiswerk als die vandaag of verleden is)."
+      "message": "De datum moet vandaag of later zijn en niet na de datum van het huiswerk (of precies de datum van het huiswerk als die vandaag is of in het verleden ligt)."
     },
     "homework_nothing_to_update": {
       "message": "Geef een nieuwe titel, een nieuwe datum, of beide."

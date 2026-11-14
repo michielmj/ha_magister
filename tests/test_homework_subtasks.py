@@ -21,7 +21,7 @@ from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 from custom_components.magister.const import CONF_WEIGHTS, DOMAIN
 from custom_components.magister.diagnostics import async_get_config_entry_diagnostics
 from custom_components.magister.homework import async_subscribe
-from custom_components.magister.todo import MagisterHomeworkTodo, subtask_label
+from custom_components.magister.todo import MagisterHomeworkTodo
 
 from .ha_helpers import CHILD_ID, NOW, FakeMagister, make_entry
 from .test_homework import (
@@ -457,7 +457,7 @@ async def test_subtasks_in_the_todo_list(
     second = await add_ok(client, PROEFWERK, "grammatica", date="2026-11-18")
     items = await todo_items(hass)
     row = items[first["uid"]]
-    assert row["summary"] == "↳ Proefwerk: woordjes"
+    assert row["summary"] == "↳ Duitse taal: woordjes"
     assert (row["status"], row["due"]) == ("needs_action", "2026-11-13")
     assert items[second["uid"]]["due"] == "2026-11-18"
     parent = items[uid(PROEFWERK)]
@@ -689,26 +689,6 @@ async def test_midnight_pushes_a_changed_payload(
     await hass.async_block_till_done()
     (event,) = pushed
     assert payload_item(event, HOMEWORK)["subtasks"][0]["date"] == "2026-11-14"
-
-
-async def test_subtask_row_label_falls_back_to_the_subject(
-    hass: HomeAssistant, mocked: aioresponses
-) -> None:
-    """The row shows the label; without active labels the subject."""
-    _, entry = await setup_homework(hass, mocked)
-    manager = entry.runtime_data.homework
-    item = manager.find_item(CHILD_ID, uid(PROEFWERK))
-    assert item is not None
-    assert subtask_label(manager, item) == "Proefwerk"
-    await hass.services.async_call(
-        DOMAIN,
-        "set_homework_override",
-        {"entity_id": TODO_ID, "appointment": uid(PROEFWERK), "mode": "disable"},
-        blocking=True,
-    )
-    item = manager.find_item(CHILD_ID, uid(PROEFWERK))
-    assert item is not None
-    assert subtask_label(manager, item) == "Duitse taal"
 
 
 # -- services -----------------------------------------------------------------------
@@ -1001,3 +981,18 @@ async def test_diagnostics_have_subtask_counts_only(
     }
     text = str(diagnostics)
     assert "geheime" not in text and "tweede" not in text and "derde" not in text
+
+
+async def test_manager_ignores_own_progress_of_an_item_with_subtasks(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Defensive: the manager does not store own progress while subtasks exist."""
+    _, entry = await setup_homework(hass, mocked)
+    manager = entry.runtime_data.homework
+    manager.add_subtask(CHILD_ID, uid(HOMEWORK), "t", None)
+    manager.set_progress(uid(HOMEWORK), 80)
+    assert manager.progress(uid(HOMEWORK)) == 0
+    assert manager.stored_entries == 1
+    sub = manager.find_item(CHILD_ID, uid(HOMEWORK)).subtasks[0]  # type: ignore[union-attr]
+    manager.delete_subtask(CHILD_ID, f"{uid(HOMEWORK)}:sub:{sub.id}")
+    assert manager.progress(uid(HOMEWORK)) == 0

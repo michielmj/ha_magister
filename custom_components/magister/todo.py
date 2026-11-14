@@ -204,20 +204,12 @@ def item_summary(item: HomeworkItem) -> str:
     return " ".join([*(f"[{name}]" for name in names), item.subject]).rstrip()
 
 
-def subtask_label(manager: HomeworkManager, item: HomeworkItem) -> str:
-    """The label (the effective Magister label, else a manual one) or the subject."""
-    state = manager.effective(item)
-    if state.active_labels:
-        return state.active_labels[0].name
-    return item.subject
-
-
 def to_subtask_todo_item(
     manager: HomeworkManager, item: HomeworkItem, sub: Subtask, today: date
 ) -> TodoItem:
-    """The to-do item of a subtask: ``↳ <label or subject>: <title>``."""
+    """The to-do item of a subtask: ``↳ <subject>: <title>``."""
     return TodoItem(
-        summary=f"{SUBTASK_PREFIX}{subtask_label(manager, item)}: {sub.title}",
+        summary=f"{SUBTASK_PREFIX}{item.subject}: {sub.title}",
         uid=subtask_uid(item.uid, sub.id),
         status=TodoItemStatus.COMPLETED if sub.done else TodoItemStatus.NEEDS_ACTION,
         due=subtask_current_date(sub, item.due_date, today),

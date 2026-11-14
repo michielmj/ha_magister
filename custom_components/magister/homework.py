@@ -303,13 +303,17 @@ class HomeworkManager:
             self._by_uid = {i.uid: i for items in self._items.values() for i in items}
         return self._items.get(child_id, [])
 
+    def _refresh(self) -> None:
+        """Rebuild the item caches when the coordinator data changed."""
+        self.items(0)
+
     def _invalidate(self) -> None:
         """Rebuild the items (and their effective state) on next use."""
         self._items_source = None
 
     def effective(self, item: HomeworkItem) -> EffectiveState:
         """The effective state of an item (labels, overrides and weights applied)."""
-        self.items(0)  # refresh the caches when the data changed
+        self._refresh()
         state = self._effective.get(item.uid)
         if state is None:
             weights = self.weights(uid_child_id(item.uid) or 0)
@@ -657,7 +661,7 @@ class HomeworkManager:
         return dt_util.parse_datetime(str(entry.get(UPDATED) or ""))
 
     def _item_by_uid(self, uid: str) -> HomeworkItem | None:
-        self.items(0)  # refresh the caches when the data changed
+        self._refresh()
         return self._by_uid.get(uid)
 
     def has_subtasks(self, uid: str) -> bool:
@@ -680,6 +684,8 @@ class HomeworkManager:
         if (ref := split_subtask_uid(uid)) is not None:
             self._set_subtask_progress(ref, progress)
             return
+        if self.has_subtasks(uid):
+            return  # derived: the own progress is not used while it has subtasks
         entry = self._progress.get(uid)
         previous = entry[PROGRESS] if entry else 0
         last_partial = entry[LAST_PARTIAL] if entry else 0

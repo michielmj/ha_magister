@@ -252,7 +252,7 @@ data:
 - **Deelstappen** (sinds 1.5.0). Elk huiswerkitem, vooral een toets, kan worden opgesplitst in
   maximaal 20 **deelstappen** met een titel (1 tot 100 tekens) en een geplande dag, bijvoorbeeld
   *H4 woordjes* op vrijdag. De geplande dag is vandaag of later en hooguit de dag van de les
-  (standaard vandaag). Een open deelstap **schuift dag voor dag door** (weekenden meegeteld),
+  (standaard vandaag). Is de les vandaag of in het verleden, dan is alleen de dag van de les toegestaan. Een open deelstap **schuift dag voor dag door** (weekenden meegeteld),
   maar nooit voorbij de les; is de les voorbij, dan blijft hij op die dag staan, als te laat
   gemarkeerd. Een afgeronde deelstap blijft staan op de dag waarop hij is afgerond. Deelstappen
   hebben dezelfde voortgangsstappen als items (0/25/50/75/100; aanvinken zet 100, uitvinken
@@ -263,7 +263,7 @@ data:
   item vervangen door zijn deelstappen: elke deelstap telt met het gewicht van het item gedeeld
   door het aantal deelstappen, in de periode van zijn huidige dag (de attributen `items` en
   `completed` tellen deze onderdelen). In de to-do-weergave van Home Assistant staat elke
-  deelstap als `↳ <label>: <titel>` met zijn huidige dag als einddatum en kan hij worden
+  deelstap als `↳ <vak>: <titel>` met zijn huidige dag als einddatum en kan hij worden
   aangevinkt; het item zelf kan niet worden aangevinkt zolang het deelstappen heeft. Het aantal
   van de lijst toont de open onderdelen (items zonder deelstappen en deelstappen) van vandaag of
   later. Bij een uitgeschakeld item zijn de deelstappen verborgen en tellen ze niet mee. Ze worden
