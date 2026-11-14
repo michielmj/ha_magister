@@ -71,7 +71,6 @@ from .homework import (
     Payload,
     appointment_to_dict,
     item_to_dict,
-    override_to_dict,
     progress_payload,
     strict_progress,
     subtask_title,
@@ -174,14 +173,14 @@ def coach_name(child: dict[str, Any], position: int) -> str:
     name when Magister gave neither; a full name has spaces and equals the stored name.
     """
     short = str(child[CHILD_SHORT_NAME]).strip()
-    if short and not (short == str(child.get(CHILD_NAME, "")).strip() and " " in short):
+    if short and short != str(child.get(CHILD_NAME, "")).strip():
         return short
     return f"Kind {position + 1}"
 
 
 def _entry_suffix(entry: MagisterConfigEntry) -> str:
     """A short stable tag of an entry (not the school host)."""
-    return hashlib.sha256(entry.entry_id.encode()).hexdigest()[:4]
+    return hashlib.sha256(entry.entry_id.encode()).hexdigest()[:8]
 
 
 @callback
@@ -189,12 +188,12 @@ def async_accessible_children(
     hass: HomeAssistant, user_id: str | None
 ) -> list[CoachChild]:
     """The children whose coach is enabled and linked to the (active) user."""
-    children: list[CoachChild] = []
+    found: list[tuple[MagisterConfigEntry, dict[str, Any], dict[str, Any]]] = []
     seen: set[tuple[str, int]] = set()
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.state is not ConfigEntryState.LOADED:
             continue
-        for position, child in enumerate(entry.data[CONF_CHILDREN]):
+        for child in entry.data[CONF_CHILDREN]:
             child_id = int(child[CHILD_ID])
             if (str(entry.data[CONF_HOST]), child_id) in seen:
                 continue  # the same child under two entries (legacy): the first wins
@@ -206,14 +205,17 @@ def async_accessible_children(
                 and user_id in users
             ):
                 seen.add((str(entry.data[CONF_HOST]), child_id))
-                children.append(
-                    CoachChild(
-                        entry,
-                        child_id,
-                        coach_name(child, position),
-                        guidelines_of(settings),
-                    )
-                )
+                found.append((entry, child, settings))
+    # ``Kind N`` counts within what this user may access, not within the entry.
+    children = [
+        CoachChild(
+            entry,
+            int(child[CHILD_ID]),
+            coach_name(child, position),
+            guidelines_of(settings),
+        )
+        for position, (entry, child, settings) in enumerate(found)
+    ]
     # Children of different schools can share an id: tell those apart by a short tag of
     # their entry, so that a reference never means two children.
     counts = Counter(c.child_id for c in children)
@@ -891,9 +893,9 @@ class SetLabelOverrideTool(CoachTool):
         mode = call.args["mode"]
         title = _title_of(call.child, uid)
         entity = call.entity
-        was = override_to_dict(call.manager.find_item(call.child.child_id, uid))
+        was = call.manager.stored_override(uid)
         item = entity.set_override(uid, mode, call.args.get("label"), by_name=True)
-        if (item["override"] if item else None) == was:
+        if call.manager.stored_override(uid) == was:
             pass  # nothing changed: no logbook entry
         elif mode == MODE_REPLACE:
             label = entity.label_option(call.args["label"], by_name=True)

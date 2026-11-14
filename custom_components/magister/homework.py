@@ -509,6 +509,12 @@ class HomeworkManager:
             self._labels_changed()
         return self.find_item(child_id, uid)
 
+    def stored_override(self, uid: str) -> dict[str, str] | None:
+        """A copy of the stored override entry of an item (``None`` when none)."""
+        entry = self._progress.get(uid)
+        stored = entry.get(OVERRIDE) if entry else None
+        return dict(stored) if stored else None
+
     @callback
     def add_label(
         self, child_id: int, uid: str, label: LabelOption, note: str

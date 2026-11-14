@@ -25,6 +25,7 @@ from custom_components.magister.coach import (
     COACH_API_NAME,
     async_accessible_children,
     coach_tools,
+    pick_child,
 )
 from custom_components.magister.coach_text import DEFAULT_GUIDELINES
 from custom_components.magister.const import (
@@ -887,11 +888,14 @@ async def test_colliding_child_ids_across_schools_get_distinct_ids(
     children = async_accessible_children(hass, parent.id)
     ids = [c.id for c in children]
     assert len(set(ids)) == 2
-    assert all(re.fullmatch(r"1001-[0-9a-f]{4}", i) for i in ids)
+    assert all(re.fullmatch(r"1001-[0-9a-f]{8}", i) for i in ids)
     assert not any("example" in i or "magister" in i for i in ids)
     assert ids == [c.id for c in async_accessible_children(hass, parent.id)]
     listed = (await ok(hass, parent.id, "list_children"))["children"]
     assert [c["id"] for c in listed] == ids
+    # The second tagged id routes to the second entry, the first to the first.
+    for tagged, entry in zip(ids, (first, second), strict=True):
+        assert pick_child(children, tagged).entry is entry
     # A bare id is ambiguous now (the name is too); the tagged id picks one child.
     assert await fails(hass, parent.id, "get_progress", child="1001") == (
         "child_not_found"
@@ -1177,3 +1181,130 @@ async def test_no_leaks_in_errors_and_logbook(
     for forbidden in ("magister.net", "school.magister", "1001:", "Docent"):
         assert forbidden not in text, forbidden
     assert not re.search(r"\w+\.\w+:\d+:\d+", text)
+
+
+async def test_short_name_equal_to_a_single_word_full_name_is_not_used(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A one-word short name equal to the full name falls back to ``Kind <n>``."""
+    user = await make_user(hass)
+    FakeMagister(mocked)
+    entry = make_entry(
+        options=coach_options(**{"1001": {"enabled": True, "users": [user.id]}})
+    )
+    data = {**entry.data}
+    data["children"] = [{"id": 1001, "name": "Anna", "short_name": "Anna"}]
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=entry.title,
+        unique_id=entry.unique_id,
+        data=data,
+        options=dict(entry.options),
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    children = (await ok(hass, user.id, "list_children"))["children"]
+    assert children == [{"id": "1001", "name": "Kind 1"}]
+
+
+async def test_kind_number_counts_within_the_users_children(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A user linked to the second child only still sees ``Kind 1``."""
+    parent = await make_user(hass, "Ouder")
+    only_second = await make_user(hass, "Tweede")
+    FakeMagister(mocked, children=TWO_CHILDREN)
+    entry = make_entry(
+        children=[(1001, "Anna A"), (1002, "Bram B")],
+        options=coach_options(
+            **{
+                "1001": {"enabled": True, "users": [parent.id]},
+                "1002": {"enabled": True, "users": [parent.id, only_second.id]},
+            }
+        ),
+    )
+    data = {**entry.data}
+    data["children"] = [
+        {"id": 1001, "name": "Anna A", "short_name": "Anna A"},
+        {"id": 1002, "name": "Bram B", "short_name": "Bram B"},
+    ]
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=entry.title,
+        unique_id=entry.unique_id,
+        data=data,
+        options=dict(entry.options),
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    names = [
+        c["name"] for c in (await ok(hass, parent.id, "list_children"))["children"]
+    ]
+    assert names == ["Kind 1", "Kind 2"]
+    assert (await ok(hass, only_second.id, "list_children"))["children"] == [
+        {"id": "1002", "name": "Kind 1"}
+    ]
+
+
+async def test_override_noop_detection_uses_the_stored_entry(
+    hass: HomeAssistant, mocked: aioresponses, logbook: list[Any]
+) -> None:
+    """Clearing a stuck override and replacing a dangling one are real changes."""
+    user = await make_user(hass)
+    fake = FakeMagister(mocked)
+    entry = make_entry(
+        options=coach_options(**{"1001": {"enabled": True, "users": [user.id]}})
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    manager = entry.runtime_data.homework
+    uid = f"school.magister.net:1001:{HOMEWORK}"
+
+    # disable over a stored replace whose label option no longer exists
+    await ok(
+        hass,
+        user.id,
+        "set_label_override",
+        appointment=HOMEWORK,
+        mode="replace",
+        label="Proefwerk",
+    )
+    manager._progress[uid]["override"]["label"] = "gone"
+    manager._labels_changed()
+    assert manager.find_item(1001, uid).override is None  # type: ignore[union-attr]
+    before = len(logbook)
+    await ok(hass, user.id, "set_label_override", appointment=HOMEWORK, mode="disable")
+    assert len(logbook) == before + 1
+    assert manager.stored_override(uid) == {"mode": "disable"}
+
+    # clear on an appointment that lost its Magister label, override still stored
+    for appointment in fake.appointments[1001]:
+        if str(appointment["Id"]) == HOMEWORK:
+            appointment["InfoType"] = 0
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert manager.find_item(1001, uid) is None
+    before = len(logbook)
+    await ok(hass, user.id, "set_label_override", appointment=HOMEWORK, mode="clear")
+    assert len(logbook) == before + 1
+    assert manager.stored_override(uid) is None
+    await ok(hass, user.id, "set_label_override", appointment=HOMEWORK, mode="clear")
+    assert len(logbook) == before + 1  # now there is really nothing to clear
+
+
+async def test_disabled_overdue_item_is_not_listed(
+    hass: HomeAssistant, student: Any
+) -> None:
+    """A disabled item that is overdue stays out of the default list."""
+    default = await ok(hass, student.id, "list_homework")
+    overdue = [i for i in default["items"] if i["date"] < "2026-11-13"]
+    assert overdue
+    target = overdue[0]["id"]
+    await ok(hass, student.id, "set_label_override", appointment=target, mode="disable")
+    again = await ok(hass, student.id, "list_homework")
+    assert target not in {i["id"] for i in again["items"]}
+    shown = await ok(hass, student.id, "list_homework", include_completed=True)
+    assert target not in {i["id"] for i in shown["items"] if i["date"] < "2026-11-13"}
