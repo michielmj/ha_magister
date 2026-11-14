@@ -125,7 +125,8 @@ A subscribe event with the new state follows.
 
 Errors: `not_found`, `item_not_found` (the uid is not in this entity's list), `item_disabled` (since 1.4.0: restore the
 Magister label first), `item_has_subtasks` (since 1.5.0: the item's progress is derived), `invalid_format`, `unauthorized`
-(no control permission).
+(no control permission). For a subtask uid: `item_disabled` when its item is disabled (checked first), otherwise
+`item_not_found` when the subtask does not exist or is not visible.
 
 ## `magister/homework/appointments` (since 1.3.0)
 Lists one day's appointments for the add-label dialog, **including appointments without any label**.
@@ -198,13 +199,14 @@ Control permission. The result is the updated parent item, and a subscribe event
 ```
 `date` is optional (default today). Rules: `today ≤ date ≤ item date`, or exactly the item date when that is not in the future.
 
-`magister/homework/update_subtask`: `{"entity_id", "subtask": <subtask uid>, "title"?: str, "date"?: "YYYY-MM-DD"}`. At least one of `title` or `date` must be present.
+`magister/homework/update_subtask`: `{"entity_id", "subtask": <subtask uid>, "title"?: str, "date"?: "YYYY-MM-DD"}`. At least one of `title` or `date` must be present; if both are missing the result is `invalid_format`.
 
 `magister/homework/delete_subtask`: `{"entity_id", "subtask": <subtask uid>}`.
 
 Errors:
 - `not_found`, `invalid_format` (the title is empty or longer than 100 characters, or the date format is wrong);
-- `item_not_found`, `subtask_not_found`;
+- `item_not_found` (the parent item is not, or no longer, in the list), `subtask_not_found` (an unknown subtask id, or a uid
+  without `:sub:`);
 - `invalid_date` (outside the allowed range);
 - `item_disabled`;
 - `too_many_subtasks` (at most 20 per item);
