@@ -148,7 +148,7 @@ Errors: `not_found`, `invalid_format`, `appointment_not_found`, `label_not_found
 - Result: `{"item": <item> | null}`. It is `null` when the appointment left the planner because it has no labels any more.
 - A subscribe event follows.
 
-Errors: `not_found`, `invalid_format`, `appointment_not_found`, `label_not_on_appointment`, `unauthorized`.
+Errors: `not_found`, `invalid_format`, `appointment_not_found`, `label_not_found` (the id is not a label option of this child), `label_not_on_appointment`, `unauthorized`.
 
 ## Equivalent services
 These target the homework to-do entity and behave the same as the WebSocket commands, for automations:
