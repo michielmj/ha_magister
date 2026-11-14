@@ -366,6 +366,22 @@ show_progress_next_week: false
   de afgeronde (schakelaar **Afgerond** aan), doorgestreept en met uitgeschakelde bediening; het menu
   biedt *Herstellen*. Wijzigingen zijn direct zichtbaar en worden met een melding teruggedraaid als
   opslaan mislukt.
+- **Deelstappen** (sinds 1.5.0). Onder een item opent **+ deelstap** een klein formulier: een titel
+  (maximaal 100 tekens, verplicht) en een dag (vanaf vandaag tot en met de dag van de les, standaard
+  vandaag; vast op de dag van de les als die vandaag of in het verleden is). Toevoegen wacht op het
+  antwoord en toont een weigering (te veel deelstappen, een dag die niet mag, een uitgeschakeld item) in
+  het formulier. Een deelstap is een ingesprongen "↳"-regel op zijn **huidige dag** met een verwijzing
+  naar het item ("voor Proefwerk Engels (di 17 nov)"), een eigen vinkje en dezelfde stappen
+  0/25/50/75/100, een potlood om titel en dag te wijzigen en een kruisje om te verwijderen (met
+  bevestiging). Niet-afgeronde deelstappen van een les die voorbij is, zijn **achterstallig**: ze worden
+  altijd getoond, in een groep "Achterstallig" bovenaan (ook als **Eerder** uit staat). Afgeronde
+  deelstappen volgen de schakelaar **Afgerond**, andere eerdere dagen de schakelaar **Eerder**. Een
+  item met deelstappen toont "1 van 3 deelstappen" en het afgeleide percentage als balk die je niet kunt
+  aanpassen (zijn eigen vinkje is uitgeschakeld en de stappen zijn verborgen). Aanvinken, stappen,
+  wijzigen en verwijderen zijn direct zichtbaar en worden met een melding teruggedraaid als opslaan
+  mislukt. Alles werkt met het toetsenbord (Escape sluit een formulier of bevestiging) en met een
+  schermlezer; de focus gaat na toevoegen naar de nieuwe regel en na verwijderen naar een naastgelegen
+  knop.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
 

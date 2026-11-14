@@ -343,6 +343,20 @@ show_progress_next_week: false
   chip (without ×; restoring goes through the menu). Disabled items are listed with the completed
   ones (switch **Done** on), struck through, with their controls disabled; the menu offers
   *Restore*. Changes show at once and are rolled back with a message if saving fails.
+- **Subtasks** (since 1.5.0). Under an item, **+ subtask** opens a small form: a title (up to 100
+  characters, required) and a day (from today up to the day of the lesson, today by default; fixed to
+  the lesson's day when that is today or past). Adding waits for Magister's answer and shows a refusal
+  (too many subtasks, a day that is not allowed, a disabled item) in the form. A subtask is an indented
+  "↳" row on its **current day** with a reference to the item ("for Test English (Tue 17 Nov)"), its own
+  checkbox and the same 0/25/50/75/100 steps, a pencil to edit title and day, and a cross to delete
+  (with confirmation). Subtasks of a lesson that has passed and are not done are **overdue**: they are
+  always shown, in an "Overdue" group at the top (also with **Earlier** off). Done subtasks follow the
+  **Done** switch, other earlier days the **Earlier** switch. An item with subtasks shows "1 of 3
+  subtasks" and the derived percentage as a read-only bar (its own checkbox is disabled and its steps are
+  hidden). Ticking, steps, editing and deleting show at once and are rolled back with a message if
+  saving fails. Everything works with the keyboard (Escape closes a form or confirmation) and with a
+  screen reader; the focus moves to the new row after adding and to a neighbouring control after
+  deleting.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
 
 ## How it behaves

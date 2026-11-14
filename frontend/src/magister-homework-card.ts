@@ -1147,7 +1147,7 @@ export class MagisterHomeworkCard extends LitElement {
               <span class="subject sub-title">${subtask.title}</span>
               ${subtask.overdue ? html`<span class="badge">${texts.sub.overdue}</span>` : nothing}
               ${enabled
-                ? html`<button
+                ? html`<span class="sub-actions"><button
                       type="button"
                       class="icon-btn"
                       data-edit=${subtask.uid}
@@ -1166,7 +1166,7 @@ export class MagisterHomeworkCard extends LitElement {
                       @click=${() => {
                         this._askDeleteSubtask(subtask.uid);
                       }}
-                    >✕</button>`
+                    >✕</button></span>`
                 : nothing}
             </div>
             <div class="meta ref">${reference}</div>`}
@@ -2147,9 +2147,27 @@ export class MagisterHomeworkCard extends LitElement {
     .ref {
       overflow-wrap: anywhere;
     }
+    .progress.derived {
+      flex-wrap: wrap;
+      row-gap: 2px;
+    }
     .progress.derived .track {
-      flex: 0 1 260px;
+      flex: 1 1 120px;
+      max-width: 260px;
       margin: 0;
+    }
+    .sub-actions {
+      display: inline-flex;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    .item.subtask .head {
+      flex-wrap: nowrap;
+    }
+    .sub-title {
+      flex: 1 1 0;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .sub-count {
       white-space: nowrap;

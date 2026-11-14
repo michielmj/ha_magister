@@ -448,7 +448,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
               <span class="arrow" aria-hidden="true">↳</span>
               <span class="subject sub-title">${e.title}</span>
               ${e.overdue?M`<span class="badge">${n.sub.overdue}</span>`:P}
-              ${r?M`<button
+              ${r?M`<span class="sub-actions"><button
                       type="button"
                       class="icon-btn"
                       data-edit=${e.uid}
@@ -463,7 +463,7 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
                       title=${n.sub.delete}
                       aria-label=${X(n.sub.delete_aria,{title:e.title})}
                       @click=${()=>{this._askDeleteSubtask(e.uid)}}
-                    >✕</button>`:P}
+                    >✕</button></span>`:P}
             </div>
             <div class="meta ref">${c}</div>`}
         ${s?M`<div
@@ -1065,9 +1065,27 @@ var e=globalThis,t=e.ShadowRoot&&(e.ShadyCSS===void 0||e.ShadyCSS.nativeShadow)&
     .ref {
       overflow-wrap: anywhere;
     }
+    .progress.derived {
+      flex-wrap: wrap;
+      row-gap: 2px;
+    }
     .progress.derived .track {
-      flex: 0 1 260px;
+      flex: 1 1 120px;
+      max-width: 260px;
       margin: 0;
+    }
+    .sub-actions {
+      display: inline-flex;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    .item.subtask .head {
+      flex-wrap: nowrap;
+    }
+    .sub-title {
+      flex: 1 1 0;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .sub-count {
       white-space: nowrap;
