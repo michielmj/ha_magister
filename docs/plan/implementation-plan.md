@@ -65,6 +65,10 @@ CHANGELOG, version tagging, GitHub release, HACS validation green.
   storing the password. This is undocumented and Magister may reject software authenticators,
   so it would need a spike first.
 
+## Publication
+- HACS default store: **on hold** (PM, 2026-11-14) pending Magister's policy and a personal test period.
+  See `docs/plan/hacs-default-submission.md`.
+
 ## Post-1.0 follow-ups (from the final review, non-blocking)
 - Duplicate-child repair: log the warning again after a restart (`issue is None or not issue.active`),
   only once per pair; resync when the duplicate is fixed on a not-loaded entry; tests that go through the options

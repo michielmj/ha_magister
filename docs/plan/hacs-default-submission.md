@@ -1,6 +1,10 @@
 # Submitting to the HACS default store
 
-Status (2026-11-14): **not submitted yet**. The PM decided to submit after 1.4.0 is released.
+Status (2026-11-14): **on hold, by PM decision.** Before any public listing the PM wants to:
+1. understand Magister's (Iddink's) policy on unofficial integrations and automated access to its service;
+2. use the integration personally for a while, so that bugs that could make someone miss a lesson or homework surface first.
+
+Revisit only when the PM asks. The steps below remain valid as reference.
 
 Source: the `hacs/default` repository (README, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/workflows/checks.yml`,
 `scripts/check/*`), read on 2026-11-14. The guides at https://hacs.xyz/docs/publish/start and
