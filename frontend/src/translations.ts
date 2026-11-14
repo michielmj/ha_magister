@@ -39,7 +39,7 @@ const nl = {
   show_past_switch: "Eerder",
   show_past_tip: "Toon eerdere dagen",
   add_label: "Label toevoegen",
-  remove_label: "Label verwijderen",
+  remove_label: "Label {name} verwijderen",
   confirm_remove: "Label {name} verwijderen?",
   confirm_yes: "Verwijderen",
   confirm_no: "Annuleren",
@@ -134,7 +134,7 @@ const en: Texts = {
   show_past_switch: "Earlier",
   show_past_tip: "Show earlier days",
   add_label: "Add label",
-  remove_label: "Remove label",
+  remove_label: "Remove label {name}",
   confirm_remove: "Remove label {name}?",
   confirm_yes: "Remove",
   confirm_no: "Cancel",
@@ -190,7 +190,6 @@ const en: Texts = {
 
 export const TRANSLATIONS: Record<Language, Texts> = { nl, en };
 
-/** Dutch for any Dutch locale (nl, nl-BE, ...), English otherwise (the default). */
 /** The card's language: the config override, or the Home Assistant language when "auto". */
 export function effectiveLanguage(
   setting: "auto" | Language | undefined,
@@ -199,6 +198,7 @@ export function effectiveLanguage(
   return setting === "nl" || setting === "en" ? setting : languageOf(hassLanguage);
 }
 
+/** Dutch for any Dutch locale (nl, nl-BE, ...), English otherwise (the default). */
 export function languageOf(language: string | undefined): Language {
   return language?.toLowerCase().startsWith("nl") ? "nl" : "en";
 }

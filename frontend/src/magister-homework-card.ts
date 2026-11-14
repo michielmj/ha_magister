@@ -398,15 +398,27 @@ export class MagisterHomeworkCard extends LitElement {
     const key = labelKey(uid, label.id);
     this._removing.add(key);
     this._hiddenLabels = new Set(this._hiddenLabels).add(key);
+    // The focused × or confirm button is gone now: the next chip, else the item's
+    // checkbox, else the + button.
+    void this.updateComplete.then(() => {
+      const row = this.shadowRoot?.querySelector(`li[data-uid="${CSS.escape(uid)}"]`);
+      const target =
+        row?.querySelector<HTMLElement>(".chip-remove:not(:disabled)") ??
+        row?.querySelector<HTMLElement>('input[type="checkbox"]') ??
+        this.shadowRoot?.querySelector<HTMLElement>(".add");
+      target?.focus();
+    });
     try {
       await hass.callWS({ type: REMOVE_LABEL, entity_id: entity, appointment: uid, label: label.id });
       this._removing.delete(key);
     } catch (error) {
       this._removing.delete(key);
+      const code = (error as WsError | undefined)?.code;
+      // The label is already gone from the lesson: that is what was asked for.
+      if (code === "label_not_on_appointment") return;
       const next = new Set(this._hiddenLabels);
       next.delete(key);
       this._hiddenLabels = next;
-      const code = (error as WsError | undefined)?.code;
       const texts = this._texts();
       this._showToast(
         (code ? texts.label_errors[code] : undefined) ?? texts.save_failed,
@@ -482,6 +494,13 @@ export class MagisterHomeworkCard extends LitElement {
   }
 
   // -- rendering --
+
+  protected override willUpdate(): void {
+    // A removal can no longer be confirmed while the card is read-only.
+    if (this._confirm && (this._offline || this._payload?.available !== true)) {
+      this._confirm = undefined;
+    }
+  }
 
   protected override render(): TemplateResult {
     const config = this._config;
@@ -644,6 +663,7 @@ export class MagisterHomeworkCard extends LitElement {
     const expanded = this._expanded.has(item.uid);
     const notes = item.manual_labels.filter((label) => label.note !== "");
     const confirm = this._confirm?.uid === item.uid ? this._confirm.label : undefined;
+    const itemUid = item.uid;
     const classes = [
       "item",
       item.is_test ? "test" : "",
@@ -652,7 +672,7 @@ export class MagisterHomeworkCard extends LitElement {
     ]
       .filter(Boolean)
       .join(" ");
-    return html`<li class=${classes}>
+    return html`<li class=${classes} data-uid=${itemUid}>
       <input
         type="checkbox"
         .checked=${item.completed}
@@ -713,7 +733,7 @@ export class MagisterHomeworkCard extends LitElement {
               <button type="button" class="cancel" @click=${() => {
                 this._cancelRemove();
               }}>${texts.confirm_no}</button>
-              <button type="button" class="danger" @click=${() => {
+              <button type="button" class="danger" ?disabled=${!enabled} @click=${() => {
                 void this._removeLabel(item.uid, confirm);
               }}>${texts.confirm_yes}</button>
             </div>`
@@ -734,8 +754,8 @@ export class MagisterHomeworkCard extends LitElement {
         type="button"
         class="chip-remove"
         data-key=${labelKey(uid, label.id)}
-        aria-label=${texts.remove_label}
-        title=${format(texts.confirm_remove, { name: label.name })}
+        aria-label=${format(texts.remove_label, { name: label.name })}
+        title=${format(texts.remove_label, { name: label.name })}
         ?disabled=${!enabled}
         @click=${() => {
           this._askRemove(uid, label);

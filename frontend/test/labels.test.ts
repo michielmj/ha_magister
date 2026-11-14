@@ -243,7 +243,10 @@ describe("manual label chips", () => {
     const { card } = await setup();
     const removes = [...root(card).querySelectorAll(".chip-remove")];
     expect(removes).toHaveLength(2);
-    expect(removes.map((node) => node.getAttribute("aria-label"))).toEqual(["Remove label", "Remove label"]);
+    expect(removes.map((node) => node.getAttribute("aria-label"))).toEqual([
+      "Remove label Toetsweek",
+      "Remove label Inhalen",
+    ]);
     expect(root(card).querySelector(".chip:not(.manual) button")).toBeNull();
   });
 
@@ -294,8 +297,53 @@ describe("manual label chips", () => {
     expect(text(card, ".chip")).toHaveLength(2);
   });
 
-  it("rolls back and explains the error code when removing fails", async () => {
+  it("treats label_not_on_appointment as done: the label stays gone, no message", async () => {
     const callWS = vi.fn().mockRejectedValue(wsError("label_not_on_appointment"));
+    const { card } = await setup([withLabels], callWS);
+    button(card, ".chip-remove").click();
+    await flush(card);
+    button(card, ".confirm .danger").click();
+    await flush(card);
+    expect(text(card, ".chip")).toHaveLength(2);
+    expect(root(card).querySelector(".toast")).toBeNull();
+  });
+
+  it("moves focus to the next chip, else the checkbox, else the + button", async () => {
+    const { card } = await setup();
+    button(card, ".chip-remove").click();
+    await flush(card);
+    button(card, ".confirm .danger").click();
+    await flush(card);
+    expect(root(card).activeElement).toBe(root(card).querySelector(".chip-remove"));
+    button(card, ".chip-remove").click();
+    await flush(card);
+    button(card, ".confirm .danger").click();
+    await flush(card);
+    expect(root(card).activeElement).toBe(root(card).querySelector('input[type="checkbox"]'));
+  });
+
+  it("focuses the + button when the item itself leaves", async () => {
+    const only = item({ uid: "m", info_type: null, text: "", manual_labels: [manual()] });
+    const { card } = await setup([only]);
+    button(card, ".chip-remove").click();
+    await flush(card);
+    button(card, ".confirm .danger").click();
+    await flush(card);
+    expect(root(card).activeElement).toBe(root(card).querySelector(".add"));
+  });
+
+  it("drops a pending confirmation when the card goes offline", async () => {
+    const { card, connection } = await setup();
+    button(card, ".chip-remove").click();
+    await flush(card);
+    expect(root(card).querySelector(".confirm")).not.toBeNull();
+    connection.emit("disconnected");
+    await flush(card);
+    expect(root(card).querySelector(".confirm")).toBeNull();
+  });
+
+  it("rolls back and explains the error code when removing fails", async () => {
+    const callWS = vi.fn().mockRejectedValue(wsError("label_not_found"));
     const { card } = await setup([withLabels], callWS);
     button(card, ".chip-remove").click();
     await flush(card);
@@ -303,7 +351,7 @@ describe("manual label chips", () => {
     await flush(card);
     expect(text(card, ".chip")).toHaveLength(3);
     expect(root(card).querySelector(".toast")?.textContent).toContain(
-      "This label is no longer on the lesson.",
+      "This label no longer exists.",
     );
   });
 
@@ -459,8 +507,8 @@ describe("add label dialog", () => {
     expect(inner.querySelector(".lesson.cancelled")).not.toBeNull();
     const date = field<HTMLInputElement>(inner, 'input[type="date"]');
     expect(date.value).toBe(TODAY);
-    expect(date.min).toBe("2026-11-11");
-    expect(date.max).toBe("2026-11-20");
+    expect(date.min).toBe(TODAY);
+    expect(date.max).toBe("2026-12-04");
     expect(inner.querySelector("small")?.textContent).toBe("Friday 13 November");
   });
 
@@ -608,6 +656,16 @@ describe("add label dialog", () => {
     }
   });
 
+  it("reports a native close (not through our buttons) once, so + can reopen", async () => {
+    const { card, inner } = await open();
+    field<HTMLDialogElement>(inner, "dialog").close();
+    await flush(card);
+    expect(root(card).querySelector("magister-label-dialog")).toBeNull();
+    button(card, ".add").click();
+    await flush(card);
+    expect(root(card).querySelector("magister-label-dialog")).not.toBeNull();
+  });
+
   it("does not save twice while a save is running", async () => {
     let resolve: (value: unknown) => void = () => undefined;
     const { card, callWS, inner } = await open((message) =>
@@ -634,6 +692,6 @@ describe("Dutch label texts", () => {
     const { card, connection } = await mount({}, vi.fn(), "nl");
     connection.push(payload([item({ manual_labels: [manual()] })], { labels: LABELS }));
     await flush(card);
-    expect(button(card, ".chip-remove").getAttribute("aria-label")).toBe("Label verwijderen");
+    expect(button(card, ".chip-remove").getAttribute("aria-label")).toBe("Label Toetsweek verwijderen");
   });
 });

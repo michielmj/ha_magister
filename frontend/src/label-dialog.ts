@@ -56,6 +56,7 @@ export class MagisterLabelDialog extends LitElement {
   declare _error: string;
 
   private _request = 0;
+  private _closedSent = false;
 
   constructor() {
     super();
@@ -96,6 +97,13 @@ export class MagisterLabelDialog extends LitElement {
   private _close(): void {
     const dialog = this._dialog();
     if (dialog?.open) dialog.close();
+    this._emitClosed();
+  }
+
+  /** Once per dialog, whether it closed through us or natively. */
+  private _emitClosed(): void {
+    if (this._closedSent) return;
+    this._closedSent = true;
     this.dispatchEvent(new CustomEvent("dialog-closed", { bubbles: true, composed: true }));
   }
 
@@ -170,6 +178,9 @@ export class MagisterLabelDialog extends LitElement {
     const canSave = !this._saving && this._selected !== "" && this._label !== "";
     return html`<dialog
       aria-labelledby="title"
+      @close=${() => {
+        this._emitClosed();
+      }}
       @cancel=${(event: Event) => {
         event.preventDefault();
         this._close();

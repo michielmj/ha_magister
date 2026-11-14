@@ -267,7 +267,9 @@ show_progress_next_week: false
   completed items and earlier days. The config sets where they start; what you choose on the card is
   remembered **per browser** (localStorage, per card). Saving a changed card configuration resets
   them to the configured values. Without browser storage (a private window, for example) the
-  switches still work but are not remembered.
+  switches still work but are not remembered. A card you duplicate (or paste as YAML) shares the
+  `card_id` and so the remembered switches of the original; remove `card_id` from the copy's YAML
+  to give it its own.
 - **Adding a label.** The **+** button in the header (shown when the child has label options and
   Magister is available) opens a dialog: pick a day, pick one of its lessons, pick a label (set
   under *Configure > Labels*, with its kind shown) and optionally type a note, then *Save*. The

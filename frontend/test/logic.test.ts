@@ -252,8 +252,11 @@ describe("manual label helpers", () => {
 
   it("bounds the dates by today, the days ahead and the items", () => {
     const items = [item({ date: "2026-11-10" }), item({ date: "2026-11-30" })];
-    expect(dateBounds(items, TODAY, 7)).toEqual({ min: "2026-11-10", max: "2026-11-30" });
-    expect(dateBounds([], TODAY, 7)).toEqual({ min: TODAY, max: "2026-11-20" });
+    // labels go on today or later; at least 21 days, or further for later items or days_ahead
+    expect(dateBounds(items, TODAY, 7)).toEqual({ min: TODAY, max: "2026-12-04" });
+    expect(dateBounds([item({ date: "2026-12-20" })], TODAY, 7).max).toBe("2026-12-20");
+    expect(dateBounds([], TODAY, 40)).toEqual({ min: TODAY, max: "2026-12-23" });
+    expect(dateBounds([], TODAY, 7)).toEqual({ min: TODAY, max: "2026-12-04" });
   });
 
   it("reads clock times from the text", () => {
@@ -297,6 +300,18 @@ describe("remembered switches", () => {
     window.localStorage.setItem("nul", "null");
     expect(loadSwitches("nul")).toBeUndefined();
     expect(loadSwitches("missing")).toBeUndefined();
+  });
+
+  it("removes the values of earlier configs of the same card when saving", () => {
+    const on = { show_completed: true, show_past: false };
+    window.localStorage.setItem("magister-homework-card:todo.a:id1:aaaaaaaa", "{}");
+    window.localStorage.setItem("magister-homework-card:todo.a:id2:aaaaaaaa", "{}");
+    window.localStorage.setItem("other", "x");
+    saveSwitches("magister-homework-card:todo.a:id1:bbbbbbbb", on);
+    expect(window.localStorage.getItem("magister-homework-card:todo.a:id1:aaaaaaaa")).toBeNull();
+    expect(window.localStorage.getItem("magister-homework-card:todo.a:id2:aaaaaaaa")).toBe("{}");
+    expect(window.localStorage.getItem("other")).toBe("x");
+    expect(loadSwitches("magister-homework-card:todo.a:id1:bbbbbbbb")).toEqual(on);
   });
 
   it("hashes and ids are stable and well-formed", () => {

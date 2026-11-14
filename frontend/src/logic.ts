@@ -252,19 +252,24 @@ export function applyLabelRemovals(
   return result;
 }
 
-/** The first and last date the add-label dialog offers: today, the dates of the items and the days ahead. */
+/** Days after today that the add-label dialog always offers (the fetch window is at least this long). */
+export const MIN_LABEL_DAYS = 21;
+
+/**
+ * The first and last date the add-label dialog offers. Labels go on today or later;
+ * the last date is the later of today + days ahead and the last item, but at least
+ * today + 21 days. The backend still checks the real window (invalid_date).
+ */
 export function dateBounds(
   items: readonly HomeworkItem[],
   today: string,
   daysAhead: number,
 ): { min: string; max: string } {
-  let min = today;
-  let max = addDays(today, daysAhead);
+  let max = addDays(today, Math.max(daysAhead, MIN_LABEL_DAYS));
   for (const item of items) {
-    if (item.date < min) min = item.date;
     if (item.date > max) max = item.date;
   }
-  return { min, max };
+  return { min: today, max };
 }
 
 /** "09:10" from a local ISO datetime (read from the text, so no time zone can shift it). */
@@ -356,5 +361,18 @@ export function saveSwitches(key: string, switches: Switches): void {
     window.localStorage.setItem(key, JSON.stringify(switches));
   } catch {
     // no storage, or full
+    return;
+  }
+  // Values of earlier configs of this card (same entity and id) are of no use any more.
+  try {
+    const prefix = key.slice(0, key.lastIndexOf(":") + 1);
+    const stale: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index++) {
+      const other = window.localStorage.key(index);
+      if (other !== null && other !== key && other.startsWith(prefix)) stale.push(other);
+    }
+    for (const other of stale) window.localStorage.removeItem(other);
+  } catch {
+    // no storage
   }
 }

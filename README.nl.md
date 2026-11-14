@@ -284,7 +284,9 @@ show_progress_next_week: false
   en eerdere dagen tonen of verbergen. De configuratie bepaalt de beginstand; wat je op de kaart
   kiest wordt **per browser** onthouden (localStorage, per kaart). Sla je een gewijzigde
   kaartconfiguratie op, dan gaan ze terug naar de ingestelde waarden. Zonder browseropslag (bijvoorbeeld
-  in een privévenster) werken de schakelaars wel, maar worden ze niet onthouden.
+  in een privévenster) werken de schakelaars wel, maar worden ze niet onthouden. Een gedupliceerde
+  kaart (of YAML die je plakt) deelt de `card_id` en dus de onthouden schakelaars van het origineel;
+  haal `card_id` uit de YAML van de kopie om aparte schakelaars te krijgen.
 - **Label toevoegen.** De **+**-knop in de kop (zichtbaar als het kind labelopties heeft en Magister
   beschikbaar is) opent een venster: kies een dag, een les van die dag, een label (in te stellen
   onder *Configureren > Labels*, met de soort erbij) en typ eventueel een notitie; kies dan
