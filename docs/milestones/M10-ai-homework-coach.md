@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval of the coaching guidelines (§4) and the scope** |
+| Status | **Approved by PM (2026-11-14)** |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | M5–M9 · `docs/reference/homework-websocket.md` · HA 2026.10 `mcp_server` + `helpers/llm.py` |
 
