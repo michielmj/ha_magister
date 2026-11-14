@@ -271,8 +271,7 @@ data:
   van een deelstap is `<item-uid>:sub:<id>` en werkt in `magister.set_homework_progress`.
   Services (richt op de to-do-entiteit): `magister.add_homework_subtask` (velden `item`, `title`,
   `date` optioneel), `magister.update_homework_subtask` (velden `subtask`, en `title` en/of
-  `date`) en `magister.delete_homework_subtask` (veld `subtask`). De kaart volgt in een latere
-  stap.
+  `date`) en `magister.delete_homework_subtask` (veld `subtask`).
 
 ```yaml
 action: magister.add_homework_subtask

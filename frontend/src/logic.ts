@@ -172,7 +172,10 @@ export function isDerived(item: HomeworkItem): boolean {
   return item.derived === true && item.disabled !== true && (item.subtasks?.length ?? 0) > 0;
 }
 
-/** The item with another list of subtasks; its progress follows (unchanged when none are left). */
+/**
+ * The item with another list of subtasks; its progress follows. When the last subtask is
+ * deleted the item shows the derived value of no subtasks (0) until the push brings back its own.
+ */
 function withSubtasks(item: HomeworkItem, subtasks: Subtask[]): HomeworkItem {
   if (subtasks.length === 0) return { ...item, subtasks, derived: false };
   const progress = derivedProgress(subtasks);
@@ -301,7 +304,10 @@ export function groupEntries(items: readonly HomeworkItem[], options: FilterOpti
     if (parent.disabled === true) continue;
     for (const subtask of parent.subtasks ?? []) {
       if (subtask.completed && !options.showCompleted && !options.keep?.has(subtask.uid)) continue;
-      if (subtask.overdue) {
+      // A kept (just ticked) subtask of a passed lesson stays where it was under the finger.
+      const keptOverdue =
+        options.keep?.has(subtask.uid) === true && parent.date < options.today;
+      if (subtask.overdue || keptOverdue) {
         subtasks.push([OVERDUE_GROUP, { type: "subtask", subtask, parent }]);
         continue;
       }

@@ -108,6 +108,15 @@ describe("logic", () => {
     expect(groups[0]?.entries).toHaveLength(1);
   });
 
+  it("keeps a just-ticked overdue subtask in the overdue group", () => {
+    const parent = test([sub("a", { progress: 100, completed: true, date: "2026-11-10" })], {
+      date: "2026-11-10",
+    });
+    const keep = new Set([`${PARENT}:sub:a`]);
+    expect(groupEntries([parent], { ...OPTIONS, keep })[0]?.kind).toBe("overdue");
+    expect(groupEntries([parent], OPTIONS)).toEqual([]);
+  });
+
   it("hides other past subtasks unless the past switch is on, and done ones unless completed is on", () => {
     const parent = test([
       sub("a", { completed: true, progress: 100, date: "2026-11-12" }),
@@ -218,6 +227,11 @@ describe("rendering", () => {
     expect(all(card, "h3.section")).toEqual([]);
   });
 
+  it("uses the singular for one subtask", async () => {
+    const { card } = await setup([test([sub("a")])]);
+    expect(all(card, ".sub-count")).toEqual(["0 of 1 subtask"]);
+  });
+
   it("applies the switches to subtasks", async () => {
     const { card } = await setup(items());
     expect(root(card).querySelector(`li[data-uid="${PARENT}:sub:a"]`)).toBeNull();
@@ -266,6 +280,18 @@ describe("ticking subtasks", () => {
     qi(card, `li[data-uid="${PARENT}:sub:a"] input[type="checkbox"]`).click();
     await flush(card);
     expect(callWS).toHaveBeenCalledWith(expect.objectContaining({ item: `${PARENT}:sub:a`, progress: 50 }));
+  });
+
+  it("explains item_has_subtasks and a subtask that is gone", async () => {
+    const callWS = vi.fn().mockRejectedValue(wsError("item_not_found"));
+    const { card } = await setup([test([sub("a")])], { callWS });
+    qi(card, `li[data-uid="${PARENT}:sub:a"] input[type="checkbox"]`).click();
+    await flush(card);
+    expect(q(card, ".toast").textContent).toContain("not found");
+    callWS.mockRejectedValue(wsError("item_has_subtasks"));
+    qb(card, `li[data-uid="${PARENT}:sub:a"] .segments button:nth-child(3)`).click();
+    await flush(card);
+    expect(q(card, ".toast").textContent).toContain("follows from its subtasks");
   });
 
   it("sets a step and rolls back when it fails", async () => {
@@ -357,6 +383,21 @@ describe("adding a subtask", () => {
     expect(q(card, ".form-error").textContent).toContain(message);
     expect(qi(card, ".sub-title-input").value).toBe("Woordjes");
     expect(qb(card, 'button[type="submit"]').disabled).toBe(false);
+  });
+
+  it("focuses the add button when the new subtask is not on screen", async () => {
+    // an unusual state (a done subtask on a past day, with the switches off) keeps it hidden
+    const hidden = sub("n", { progress: 100, completed: true, date: "2026-11-10" });
+    const callWS = vi.fn().mockResolvedValue(test([hidden]));
+    const { card, connection } = await setup([test([])], { callWS });
+    await open(card);
+    type(qi(card, ".subform .sub-title-input"), "Later");
+    qf(card, "form.subform").dispatchEvent(new Event("submit", { cancelable: true }));
+    await flush(card);
+    connection.push(payload([test([hidden], { completed: false, progress: 0 })]));
+    await flush(card);
+    expect(root(card).querySelector(`li[data-uid="${PARENT}:sub:n"]`)).toBeNull();
+    expect(root(card).activeElement).toBe(q(card, "[data-add-sub]"));
   });
 
   it("cancels with Escape and returns the focus to the add button", async () => {

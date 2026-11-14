@@ -255,7 +255,7 @@ data:
   `<item uid>:sub:<id>` and works in `magister.set_homework_progress`. Services (target the
   to-do entity): `magister.add_homework_subtask` (fields `item`, `title`, `date` optional),
   `magister.update_homework_subtask` (fields `subtask`, and `title` and/or `date`) and
-  `magister.delete_homework_subtask` (field `subtask`). The card follows in a later step.
+  `magister.delete_homework_subtask` (field `subtask`).
 
 ```yaml
 action: magister.add_homework_subtask
@@ -345,7 +345,7 @@ show_progress_next_week: false
   *Restore*. Changes show at once and are rolled back with a message if saving fails.
 - **Subtasks** (since 1.5.0). Under an item, **+ subtask** opens a small form: a title (up to 100
   characters, required) and a day (from today up to the day of the lesson, today by default; fixed to
-  the lesson's day when that is today or past). Adding waits for Magister's answer and shows a refusal
+  the lesson's day when that is today or past). Adding waits for Home Assistant's answer and shows a refusal
   (too many subtasks, a day that is not allowed, a disabled item) in the form. A subtask is an indented
   "↳" row on its **current day** with a reference to the item ("for Test English (Tue 17 Nov)"), its own
   checkbox and the same 0/25/50/75/100 steps, a pencil to edit title and day, and a cross to delete

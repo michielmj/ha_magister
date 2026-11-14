@@ -33,7 +33,9 @@ Subtasks ("deelstappen") for homework, especially for tests.
   "x van y deelstappen" and the derived percentage, read-only. Everything works with the keyboard and
   screen readers, and changes are optimistic with rollback (adding waits for the answer).
 - **Store.** The progress store moves to schema 1.4 (adds the optional `subtasks` per item). Upgrading
-  needs no action. Downgrading to 1.4.0 keeps your progress, labels and overrides, but 1.4.0 ignores subtasks and deletes them the next time it saves.
+  needs no action. Downgrading to 1.4.0 keeps your progress, labels and overrides; 1.4.0
+  ignores subtasks (an item with subtasks shows its own progress again) and deletes them the next
+  time it saves.
 
 ## 1.4.0
 

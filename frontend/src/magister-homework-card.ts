@@ -438,7 +438,9 @@ export class MagisterHomeworkCard extends LitElement {
           ? texts.save_unauthorized
           : code === "item_disabled"
             ? (texts.label_errors.item_disabled ?? texts.save_failed)
-            : texts.save_failed,
+            : code === "item_has_subtasks" || (code === "item_not_found" && uid.includes(":sub:"))
+              ? (texts.sub.errors[code] ?? texts.save_failed)
+              : texts.save_failed,
       );
     }
   }
@@ -1068,7 +1070,10 @@ export class MagisterHomeworkCard extends LitElement {
   private _renderDerived(item: HomeworkItem, texts: Texts): TemplateResult {
     const subtasks = item.subtasks ?? [];
     const done = subtasks.filter((subtask) => subtask.completed).length;
-    const count = format(texts.sub.count, { done, total: subtasks.length });
+    const count = format(subtasks.length === 1 ? texts.sub.count_one : texts.sub.count, {
+      done,
+      total: subtasks.length,
+    });
     const value = format(texts.percent, { n: item.progress });
     return html`<div class="progress derived">
       <div
@@ -1145,7 +1150,6 @@ export class MagisterHomeworkCard extends LitElement {
           : html`<div class="head">
               <span class="arrow" aria-hidden="true">↳</span>
               <span class="subject sub-title">${subtask.title}</span>
-              ${subtask.overdue ? html`<span class="badge">${texts.sub.overdue}</span>` : nothing}
               ${enabled
                 ? html`<span class="sub-actions"><button
                       type="button"
@@ -1169,7 +1173,9 @@ export class MagisterHomeworkCard extends LitElement {
                     >✕</button></span>`
                 : nothing}
             </div>
-            <div class="meta ref">${reference}</div>`}
+            <div class="meta ref">${subtask.overdue
+              ? html`<span class="badge">${texts.sub.overdue}</span> `
+              : nothing}${reference}</div>`}
         ${confirming
           ? html`<div
               class="confirm subconfirm"
@@ -1477,6 +1483,12 @@ export class MagisterHomeworkCard extends LitElement {
       if (row) {
         this._pendingFocus = undefined;
         row.focus();
+      } else if (this._findSubtask(this._pendingFocus)) {
+        // The new subtask is in the state but not on screen (beyond the days shown): the
+        // item's add button takes the focus, so it is not lost.
+        const target = parentUid(this._pendingFocus);
+        this._pendingFocus = undefined;
+        this.shadowRoot?.querySelector<HTMLElement>(`[data-add-sub="${CSS.escape(target)}"]`)?.focus();
       }
     }
   }
@@ -2149,6 +2161,7 @@ export class MagisterHomeworkCard extends LitElement {
     }
     .progress.derived {
       flex-wrap: wrap;
+      padding-right: 8px;
       row-gap: 2px;
     }
     .progress.derived .track {
@@ -2161,16 +2174,14 @@ export class MagisterHomeworkCard extends LitElement {
       margin-left: auto;
       white-space: nowrap;
     }
-    .item.subtask .head {
-      flex-wrap: nowrap;
-    }
     .sub-title {
-      flex: 1 1 0;
+      flex: 1 1 8em;
       min-width: 0;
       overflow-wrap: anywhere;
     }
     .sub-count {
-      white-space: nowrap;
+      flex: 0 1 auto;
+      min-width: 0;
     }
     .icon-btn,
     button.link {

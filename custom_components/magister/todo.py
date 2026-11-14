@@ -204,9 +204,7 @@ def item_summary(item: HomeworkItem) -> str:
     return " ".join([*(f"[{name}]" for name in names), item.subject]).rstrip()
 
 
-def to_subtask_todo_item(
-    manager: HomeworkManager, item: HomeworkItem, sub: Subtask, today: date
-) -> TodoItem:
+def to_subtask_todo_item(item: HomeworkItem, sub: Subtask, today: date) -> TodoItem:
     """The to-do item of a subtask: ``↳ <subject>: <title>``."""
     return TodoItem(
         summary=f"{SUBTASK_PREFIX}{item.subject}: {sub.title}",
@@ -224,7 +222,7 @@ def to_todo_items(manager: HomeworkManager, child_id: int) -> list[TodoItem]:
     for item in manager.items(child_id):
         todo.append(to_todo_item(manager, item))
         todo.extend(
-            to_subtask_todo_item(manager, item, sub, today)
+            to_subtask_todo_item(item, sub, today)
             for sub in manager.active_subtasks(item)
         )
     return todo
