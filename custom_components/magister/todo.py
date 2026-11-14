@@ -19,12 +19,22 @@ from homeassistant.helpers.entity_platform import (
 from homeassistant.helpers.service import async_register_platform_entity_service
 from homeassistant.util import dt as dt_util
 
-from .api.homework import HomeworkItem, LabelOption, find_label_option
+from .api.homework import (
+    MODE_CLEAR,
+    MODE_DISABLE,
+    MODE_REPLACE,
+    HomeworkItem,
+    LabelOption,
+    Override,
+    find_label_option,
+    magister_label_text,
+)
 from .api.mapping import ATTACHMENTS_LINE, LOCAL_TZ
 from .const import (
     ATTR_APPOINTMENT,
     ATTR_ITEM,
     ATTR_LABEL,
+    ATTR_MODE,
     ATTR_NOTE,
     ATTR_PROGRESS,
     CHILD_ID,
@@ -34,12 +44,14 @@ from .const import (
     DOMAIN,
     SERVICE_ADD_HOMEWORK_LABEL,
     SERVICE_REMOVE_HOMEWORK_LABEL,
+    SERVICE_SET_HOMEWORK_OVERRIDE,
     SERVICE_SET_HOMEWORK_PROGRESS,
 )
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
 from .entity import MagisterMidnightEntity
 from .homework import (
     ERR_LABEL_NOT_FOUND,
+    ERR_LABEL_REQUIRED,
     HomeworkManager,
     LabelError,
     Payload,
@@ -107,6 +119,20 @@ def async_register_homework_services(hass: HomeAssistant) -> None:
     async_register_platform_entity_service(
         hass,
         DOMAIN,
+        SERVICE_SET_HOMEWORK_OVERRIDE,
+        entity_domain=TODO_DOMAIN,
+        func="async_set_homework_override",
+        schema={
+            probatio.Required(ATTR_APPOINTMENT): cv.string,
+            probatio.Required(ATTR_MODE): probatio.In(
+                [MODE_REPLACE, MODE_DISABLE, MODE_CLEAR]
+            ),
+            probatio.Optional(ATTR_LABEL): cv.string,
+        },
+    )
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
         SERVICE_SET_HOMEWORK_PROGRESS,
         entity_domain=TODO_DOMAIN,
         func="async_set_homework_progress",
@@ -118,8 +144,15 @@ def async_register_homework_services(hass: HomeAssistant) -> None:
 
 
 def item_summary(item: HomeworkItem) -> str:
-    """``[Magister label] [manual label] subject``."""
-    names = ([item.label] if item.label else []) + [
+    """``[Magister label] [manual label] subject``.
+
+    The Magister label follows its override: ``Proefwerk->Huiswerk`` for a
+    replacement, nothing when it is disabled.
+    """
+    magister = magister_label_text(item)
+    if magister is None:
+        magister = item.label or ""
+    names = ([magister] if magister else []) + [
         label.name for label in item.manual_labels
     ]
     return " ".join([*(f"[{name}]" for name in names), item.subject]).rstrip()
@@ -128,24 +161,37 @@ def item_summary(item: HomeworkItem) -> str:
 def to_todo_item(manager: HomeworkManager, item: HomeworkItem) -> TodoItem:
     """The to-do item of a homework item (see the milestone spec)."""
     progress = manager.progress(item.uid)
+    disabled = manager.effective(item).disabled
     lines = [item.text] if item.text else []
     lines.extend(label.note for label in item.manual_labels if label.note)
     if item.cancelled:
         lines.append(CANCELLED_NOTE)
     if item.has_attachments:
         lines.append(ATTACHMENTS_LINE)
-    if 0 < progress < 100:
+    if 0 < progress < 100 and not disabled:
         lines.append(f"({progress} %)")
     return TodoItem(
         summary=item_summary(item),
         uid=item.uid,
         status=(
-            TodoItemStatus.COMPLETED if progress >= 100 else TodoItemStatus.NEEDS_ACTION
+            TodoItemStatus.COMPLETED
+            if manager.is_completed(item)
+            else TodoItemStatus.NEEDS_ACTION
         ),
         due=item.due_date if item.all_day else item.start.astimezone(LOCAL_TZ),
         description="\n".join(lines) or None,
         completed=manager.completed_at(item.uid),
     )
+
+
+class HomeworkItemDisabled(ServiceValidationError):
+    """The item's Magister label is disabled: restore it before changing progress."""
+
+    def __init__(self) -> None:
+        """Create the translated error."""
+        super().__init__(
+            translation_domain=DOMAIN, translation_key="homework_item_disabled"
+        )
 
 
 def _label_exception(err: LabelError) -> ServiceValidationError:
@@ -247,10 +293,16 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
             )
         return item
 
+    def _require_enabled(self, uid: str) -> HomeworkItem:
+        item = self._require_item(uid)
+        if self._manager.effective(item).disabled:
+            raise HomeworkItemDisabled
+        return item
+
     @callback
     def set_progress(self, uid: str, progress: int) -> None:
         """Set the progress (0-100) of one of this child's items."""
-        self._require_item(uid)
+        self._require_enabled(uid)
         self._manager.set_progress(uid, progress)
 
     @callback
@@ -286,6 +338,21 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         return item_dict(self._manager, item) if item else None
 
     @callback
+    def set_override(
+        self, appointment: str, mode: str, label: str | None, *, by_name: bool = False
+    ) -> Payload | None:
+        """Replace, disable or restore the label; returns the item or ``None``."""
+        override: Override | None = None
+        if mode == MODE_REPLACE:
+            if label is None:
+                raise LabelError(ERR_LABEL_REQUIRED)
+            override = Override(MODE_REPLACE, self.label_option(label, by_name=by_name))
+        elif mode == MODE_DISABLE:
+            override = Override(MODE_DISABLE)
+        item = self._manager.set_override(self._child_id, appointment, override)
+        return item_dict(self._manager, item) if item else None
+
+    @callback
     def appointments(self, day: date) -> list[Payload]:
         """The appointments of a day, with their labels."""
         return [
@@ -315,6 +382,15 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         except LabelError as err:
             raise _label_exception(err) from None
 
+    async def async_set_homework_override(
+        self, appointment: str, mode: str, label: str | None = None
+    ) -> None:
+        """Service ``magister.set_homework_override``."""
+        try:
+            self.set_override(appointment, mode, label, by_name=True)
+        except LabelError as err:
+            raise _label_exception(err) from None
+
     async def async_set_homework_progress(self, item: str, progress: int) -> None:
         """Service ``magister.set_homework_progress``."""
         self.set_progress(item, progress)
@@ -325,7 +401,7 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         Only the status can be changed; the items come from Magister.
         """
         uid = item.uid or ""
-        self._require_item(uid)
+        self._require_enabled(uid)
         current = next((i for i in self._attr_todo_items or [] if i.uid == uid), None)
         if current is not None and (
             item.summary != current.summary

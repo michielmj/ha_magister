@@ -116,12 +116,23 @@ class CalendarFields:
     all_day: bool
 
 
-def build_summary(appointment: Appointment, manual_labels: Sequence[str] = ()) -> str:
-    """Title: ``[Vervallen]``, the Magister label, manual labels, then the subject."""
+def build_summary(
+    appointment: Appointment,
+    manual_labels: Sequence[str] = (),
+    magister_label: str | None = None,
+) -> str:
+    """Title: ``[Vervallen]``, the Magister label, manual labels, then the subject.
+
+    ``magister_label`` overrides the Magister label text: ``""`` shows none and
+    ``"Proefwerk\u2192Huiswerk"`` a replacement; ``None`` keeps the original.
+    """
     parts: list[str] = []
     if appointment.status in CANCELLED_STATUSES:
         parts.append(CANCELLED_PREFIX)
-    if appointment.info_type is not None and (
+    if magister_label is not None:
+        if magister_label:
+            parts.append(f"[{magister_label}]")
+    elif appointment.info_type is not None and (
         label := INFO_TYPE_PREFIXES.get(appointment.info_type)
     ):
         parts.append(label)
@@ -181,7 +192,10 @@ def _all_day_dates(appointment: Appointment) -> tuple[date, date]:
 
 
 def map_appointment(
-    appointment: Appointment, host: str, manual_labels: Sequence[str] = ()
+    appointment: Appointment,
+    host: str,
+    manual_labels: Sequence[str] = (),
+    magister_label: str | None = None,
 ) -> CalendarFields:
     """Return the calendar fields for an appointment of school ``host``."""
     start: datetime | date
@@ -194,7 +208,7 @@ def map_appointment(
             end = start + timedelta(minutes=1)
     return CalendarFields(
         uid=f"magister-{appointment.id}@{host}",
-        summary=build_summary(appointment, manual_labels),
+        summary=build_summary(appointment, manual_labels, magister_label),
         description=build_description(appointment),
         location=appointment.location,
         start=start,

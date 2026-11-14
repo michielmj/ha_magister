@@ -55,6 +55,8 @@ SERVICE_REMOVE_HOMEWORK_LABEL: Final = "remove_homework_label"
 ATTR_APPOINTMENT: Final = "appointment"
 ATTR_LABEL: Final = "label"
 ATTR_NOTE: Final = "note"
+SERVICE_SET_HOMEWORK_OVERRIDE: Final = "set_homework_override"
+ATTR_MODE: Final = "mode"
 
 MANUFACTURER: Final = "Magister"
 

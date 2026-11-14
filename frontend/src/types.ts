@@ -25,7 +25,13 @@ export interface Appointment {
   cancelled: boolean;
   info_type: number | null;
   manual_labels: ManualLabel[];
+  override?: ItemOverride | null;
 }
+
+/** An override of the Magister label (since 1.4.0): replaced by a label option, or disabled. */
+export type ItemOverride =
+  | { mode: "replace"; label: LabelOption }
+  | { mode: "disable" };
 
 export interface HomeworkItem {
   uid: string;
@@ -41,12 +47,18 @@ export interface HomeworkItem {
   label: string | null;
   /** Labels added in the card (since 1.3.0); only these can be removed. */
   manual_labels: ManualLabel[];
+  /** Since 1.4.0: the override of the Magister label, null when there is none. */
+  override?: ItemOverride | null;
+  /** Since 1.4.0: no active labels left; the item counts as completed with weight 0. */
+  disabled?: boolean;
+  /** Any active label of kind test (follows overrides). */
   is_test: boolean;
   text: string;
   cancelled: boolean;
   has_attachments: boolean;
   /** 0-100 */
   progress: number;
+  /** progress >= 100, or the item is disabled (since 1.4.0). */
   completed: boolean;
   /** The value that unticking restores (0-99). */
   last_partial: number;
@@ -76,6 +88,11 @@ export interface HomeworkPayload {
 export interface SetProgressResult {
   progress: number;
   completed: boolean;
+}
+
+export interface SetOverrideResult {
+  /** Null when the appointment is not in the planner any more. */
+  item: HomeworkItem | null;
 }
 
 export type CardLanguage = "auto" | "nl" | "en";

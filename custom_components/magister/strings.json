@@ -121,6 +121,18 @@
     },
     "homework_label_not_on_appointment": {
       "message": "This appointment does not have this manual label. Magister labels cannot be removed."
+    },
+    "homework_item_disabled": {
+      "message": "This homework item has no active labels (its Magister label is disabled). Restore the label first."
+    },
+    "homework_no_magister_label": {
+      "message": "This appointment has no Magister label (Huiswerk, Proefwerk, Tentamen, SO or MO) to replace or disable."
+    },
+    "homework_label_required": {
+      "message": "Choose a label to replace the Magister label with."
+    },
+    "homework_label_is_original": {
+      "message": "The Magister label cannot be replaced by itself. Choose another label, or restore the original."
     }
   },
   "options": {
@@ -225,7 +237,7 @@
     "error": {
       "no_children_selected": "Select at least one child.",
       "child_already_configured": "This child is already added under another login of this school. Add each child under one login only.",
-      "label_in_use": "This label is still used on one or more lessons. Remove it from those lessons first.",
+      "label_in_use": "This label is still used on one or more lessons, as a label or as a replacement. Remove it there first.",
       "name_required": "Enter a name.",
       "name_too_long": "The name can be at most 40 characters.",
       "name_exists": "This child already has a label with this name.",
@@ -347,6 +359,24 @@
           "description": "The id or the name (not case-sensitive) of the label."
         }
       }
+    },
+    "set_homework_override": {
+      "name": "Set homework label override",
+      "description": "Replaces or disables the Magister label of an appointment, or restores it. Nothing is written to Magister.",
+      "fields": {
+        "appointment": {
+          "name": "Appointment",
+          "description": "The id (uid) of the appointment."
+        },
+        "mode": {
+          "name": "Mode",
+          "description": "Replace the label, disable it, or clear (restore) the override."
+        },
+        "label": {
+          "name": "Label",
+          "description": "For replace: the id or the name (not case-sensitive) of one of the labels configured for this child."
+        }
+      }
     }
   },
   "selector": {
@@ -354,6 +384,13 @@
       "options": {
         "homework": "Homework",
         "test": "Test"
+      }
+    },
+    "homework_override_mode": {
+      "options": {
+        "replace": "Replace",
+        "disable": "Disable",
+        "clear": "Restore"
       }
     }
   }

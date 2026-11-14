@@ -59,6 +59,8 @@ async def test_subscribe_sends_the_list_and_pushes_changes(
         "info_type": 1,
         "label": "Huiswerk",
         "manual_labels": [],
+        "override": None,
+        "disabled": False,
         "is_test": False,
         "text": item["text"],
         "cancelled": False,

@@ -3,16 +3,21 @@ import {
   STEPS,
   applyLabelRemovals,
   applyOverlay,
+  applyOverrides,
   dateBounds,
   filterItems,
   formatDay,
   groupByDay,
+  hasOverrideFields,
   labelKey,
   loadSwitches,
+  menuActions,
   PROGRESS_PERIODS,
   barPercent,
   normalizeConfig,
   optimisticOverlay,
+  optimisticOverride,
+  overrideFieldsOf,
   saveSwitches,
   snapToStep,
   storageKey,
@@ -20,6 +25,8 @@ import {
   toggleTarget,
   type DayGroup,
   type NormalizedConfig,
+  type OverrideChange,
+  type OverrideFields,
   type Overlay,
 } from "./logic";
 import "./label-dialog";
@@ -38,6 +45,7 @@ import type {
   HomeworkItem,
   HomeworkPayload,
   ManualLabel,
+  SetOverrideResult,
   SetProgressResult,
   Unsubscribe,
   WsError,
@@ -46,6 +54,7 @@ import type {
 const SUBSCRIBE = "magister/homework/subscribe";
 const SET_PROGRESS = "magister/homework/set_progress";
 const REMOVE_LABEL = "magister/homework/remove_label";
+const SET_OVERRIDE = "magister/homework/set_override";
 const TOAST_MS = 6000;
 /** Retry of a failed subscribe: 30 s, doubling, at most 10 minutes. */
 const RETRY_START_MS = 30_000;
@@ -78,6 +87,8 @@ export class MagisterHomeworkCard extends LitElement {
     _hiddenLabels: { state: true },
     _confirm: { state: true },
     _dialogOpen: { state: true },
+    _overrideOverlay: { state: true },
+    _menu: { state: true },
   };
 
   declare _payload: HomeworkPayload | undefined;
@@ -93,6 +104,10 @@ export class MagisterHomeworkCard extends LitElement {
   /** The manual label waiting for its remove confirmation. */
   declare _confirm: { uid: string; label: ManualLabel } | undefined;
   declare _dialogOpen: boolean;
+  /** Optimistic overrides of the Magister label, until the backend has answered. */
+  declare _overrideOverlay: ReadonlyMap<string, OverrideFields>;
+  /** The uid of the item whose Magister-label menu is open. */
+  declare _menu: string | undefined;
 
   private _storageKey = "";
   private readonly _removing = new Set<string>();
@@ -105,6 +120,7 @@ export class MagisterHomeworkCard extends LitElement {
   private _generation = 0;
   /** The request that last changed an item: only its outcome touches the view. */
   private readonly _tokens = new Map<string, number>();
+  private readonly _overrideTokens = new Map<string, number>();
   private _nextToken = 0;
   private _retryTimer: ReturnType<typeof setTimeout> | undefined;
   private _retryDelay = RETRY_START_MS;
@@ -135,6 +151,8 @@ export class MagisterHomeworkCard extends LitElement {
     this._hiddenLabels = new Set();
     this._confirm = undefined;
     this._dialogOpen = false;
+    this._overrideOverlay = new Map();
+    this._menu = undefined;
   }
 
   // -- Home Assistant card API --
@@ -166,6 +184,9 @@ export class MagisterHomeworkCard extends LitElement {
       this._removing.clear();
       this._confirm = undefined;
       this._dialogOpen = false;
+      this._overrideOverlay = new Map();
+      this._overrideTokens.clear();
+      this._closeMenu(false);
       this._retryDelay = RETRY_START_MS;
     }
     this._config = next;
@@ -219,6 +240,7 @@ export class MagisterHomeworkCard extends LitElement {
     if (this._toastTimer) clearTimeout(this._toastTimer);
     if (this._dayTimer) clearInterval(this._dayTimer);
     this._dayTimer = undefined;
+    this._closeMenu(false);
   }
 
   // -- subscription --
@@ -309,6 +331,11 @@ export class MagisterHomeworkCard extends LitElement {
       if (this._tokens.has(uid)) kept.set(uid, overlay);
     }
     this._overlay = kept;
+    const keptOverrides = new Map<string, OverrideFields>();
+    for (const [uid, fields] of this._overrideOverlay) {
+      if (this._overrideTokens.has(uid)) keptOverrides.set(uid, fields);
+    }
+    this._overrideOverlay = keptOverrides;
     // Removals that were confirmed are in the pushed state; those in flight stay hidden.
     this._hiddenLabels = new Set([...this._hiddenLabels].filter((key) => this._removing.has(key)));
   }
@@ -352,7 +379,13 @@ export class MagisterHomeworkCard extends LitElement {
       this._overlay = next;
       const code = (error as WsError | undefined)?.code;
       const texts = this._texts();
-      this._showToast(code === "unauthorized" ? texts.save_unauthorized : texts.save_failed);
+      this._showToast(
+        code === "unauthorized"
+          ? texts.save_unauthorized
+          : code === "item_disabled"
+            ? (texts.label_errors.item_disabled ?? texts.save_failed)
+            : texts.save_failed,
+      );
     }
   }
 
@@ -368,6 +401,145 @@ export class MagisterHomeworkCard extends LitElement {
     const next = new Set(this._expanded);
     if (!next.delete(uid)) next.add(uid);
     this._expanded = next;
+  }
+
+  // -- Magister label menu and overrides --
+
+  private _menuButton(uid: string): HTMLElement | null {
+    return (
+      this.shadowRoot?.querySelector<HTMLElement>(`[data-menu-button="${CSS.escape(uid)}"]`) ?? null
+    );
+  }
+
+  private _menuItems(): HTMLElement[] {
+    return [...(this.shadowRoot?.querySelectorAll<HTMLElement>('.menu [role="menuitem"]') ?? [])];
+  }
+
+  private readonly _onOutsideClick = (event: Event): void => {
+    const uid = this._menu;
+    if (uid === undefined) return;
+    const path = event.composedPath();
+    const menu = this.shadowRoot?.querySelector(".menu");
+    if ((menu && path.includes(menu)) || path.includes(this._menuButton(uid) as EventTarget)) return;
+    this._closeMenu(false);
+  };
+
+  private _openMenu(uid: string, where: "first" | "last"): void {
+    this._menu = uid;
+    document.addEventListener("click", this._onOutsideClick, true);
+    void this.updateComplete.then(() => {
+      const items = this._menuItems();
+      (where === "first" ? items[0] : items[items.length - 1])?.focus();
+    });
+  }
+
+  /** Close the menu; with `returnFocus` the focus goes back to the chip that opened it. */
+  private _closeMenu(returnFocus: boolean): void {
+    const uid = this._menu;
+    document.removeEventListener("click", this._onOutsideClick, true);
+    if (uid === undefined) return;
+    this._menu = undefined;
+    if (returnFocus) {
+      void this.updateComplete.then(() => {
+        this._menuButton(uid)?.focus();
+      });
+    }
+  }
+
+  private _onChipKey(event: KeyboardEvent, uid: string): void {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      this._openMenu(uid, "first");
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      this._openMenu(uid, "last");
+    } else if (event.key === "Escape" && this._menu === uid) {
+      event.preventDefault();
+      this._closeMenu(true);
+    }
+  }
+
+  private _onMenuKey(event: KeyboardEvent, uid: string): void {
+    const items = this._menuItems();
+    const index = items.indexOf(event.target as HTMLElement);
+    let next: number;
+    switch (event.key) {
+      case "ArrowDown":
+        next = (index + 1) % items.length;
+        break;
+      case "ArrowUp":
+        next = (index - 1 + items.length) % items.length;
+        break;
+      case "Home":
+        next = 0;
+        break;
+      case "End":
+        next = items.length - 1;
+        break;
+      case "Escape":
+        event.preventDefault();
+        event.stopPropagation();
+        this._closeMenu(true);
+        return;
+      case "Tab":
+        // Leave the menu: the focus moves on from the chip, not from a vanished item.
+        this._menuButton(uid)?.focus();
+        this._closeMenu(false);
+        return;
+      default:
+        return;
+    }
+    event.preventDefault();
+    items[next]?.focus();
+  }
+
+  private _choose(item: HomeworkItem, change: OverrideChange): void {
+    this._closeMenu(true);
+    void this._setOverride(item, change);
+  }
+
+  private async _setOverride(item: HomeworkItem, change: OverrideChange): Promise<void> {
+    const hass = this._hass;
+    const entity = this._config?.entity;
+    const uid = item.uid;
+    if (!hass || !entity || !this._payload?.available || this._offline) return;
+    const token = ++this._nextToken;
+    this._overrideTokens.set(uid, token);
+    // A disabled item is completed: it stays on screen for this session so it can be restored.
+    if (change.mode === "disable") this._touched.add(uid);
+    const shown = this._items().find((candidate) => candidate.uid === uid) ?? item;
+    this._overrideOverlay = new Map(this._overrideOverlay).set(
+      uid,
+      optimisticOverride(shown, change),
+    );
+    try {
+      const result = await hass.callWS<SetOverrideResult>({
+        type: SET_OVERRIDE,
+        entity_id: entity,
+        appointment: uid,
+        mode: change.mode,
+        ...(change.mode === "replace" ? { label: change.label.id } : {}),
+      });
+      if (this._overrideTokens.get(uid) !== token) return;
+      this._overrideTokens.delete(uid);
+      const next = new Map(this._overrideOverlay);
+      const current = this._payload.items.find((candidate) => candidate.uid === uid);
+      // The push usually arrives first; otherwise keep the confirmed state until it does.
+      // No item in the answer: nothing to keep.
+      const confirmed = result.item ? overrideFieldsOf(result.item) : undefined;
+      if (!confirmed || (current && hasOverrideFields(current, confirmed))) next.delete(uid);
+      else next.set(uid, confirmed);
+      this._overrideOverlay = next;
+    } catch (error) {
+      if (this._overrideTokens.get(uid) !== token) return;
+      this._overrideTokens.delete(uid);
+      const next = new Map(this._overrideOverlay);
+      next.delete(uid);
+      this._overrideOverlay = next;
+      const code = (error as WsError | undefined)?.code;
+      const texts = this._texts();
+      this._showToast((code ? texts.label_errors[code] : undefined) ?? texts.save_failed);
+    }
   }
 
   // -- manual labels --
@@ -450,7 +622,7 @@ export class MagisterHomeworkCard extends LitElement {
   private _items(): HomeworkItem[] {
     if (!this._payload) return [];
     return applyLabelRemovals(
-      applyOverlay(this._payload.items, this._overlay),
+      applyOverrides(applyOverlay(this._payload.items, this._overlay), this._overrideOverlay),
       this._hiddenLabels,
     );
   }
@@ -499,6 +671,15 @@ export class MagisterHomeworkCard extends LitElement {
     // A removal can no longer be confirmed while the card is read-only.
     if (this._confirm && (this._offline || this._payload?.available !== true)) {
       this._confirm = undefined;
+    }
+    // The menu goes when the card turns read-only or its item is gone.
+    if (
+      this._menu !== undefined &&
+      (this._offline ||
+        this._payload?.available !== true ||
+        !this._payload.items.some((item) => item.uid === this._menu))
+    ) {
+      this._closeMenu(false);
     }
   }
 
@@ -668,6 +849,7 @@ export class MagisterHomeworkCard extends LitElement {
       "item",
       item.is_test ? "test" : "",
       item.completed ? "done" : "",
+      item.disabled === true ? "disabled" : "",
       item.cancelled ? "cancelled" : "",
     ]
       .filter(Boolean)
@@ -676,7 +858,7 @@ export class MagisterHomeworkCard extends LitElement {
       <input
         type="checkbox"
         .checked=${item.completed}
-        ?disabled=${!enabled}
+        ?disabled=${!enabled || item.disabled === true}
         aria-label=${format(item.completed ? texts.mark_open : texts.mark_done, {
           subject: item.subject,
         })}
@@ -684,11 +866,7 @@ export class MagisterHomeworkCard extends LitElement {
       />
       <div class="main">
         <div class="head">
-          ${item.info_type !== null
-            ? html`<span class="chip ${item.info_type >= 2 ? "test" : ""}"
-                >${typeLabel(texts, item.info_type, item.label ?? "")}</span
-              >`
-            : nothing}
+          ${this._renderMagisterChip(item, texts, enabled)}
           ${item.manual_labels.map((label) => this._renderManualChip(item.uid, label, texts, enabled))}
           <span class="subject">${item.subject}</span>
           ${item.lesson_hour !== null
@@ -702,6 +880,7 @@ export class MagisterHomeworkCard extends LitElement {
               >`
             : nothing}
         </div>
+        ${this._menu === item.uid ? this._renderMenu(item, texts) : nothing}
         ${item.text
           ? html`<button
               type="button"
@@ -743,6 +922,91 @@ export class MagisterHomeworkCard extends LitElement {
     </li>`;
   }
 
+  /**
+   * The Magister chip. With a working connection it is a menu button (replace, disable,
+   * restore). An overridden chip is struck through, with a hidden word that says why,
+   * and a replacement chip follows (in the manual style, without a remove button).
+   */
+  private _renderMagisterChip(
+    item: HomeworkItem,
+    texts: Texts,
+    enabled: boolean,
+  ): TemplateResult | typeof nothing {
+    if (item.info_type === null) return nothing;
+    const override = item.override ?? null;
+    const name = typeLabel(texts, item.info_type, item.label ?? "");
+    const state = override?.mode === "replace" ? texts.override_replaced : texts.override_disabled;
+    const classes = `chip magister ${override ? "overridden" : item.info_type >= 2 ? "test" : ""}`;
+    const content = override
+      ? html`<s>${name}</s><span class="sr-only"> ${state}</span>`
+      : html`${name}`;
+    const chip = enabled
+      ? html`<button
+          type="button"
+          class=${classes}
+          data-menu-button=${item.uid}
+          aria-haspopup="menu"
+          aria-expanded=${this._menu === item.uid ? "true" : "false"}
+          title=${texts.override_tip}
+          @click=${() => {
+            if (this._menu === item.uid) this._closeMenu(true);
+            else this._openMenu(item.uid, "first");
+          }}
+          @keydown=${(event: KeyboardEvent) => {
+            this._onChipKey(event, item.uid);
+          }}
+        >${content}</button>`
+      : html`<span class=${classes}>${content}</span>`;
+    const replacement =
+      override?.mode === "replace"
+        ? html`<span class="chip manual plain ${override.label.kind === "test" ? "test" : ""}"
+            >${override.label.name}</span
+          >`
+        : nothing;
+    return html`${chip}${replacement}`;
+  }
+
+  private _renderMenu(item: HomeworkItem, texts: Texts): TemplateResult {
+    const actions = menuActions(item, this._payload?.labels ?? []);
+    const entry = (text: string, aria: string, change: OverrideChange): TemplateResult =>
+      html`<button
+        type="button"
+        role="menuitem"
+        tabindex="-1"
+        aria-label=${aria}
+        @click=${() => {
+          this._choose(item, change);
+        }}
+      >${text}</button>`;
+    return html`<div
+      class="menu"
+      role="menu"
+      aria-label=${format(texts.override_menu, { subject: item.subject })}
+      @keydown=${(event: KeyboardEvent) => {
+        this._onMenuKey(event, item.uid);
+      }}
+    >
+      ${actions.replace.length > 0
+        ? html`<div role="group" aria-label=${texts.override_replace_with}>
+            <span class="menu-heading" aria-hidden="true">${texts.override_replace_with}</span>
+            ${actions.replace.map((option) =>
+              entry(
+                option.name,
+                format(texts.override_replace_option, { name: option.name }),
+                { mode: "replace", label: option },
+              ),
+            )}
+          </div>`
+        : nothing}
+      ${actions.disable
+        ? entry(texts.override_disable, texts.override_disable, { mode: "disable" })
+        : nothing}
+      ${actions.restore
+        ? entry(texts.override_restore, texts.override_restore, { mode: "clear" })
+        : nothing}
+    </div>`;
+  }
+
   private _renderManualChip(
     uid: string,
     label: ManualLabel,
@@ -769,6 +1033,8 @@ export class MagisterHomeworkCard extends LitElement {
     // nearest step takes the tab stop and the tint.
     const nearest = snapToStep(item.progress);
     const exact = (STEPS as readonly number[]).includes(item.progress);
+    // A disabled item keeps its progress, but cannot be changed until it is restored.
+    enabled = enabled && item.disabled !== true;
     return html`<div class="progress">
       <div
         class="segments"
@@ -1006,6 +1272,83 @@ export class MagisterHomeworkCard extends LitElement {
       color: var(--primary-color);
       border: 1.5px solid var(--primary-color);
     }
+    button.chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 28px;
+      font: inherit;
+      font-size: 0.75em;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button.chip.test {
+      font-weight: 700;
+    }
+    button.chip::after {
+      content: "\\25be";
+      content: "\\25be" / "";
+      font-size: 0.9em;
+      opacity: 0.8;
+    }
+    .chip.overridden {
+      font-weight: 500;
+      color: var(--secondary-text-color);
+      background: var(--secondary-background-color);
+      border-color: var(--divider-color);
+    }
+    .chip.overridden s {
+      text-decoration: line-through;
+    }
+    .chip.manual.plain {
+      padding-right: 8px;
+    }
+    .menu {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 2px;
+      margin-top: 6px;
+      padding: 4px;
+      max-width: 320px;
+      border: 1px solid var(--divider-color);
+      border-radius: 8px;
+      background: var(--card-background-color, var(--ha-card-background, #fff));
+    }
+    .menu [role="group"] {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .menu-heading {
+      padding: 4px 8px 0;
+      font-size: 0.75em;
+      color: var(--secondary-text-color);
+    }
+    .menu [role="menuitem"] {
+      min-height: 40px;
+      padding: 0 12px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--primary-text-color);
+      font: inherit;
+      font-size: 0.9em;
+      text-align: left;
+      cursor: pointer;
+    }
+    .menu [role="menuitem"]:hover,
+    .menu [role="menuitem"]:focus-visible {
+      background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+    }
+    .menu [role="menuitem"]:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: -2px;
+    }
+    .item.disabled .subject,
+    .item.disabled .percent {
+      opacity: 0.7;
+    }
     .chip.manual.test {
       color: var(--warning-color, #ffa600);
       border-color: var(--warning-color, #ffa600);
@@ -1195,6 +1538,7 @@ export class MagisterHomeworkCard extends LitElement {
     .toast button:focus-visible,
     .confirm button:focus-visible,
     .chip-remove:focus-visible,
+    button.chip:focus-visible,
     .switch:focus-visible,
     .add:focus-visible {
       outline: 2px solid var(--primary-color);

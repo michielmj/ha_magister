@@ -121,6 +121,18 @@
     },
     "homework_label_not_on_appointment": {
       "message": "Deze afspraak heeft dit handmatige label niet. Labels uit Magister kunnen niet worden verwijderd."
+    },
+    "homework_item_disabled": {
+      "message": "Dit huiswerkitem heeft geen actieve labels (het Magister-label is uitgeschakeld). Herstel eerst het label."
+    },
+    "homework_no_magister_label": {
+      "message": "Deze afspraak heeft geen Magister-label (Huiswerk, Proefwerk, Tentamen, SO of MO) om te vervangen of uit te schakelen."
+    },
+    "homework_label_required": {
+      "message": "Kies een label om het Magister-label mee te vervangen."
+    },
+    "homework_label_is_original": {
+      "message": "Het Magister-label kan niet door zichzelf worden vervangen. Kies een ander label, of herstel het origineel."
     }
   },
   "options": {
@@ -225,7 +237,7 @@
     "error": {
       "no_children_selected": "Kies minstens één kind.",
       "child_already_configured": "Dit kind is al toegevoegd bij een andere login van deze school. Voeg elk kind bij één login toe.",
-      "label_in_use": "Dit label staat nog op een of meer lessen. Verwijder het eerst van die lessen.",
+      "label_in_use": "Dit label staat nog op een of meer lessen, als label of als vervanging. Verwijder het eerst daar.",
       "name_required": "Vul een naam in.",
       "name_too_long": "De naam mag maximaal 40 tekens zijn.",
       "name_exists": "Dit kind heeft al een label met deze naam.",
@@ -347,6 +359,24 @@
           "description": "De id of de naam (hoofdletterongevoelig) van het label."
         }
       }
+    },
+    "set_homework_override": {
+      "name": "Huiswerklabel overschrijven",
+      "description": "Vervangt of schakelt het Magister-label van een afspraak uit, of herstelt het. Er wordt niets naar Magister geschreven.",
+      "fields": {
+        "appointment": {
+          "name": "Afspraak",
+          "description": "De id (uid) van de afspraak."
+        },
+        "mode": {
+          "name": "Modus",
+          "description": "Het label vervangen, uitschakelen, of de overschrijving wissen (herstellen)."
+        },
+        "label": {
+          "name": "Label",
+          "description": "Bij vervangen: de id of naam (hoofdletterongevoelig) van een van de labels van dit kind."
+        }
+      }
     }
   },
   "selector": {
@@ -354,6 +384,13 @@
       "options": {
         "homework": "Huiswerk",
         "test": "Toets"
+      }
+    },
+    "homework_override_mode": {
+      "options": {
+        "replace": "Vervangen",
+        "disable": "Uitschakelen",
+        "clear": "Herstellen"
       }
     }
   }
