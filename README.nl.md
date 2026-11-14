@@ -17,6 +17,7 @@ agenda per kind, plus optionele sensoren met de starttijd van de eerste afspraak
   vooruit, elke 30 minuten ververst (beide instelbaar).
 - Per kind een takenlijst **Huiswerk** en drie voortgangssensoren (zie de huiswerkplanner).
 - Optionele **sensoren voor de eerste afspraak** (een tijdstempel) voor automatiseringen.
+- **AI-huiswerkcoach** (sinds 1.6.0, optioneel): een leerling kan een AI-assistent koppelen aan het eigen rooster en de eigen huiswerkplanner via de MCP Server van Home Assistant; zie [AI-huiswerkcoach](#ai-huiswerkcoach).
 - De titels komen uit Magister met deze labels:
 
 | Titel | Betekenis |
@@ -380,9 +381,127 @@ show_progress_next_week: false
   wijzigen en verwijderen zijn direct zichtbaar en worden met een melding teruggedraaid als opslaan
   mislukt. Alles werkt met het toetsenbord (Escape sluit een formulier of bevestiging) en met een
   schermlezer; de focus gaat na toevoegen naar de nieuwe regel en na verwijderen naar een naastgelegen
-  knop.
+  knop. Een deelstap die de AI-coach heeft gemaakt (zie hieronder) toont een klein **AI**-label
+  (tooltip en schermlezertekst "Aangemaakt door AI-coach").
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
+
+## AI-huiswerkcoach
+
+*Sinds 1.6.0. Optioneel en standaard uit.* Een leerling kan een AI-assistent (bijvoorbeeld de Claude
+desktop-app) koppelen aan **het eigen** rooster en de eigen huiswerkplanner, zodat de assistent kan helpen
+bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde Home Assistant-integratie
+**Model Context Protocol Server**.
+
+### Wat het wel en niet kan
+
+- **Lezen:** het rooster (zonder namen en codes van docenten), het huiswerk met labels, teksten,
+  inleverdatum, voortgang en deelstappen, de voortgangswaarden en de labelopties van het gekoppelde kind.
+- **Wijzigen, in de planner:** deelstappen toevoegen, aanpassen en verwijderen; de voortgang van een item of
+  deelstap instellen; handmatige labels toevoegen en verwijderen; het Magister-label van een les vervangen,
+  uitschakelen of herstellen.
+- **Niet:** iets naar Magister schrijven, of instellingen van de integratie, vakgewichten of
+  coach-instellingen wijzigen.
+- Elke wijziging komt in het **logboek** van Home Assistant ("AI-coach: deelstap 'H4 woordjes' toegevoegd aan
+  Proefwerk Engels"), en deelstappen die de AI maakt krijgen in de Huiswerkplanner-kaart een klein
+  **AI**-label.
+- De assistent ziet alleen de kinderen waaraan de Home Assistant-gebruiker van de leerling is gekoppeld. Een
+  niet-gekoppelde gebruiker ziet niets.
+
+### Instellen
+
+1. **Maak per leerling een Home Assistant-gebruiker** (Instellingen, Personen, Gebruikers). Houd die
+   **geen beheerder**. Gebruik per leerling een aparte gebruiker; een ouder kan één gebruiker hebben die aan
+   meerdere kinderen is gekoppeld.
+2. **Koppel de gebruiker aan het kind:** Instellingen, Apparaten en diensten, Magister, **Configureren**,
+   **AI-coach**. Kies het kind, zet **AI-coach ingeschakeld** aan, kies de gebruiker(s) en pas zo nodig de
+   **coachrichtlijnen** aan (zie hieronder). Wijzigingen werken direct, zonder herladen.
+3. **Voeg de integratie "Model Context Protocol Server" toe** (Instellingen, Apparaten en diensten,
+   Integratie toevoegen). Kies bij **LLM-API's** **alleen "Magister huiswerkcoach"** en zet **beheerder
+   vereist uit**, zodat leerlingen zonder beheerdersrechten kunnen verbinden. (Kies je meer API's, zoals
+   Assist, dan krijgen de leerlingen die ook.)
+4. **Verbind de AI-app** als leerling, zie hieronder.
+
+Assist van Home Assistant blijft voor iedereen bereikbaar op `/api/mcp/assist`, maar alleen voor de entiteiten
+die je aan Assist blootstelt; de coach hoort daar niet bij. De coachtools werken ook met de eigen
+gespreksagenten van Home Assistant.
+
+### De Claude desktop-app verbinden
+
+Maak een **langlevend toegangstoken** aan op het eigen Home Assistant-profiel van de leerling (profiel,
+Beveiliging, Langlevende toegangstokens). Welke methode werkt hangt af van hoe Home Assistant bereikbaar is.
+
+**A. Lokale brug (werkt op je thuisnetwerk; probeer dit eerst).** Claude desktop start lokale MCP-servers vanuit
+`claude_desktop_config.json` (in de app: Instellingen, Ontwikkelaar, Configuratie bewerken). Een kleine brug,
+[`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy), verbindt die met Home Assistant:
+
+```json
+{
+  "mcpServers": {
+    "magister": {
+      "command": "mcp-proxy",
+      "args": [
+        "--transport", "streamablehttp",
+        "http://homeassistant.local:8123/api/mcp"
+      ],
+      "env": { "API_ACCESS_TOKEN": "<langlevend token van de HA-gebruiker van de leerling>" }
+    }
+  }
+}
+```
+
+Een alternatieve brug is `npx mcp-remote http://homeassistant.local:8123/api/mcp --header "Authorization: Bearer <token>" --allow-http`.
+
+> **Niet end-to-end getest.** Dit is gecontroleerd tegen de server van Home Assistant (een gekoppelde
+> gebruiker zonder beheerdersrechten ziet de tools en wijzigt deelstappen via `/api/mcp`), maar niet met een echte
+> Claude desktop-app of de brug. Controleer de opties met `mcp-proxy --help` (of `npx mcp-remote --help`); die kunnen per
+> versie verschillen. Gebruik het hoofdadres `/api/mcp`, niet `/api/mcp/magister_coach`: dat vraagt een beheerder.
+
+**B. Externe connector (alleen als Home Assistant via HTTPS bereikbaar is).** Gebruik in Claude
+(Instellingen, Connectors, aangepaste connector toevoegen) `https://<jouw-home-assistant>/api/mcp`. Claude
+verbindt vanuit de cloud van Anthropic, dus het adres moet vanaf internet bereikbaar zijn op de standaard
+HTTPS-poort 443 (bijvoorbeeld Home Assistant Cloud of een reverse proxy); voor een Home Assistant die alleen thuis
+bereikbaar is werkt dit niet. Log in met het Home Assistant-account van de leerling, of geef de connector, als
+inloggen mislukt, de aanvraagheader `Authorization: Bearer <langlevend token>`.
+
+> **Niet getest.** Home Assistant kent geen dynamische clientregistratie, dus inloggen werkt alleen als Claude
+> dat via zijn gepubliceerde clientidentiteit ondersteunt; de headervariant is niet getest. Zie deze methode als
+> experimenteel.
+
+### Privacy en leeftijd
+
+- **Leeftijd en voorwaarden.** Een leerling gebruikt een eigen AI-account alleen waar de voorwaarden van de
+  AI-aanbieder dat toestaan (veel aanbieders hebben een minimumleeftijd). Dat is de verantwoordelijkheid van
+  de ouders. De coach staat per kind standaard uit.
+- **Wat de AI-aanbieder ontvangt.** De huiswerkteksten, het rooster (vakken, tijden, lokalen, labels), de
+  deelstappen en de voortgang van het gekoppelde kind, en wat de leerling typt. Namen en codes van docenten
+  worden via de coach **niet** gedeeld, en ook niets over andere kinderen. De aanbieder verwerkt dit onder zijn eigen
+  voorwaarden; lees die eerst.
+- **De grens van de afscherming.** De afscherming geldt **alleen voor de coach**. De Home Assistant-gebruiker van
+  de leerling, en het token op diens computer, kunnen nog steeds **alle entiteitsstatussen** lezen in de Home
+  Assistant-app en de API, inclusief de agenda's van de andere kinderen met de namen van docenten. Zie de
+  gebruiker en het token als toegang tot die gegevens, gebruik een aparte gebruiker zonder beheerdersrechten en geef
+  het token aan niemand anders.
+- **Het token.** Een langlevend token staat leesbaar (platte tekst) in de Claude-configuratie op die computer.
+  Gebruik waar mogelijk **HTTPS**: met `http://` gaat het token onversleuteld over je netwerk. Trek het token in op
+  het profiel als het niet meer nodig is.
+- Er wordt niets naar Magister geschreven, en de coach kan geen instellingen of gewichten wijzigen.
+
+### Coachrichtlijnen
+
+De assistent krijgt richtlijnen mee met de tools. Zonder eigen tekst gelden deze standaardrichtlijnen:
+
+> Je bent een huiswerkcoach voor een middelbare scholier. Je helpt plannen, niet het werk overnemen.
+> Maak geen huiswerk, opdrachten of toetsen voor de leerling; leg uit, stel vragen en geef hints. Help
+> toetsen en grote opdrachten op te knippen in kleine deelstappen (15 tot 45 minuten), verspreid over de dagen
+> vóór de deadline. Plan realistisch: niet meer dan ongeveer 1,5 uur extra werk per schooldag, en laat de dag
+> vóór een toets ruimte voor herhalen. Vraag eerst wat de leerling al af heeft voordat je voortgang
+> aanpast. Wees positief en concreet, zonder druk of schuldgevoel. Spreek Nederlands, tenzij de leerling een
+> andere taal gebruikt. Leg kort uit wat je verandert en vraag toestemming voor het verwijderen van deelstappen
+> of labels.
+
+Je kunt de tekst **per kind** aanpassen onder Configureren, AI-coach (leeg betekent de standaardtekst, en er is
+een optie "terugzetten naar standaard").
 
 ## Gedrag
 
@@ -440,7 +559,9 @@ gevraagd.
   Assistant (`config/.storage`), net als bij andere integraties. Bescherm je back-ups.
 - Ze worden nooit in logs geschreven; diagnostiek verbergt ze.
 - Gegevens gaan alleen tussen je Home Assistant en Magister (de Magister-server en de loginservice
-  van je school). Er is geen andere server en er worden geen gebruiksgegevens verzameld.
+  van je school). Er is geen andere server en er worden geen gebruiksgegevens verzameld. Uitzondering: als je de
+  optionele AI-huiswerkcoach inschakelt, ziet de AI-aanbieder van de assistent van de leerling de huiswerkteksten en het
+  rooster (zonder gegevens van docenten); zie [AI-huiswerkcoach](#ai-huiswerkcoach) voor wat wel en niet is afgeschermd.
 - Bescherming tegen blokkade: na een mislukte login of herhaalde serverfouten wacht de integratie
   en probeert niet opnieuw met het wachtwoord; ze stopt helemaal als een poging kan meetellen voor
   een blokkade, tot je de integratie opnieuw laadt of opnieuw verifieert.

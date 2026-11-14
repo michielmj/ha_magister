@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 1.6.0
+
+AI homework coach. Released 2026-11-14.
+
 - **AI homework coach (backend).** LLM API `magister_coach` ("Magister huiswerkcoach") with read tools (children,
   schedule, homework, progress, label options) and write tools (subtasks, progress, labels, label overrides) for
   HA's MCP Server and conversation agents. Opt-in per child, linked to HA users under Configure > AI-coach, with
@@ -9,6 +13,11 @@
 - Downgrading to an earlier version drops the AI marker (`created_by`): subtasks added by the coach then read as
   added by the user.
 - **Subtasks** carry `created_by` (`"user"` or `"ai"`); the store is now 1.5 (older files read as `"user"`).
+- **Homework planner card.** Subtasks created by the AI coach show a small "AI" marker with a tooltip and screen
+  reader text ("Aangemaakt door AI-coach" / "Created by AI coach"). A missing `created_by` counts as `"user"`.
+- **README.** New section "AI homework coach" / "AI-huiswerkcoach": what it can and cannot do, setup, connecting
+  the Claude desktop app (local bridge first, remote connector for HTTPS), privacy and age notes, and the coaching
+  guidelines. The connection steps are not yet verified with a real Claude desktop app.
 
 ## 1.5.0
 

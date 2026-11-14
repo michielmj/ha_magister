@@ -1150,6 +1150,14 @@ export class MagisterHomeworkCard extends LitElement {
           : html`<div class="head">
               <span class="arrow" aria-hidden="true">↳</span>
               <span class="subject sub-title">${subtask.title}</span>
+              ${subtask.created_by === "ai"
+                ? html`<span
+                    class="ai-badge"
+                    role="img"
+                    title=${texts.sub.ai_label}
+                    aria-label=${texts.sub.ai_label}
+                  ><span aria-hidden="true">${texts.sub.ai}</span></span>`
+                : nothing}
               ${enabled
                 ? html`<span class="sub-actions"><button
                       type="button"
@@ -2028,6 +2036,17 @@ export class MagisterHomeworkCard extends LitElement {
       font-weight: 500;
       color: var(--error-color);
       border: 1px solid var(--error-color);
+    }
+    .ai-badge {
+      flex: 0 0 auto;
+      padding: 0 6px;
+      border-radius: 10px;
+      font-size: 0.7em;
+      font-weight: 600;
+      line-height: 1.6;
+      letter-spacing: 0.04em;
+      color: var(--primary-color);
+      border: 1px solid var(--primary-color);
     }
     .sr-only {
       position: absolute;

@@ -17,6 +17,7 @@ a day (handy for a wake-up alarm).
   ahead, refreshed every 30 minutes (both adjustable).
 - A **Homework** to-do list and three progress sensors per child (see the homework planner).
 - Optional **first-appointment sensors** (a timestamp) for automations.
+- **AI homework coach** (since 1.6.0, optional): a student can link an AI assistant to their own schedule and homework planner through Home Assistant's MCP Server; see [AI homework coach](#ai-homework-coach).
 - Event titles come from Magister (in Dutch) with these labels:
 
 | Title | Meaning |
@@ -356,8 +357,121 @@ show_progress_next_week: false
   hidden). Ticking, steps, editing and deleting show at once and are rolled back with a message if
   saving fails. Everything works with the keyboard (Escape closes a form or confirmation) and with a
   screen reader; the focus moves to the new row after adding and to a neighbouring control after
-  deleting.
+  deleting. A subtask created by the AI coach (see below) shows a small **AI** marker (tooltip and
+  screen reader text "Created by AI coach").
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
+
+## AI homework coach
+
+*Since 1.6.0. Optional and off by default.* A student can link an AI assistant (for example the Claude
+desktop app) to **their own** schedule and homework planner, so the assistant can help plan homework and
+tests. It works through Home Assistant's built-in **Model Context Protocol Server** integration.
+
+### What it can and cannot do
+
+- **It can read** the schedule (without teacher names and codes), the homework with its labels, texts,
+  due dates, progress and subtasks, the progress values and the label options of the child it is linked to.
+- **It can change, in the planner:** add, change and delete subtasks; set the progress of an item or
+  subtask; add and remove manual labels; replace, disable or restore the Magister label of a lesson.
+- **It cannot** write anything to Magister, and it cannot change the integration's settings, the subject
+  weights or the coach settings.
+- Every change is written to the Home Assistant **logbook** ("AI-coach: subtask 'H4 words' added to Proefwerk
+  Engels"), and subtasks created by the AI show a small **AI** marker in the Homework planner card.
+- It only sees the children that the student's Home Assistant user is linked to. A user that is not linked
+  sees nothing.
+
+### Set up
+
+1. **Create a Home Assistant user per student** (Settings, People, Users). Keep it **non-admin**. Use a
+   separate user for each student; a parent may have one user that is linked to several children.
+2. **Link the user to the child:** Settings, Devices & services, Magister, **Configure**, **AI-coach**.
+   Choose the child, turn on **AI coach enabled**, select the user(s) and, if you want, edit the
+   **coaching guidelines** (see below). Changes apply at once, without a reload.
+3. **Add the integration "Model Context Protocol Server"** (Settings, Devices & services, Add integration).
+   Under **LLM APIs** select **only "Magister huiswerkcoach"** and turn **require admin off**, so that
+   non-admin student users can connect. (If you select more APIs, such as Assist, the students get those
+   too.)
+4. **Connect the AI app** as a student, see below.
+
+Home Assistant's own Assist stays reachable for everyone at `/api/mcp/assist`, but only for the entities
+you expose to Assist; the coach is not part of it. The coach tools also work with Home Assistant's own
+conversation agents.
+
+### Connect the Claude desktop app
+
+Create a **long-lived access token** on the student's own Home Assistant profile (profile, Security,
+Long-lived access tokens). Which method works for you depends on how Home Assistant is reachable.
+
+**A. Local bridge (works on your home network; try this first).** Claude desktop starts local MCP servers
+from `claude_desktop_config.json` (in the app: Settings, Developer, Edit config). A small bridge,
+[`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy), connects it to Home Assistant:
+
+```json
+{
+  "mcpServers": {
+    "magister": {
+      "command": "mcp-proxy",
+      "args": [
+        "--transport", "streamablehttp",
+        "http://homeassistant.local:8123/api/mcp"
+      ],
+      "env": { "API_ACCESS_TOKEN": "<long-lived token of the student's HA user>" }
+    }
+  }
+}
+```
+
+An alternative bridge is `npx mcp-remote http://homeassistant.local:8123/api/mcp --header "Authorization: Bearer <token>" --allow-http`.
+
+> **Not verified end to end.** This was checked against Home Assistant's server (a non-admin linked user
+> lists the tools and changes subtasks through `/api/mcp`), but not with a real Claude desktop app or the
+> bridge. Verify the flags with `mcp-proxy --help` (or `npx mcp-remote --help`); they can differ per version.
+> Use the main address `/api/mcp`, not `/api/mcp/magister_coach`: that one needs an administrator.
+
+**B. Remote connector (only when Home Assistant is reachable over HTTPS).** In Claude (Settings,
+Connectors, add a custom connector) use `https://<your-home-assistant>/api/mcp`. Claude connects from
+Anthropic's cloud, so the address must be reachable from the internet on the standard HTTPS port 443
+(for example Home Assistant Cloud or a reverse proxy); it does not work for a Home Assistant that is only at
+home. Sign in with the student's Home Assistant account, or, if sign-in fails, give the connector a request
+header `Authorization: Bearer <long-lived token>`.
+
+> **Not verified.** Home Assistant has no dynamic client registration, so the sign-in only works if Claude
+> supports it through its published client identity; the header variant is untested. Treat this method as
+> experimental.
+
+### Privacy and age
+
+- **Age and terms.** A student may only use their own AI account where the AI provider's terms allow it
+  (many providers have a minimum age). This is the responsibility of the parents. The coach is opt-in per
+  child.
+- **What the AI provider receives.** The homework texts, the schedule (subjects, times, locations, labels),
+  the subtasks and the progress of the linked child, and what the student types. Teacher names and codes
+  are **not** shared through the coach, and neither is anything about other children. The provider handles
+  this data under its own terms; read them first.
+- **The limit of the isolation.** The isolation holds **only for the coach**. The student's Home Assistant
+  user, and the token on their computer, can still read **all entity states** in the Home Assistant app and
+  API, including the other children's calendars with the teachers' names. Treat the user and the token
+  as access to that data, use a dedicated non-admin user and do not give the token to anyone else.
+- **The token.** A long-lived token is stored in plain text in the Claude configuration on that computer.
+  Use **HTTPS** wherever you can: with `http://` the token travels unencrypted over your network. Revoke the
+  token on the profile when it is no longer needed.
+- Nothing is written to Magister, and the coach cannot change settings or weights.
+
+### Coaching guidelines
+
+The assistant gets guidelines with the tools. Without your own text it uses this default (in Dutch):
+
+> Je bent een huiswerkcoach voor een middelbare scholier. Je helpt plannen, niet het werk overnemen.
+> Maak geen huiswerk, opdrachten of toetsen voor de leerling; leg uit, stel vragen en geef hints. Help
+> toetsen en grote opdrachten op te knippen in kleine deelstappen (15 tot 45 minuten), verspreid over de dagen
+> vóór de deadline. Plan realistisch: niet meer dan ongeveer 1,5 uur extra werk per schooldag, en laat de dag
+> vóór een toets ruimte voor herhalen. Vraag eerst wat de leerling al af heeft voordat je voortgang
+> aanpast. Wees positief en concreet, zonder druk of schuldgevoel. Spreek Nederlands, tenzij de leerling een
+> andere taal gebruikt. Leg kort uit wat je verandert en vraag toestemming voor het verwijderen van deelstappen
+> of labels.
+
+You can edit the text **per child** under Configure, AI-coach (empty means the default, and there is a
+"reset to default" option).
 
 ## How it behaves
 
@@ -413,7 +527,9 @@ first; the password is asked with hidden input.
   (`config/.storage`), like other integrations. Protect your backups.
 - They are never written to logs; diagnostics redact them.
 - Data goes only between your Home Assistant and Magister (your school's Magister server and
-  login service). There is no other server, no analytics.
+  login service). There is no other server, no analytics. The exception: if you turn on the optional AI homework coach, the
+  AI provider of the student's assistant sees the homework texts and the schedule (without teacher data); see
+  [AI homework coach](#ai-homework-coach) for what is and is not isolated.
 - Lockout protection: after a failed login or repeated server errors the integration waits and
   does not retry with the password; it stops completely when it could count towards a lockout,
   until you reload the integration or re-authenticate.
