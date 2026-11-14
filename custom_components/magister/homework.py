@@ -20,33 +20,45 @@ from homeassistant.util import dt as dt_util
 
 from .api.homework import (
     LABEL_KINDS,
+    MAX_SUBTASKS,
     MODE_DISABLE,
     MODE_REPLACE,
     NOTE_MAX,
     OVERRIDE_MODES,
     PERIOD_NEXT_WEEK,
     PERIODS,
+    SUBTASK_TITLE_MAX,
     EffectiveState,
+    Entry,
     HomeworkItem,
     LabelOption,
     ManualLabel,
     Override,
     PeriodSummary,
+    Subtask,
     Weights,
+    active_subtasks,
     default_label_options,
+    derived_progress,
     effective_state,
     effective_weights,
+    entries_in_period,
     extract_homework,
+    homework_entries,
     homework_periods,
     item_uid,
-    items_in_period,
     magister_info_type,
     magister_label_option,
     magister_label_text,
     next_week_fits,
     parse_label_options,
     skipped_days,
-    summarize,
+    split_subtask_uid,
+    subtask_current_date,
+    subtask_date_allowed,
+    subtask_overdue,
+    subtask_uid,
+    summarize_entries,
     uid_child_id,
 )
 from .api.mapping import CANCELLED_STATUSES, LOCAL_TZ
@@ -58,7 +70,7 @@ if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
 
 STORE_VERSION: Final = 1
-STORE_MINOR_VERSION: Final = 3
+STORE_MINOR_VERSION: Final = 4
 SAVE_DELAY: Final = 5.0
 PRUNE_AFTER: Final = timedelta(days=14)
 
@@ -69,6 +81,7 @@ UPDATED: Final = "updated"
 GONE: Final = "gone"
 LABELS: Final = "labels"
 OVERRIDE: Final = "override"
+SUBTASKS: Final = "subtasks"
 
 # Errors of the label commands; the WebSocket API uses them as error codes and the
 # services as ``homework_<code>`` exception translation keys.
@@ -77,6 +90,12 @@ ERR_LABEL_NOT_FOUND: Final = "label_not_found"
 ERR_LABEL_EXISTS: Final = "label_exists"
 ERR_LABEL_NOT_ON_APPOINTMENT: Final = "label_not_on_appointment"
 ERR_INVALID_DATE: Final = "invalid_date"
+# Errors of the subtask commands (same transport as the label errors).
+ERR_ITEM_NOT_FOUND: Final = "item_not_found"
+ERR_ITEM_DISABLED: Final = "item_disabled"
+ERR_SUBTASK_NOT_FOUND: Final = "subtask_not_found"
+ERR_TOO_MANY_SUBTASKS: Final = "too_many_subtasks"
+ERR_NOTHING_TO_UPDATE: Final = "nothing_to_update"
 ERR_NO_MAGISTER_LABEL: Final = "no_magister_label"
 # Invalid input: the WebSocket API reports both as ``invalid_format``.
 ERR_LABEL_REQUIRED: Final = "label_required"
@@ -146,6 +165,18 @@ def note_text(value: Any) -> str:
     return text
 
 
+def subtask_title(value: Any) -> str:
+    """Validate a subtask title: 1-100 characters, trimmed."""
+    if not isinstance(value, str):
+        raise probatio.Invalid("title must be text")
+    text = value.strip()
+    if not text:
+        raise probatio.Invalid("title must not be empty")
+    if len(text) > SUBTASK_TITLE_MAX:
+        raise probatio.Invalid(f"title must be at most {SUBTASK_TITLE_MAX} characters")
+    return text
+
+
 def new_label_id() -> str:
     """A new stable id for a label option."""
     return uuid.uuid4().hex[:8]
@@ -159,7 +190,8 @@ class _HomeworkStore(Store[dict[str, Any]]):
     ) -> dict[str, Any]:
         """1.1 (progress only) to 1.2 (adds ``labels`` to every item).
 
-        1.2 to 1.3 adds the optional ``override`` per item, which needs no migration.
+        1.2 to 1.3 adds the optional ``override`` per item and 1.3 to 1.4 the optional
+        ``subtasks`` list: neither needs a migration.
         The major version stays 1 so that an older release can still read the file.
         """
         if old_major_version == 1:
@@ -233,6 +265,8 @@ class HomeworkManager:
                 clean[LABELS] = _clean_labels(entry.get(LABELS))
                 if (override := _clean_override(entry.get(OVERRIDE))) is not None:
                     clean[OVERRIDE] = override
+                if subtasks := _clean_subtasks(entry.get(SUBTASKS)):
+                    clean[SUBTASKS] = subtasks
                 self._progress[str(uid)] = clean
         self.async_prune()
 
@@ -259,9 +293,10 @@ class HomeworkManager:
             self._effective = {}
             manual = self._manual_labels()
             overrides = self._overrides()
+            subtasks = self._subtasks()
             self._items = {
                 child: extract_homework(
-                    appointments, self._host, child, manual, overrides
+                    appointments, self._host, child, manual, overrides, subtasks
                 )
                 for child, appointments in data.items()
             }
@@ -297,6 +332,14 @@ class HomeworkManager:
             if (option := options[child].get(stored["label"])) is not None:
                 result[uid] = Override(MODE_REPLACE, option)
         return result
+
+    def _subtasks(self) -> dict[str, tuple[Subtask, ...]]:
+        """The stored subtasks by item uid."""
+        return {
+            uid: tuple(_subtask_from_stored(s) for s in entry[SUBTASKS])
+            for uid, entry in self._progress.items()
+            if entry.get(SUBTASKS)
+        }
 
     def _manual_labels(self) -> dict[str, tuple[ManualLabel, ...]]:
         """The stored manual labels by item uid, resolved against the options."""
@@ -507,6 +550,7 @@ class HomeworkManager:
             entry is not None
             and not entry[LABELS]
             and OVERRIDE not in entry
+            and not entry.get(SUBTASKS)
             and entry[PROGRESS] == 0
             and entry[LAST_PARTIAL] == 0
         ):
@@ -526,50 +570,116 @@ class HomeworkManager:
             self._coordinator.weeks_ahead
         )
 
+    def entries(self, child_id: int, today: date) -> list[Entry]:
+        """The progress entries of a child: items without subtasks plus subtasks."""
+        return homework_entries(
+            self.items(child_id), self.progress, self.weights(child_id), today
+        )
+
     def period(self, child_id: int, period: str, today: date) -> PeriodData:
         """Items, weights and weighted progress of a child for a period."""
         first, end = homework_periods(today)[period]
-        items = items_in_period(
-            self.items(child_id), (first, end), skipped_days(period, today)
+        skipped = skipped_days(period, today)
+        entries = entries_in_period(
+            self.entries(child_id, today), (first, end), skipped
         )
-        weights = self.weights(child_id)
+        counted = {entry.item_uid for entry in entries}
+        items = [
+            item
+            for item in self.items(child_id)
+            if item.uid in counted
+            or (
+                self.effective(item).disabled
+                and first <= item.due_date < end
+                and item.due_date not in skipped
+            )
+        ]
         return PeriodData(
-            first, end, items, weights, summarize(items, self.progress, weights)
+            first,
+            end,
+            items,
+            self.weights(child_id),
+            summarize_entries(entries),
         )
 
     def due_open_count(self, child_id: int, today: date) -> int:
-        """Open items due today or later (the number shown for the to-do list)."""
+        """Open entries on today or later (the number shown for the to-do list).
+
+        Entries are the items without subtasks and the subtasks (on their current date).
+        """
         return sum(
             1
-            for item in self.items(child_id)
-            if item.due_date >= today and not self.is_completed(item)
+            for entry in self.entries(child_id, today)
+            if entry.day >= today and entry.progress < 100
         )
 
     def is_completed(self, item: HomeworkItem) -> bool:
-        """Completed: progress 100, or the item is disabled (progress is kept)."""
+        """Completed: progress 100 (derived with subtasks), or the item is disabled."""
         return self.progress(item.uid) >= 100 or self.effective(item).disabled
+
+    def active_subtasks(self, item: HomeworkItem) -> tuple[Subtask, ...]:
+        """The subtasks of an item that count (none while it is disabled)."""
+        return active_subtasks(item, self.effective(item))
+
+    @staticmethod
+    def today() -> date:
+        """The local (Amsterdam) date."""
+        return dt_util.now(LOCAL_TZ).date()
 
     # -- progress -----------------------------------------------------------
 
     def progress(self, uid: str) -> int:
-        """Progress of an item in percent (0 when untouched)."""
+        """Progress in percent (0 when untouched).
+
+        Of a subtask uid: the subtask's progress. Of an item with active subtasks: the
+        derived progress (their rounded mean).
+        """
+        if split_subtask_uid(uid) is not None:
+            sub = self.find_subtask(uid)
+            return sub.progress if sub else 0
+        item = self._item_by_uid(uid)
+        if item is not None and (subtasks := self.active_subtasks(item)):
+            return derived_progress(subtasks)
         return int(self._progress.get(uid, {}).get(PROGRESS, 0))
 
     def last_partial(self, uid: str) -> int:
         """The last progress below 100 (restored when an item is reopened)."""
+        if split_subtask_uid(uid) is not None:
+            sub = self.find_subtask(uid)
+            return sub.last_partial if sub else 0
         return int(self._progress.get(uid, {}).get(LAST_PARTIAL, 0))
 
     def completed_at(self, uid: str) -> datetime | None:
-        """When an item reached 100 %, ``None`` otherwise."""
+        """When an item reached 100 %, ``None`` otherwise (and for derived progress)."""
         entry = self._progress.get(uid)
-        if entry is None or entry[PROGRESS] < 100:
+        if entry is None or entry[PROGRESS] < 100 or self.has_subtasks(uid):
             return None
         return dt_util.parse_datetime(str(entry.get(UPDATED) or ""))
 
+    def _item_by_uid(self, uid: str) -> HomeworkItem | None:
+        self.items(0)  # refresh the caches when the data changed
+        return self._by_uid.get(uid)
+
+    def has_subtasks(self, uid: str) -> bool:
+        """Whether an item has active subtasks (its progress is then derived)."""
+        item = self._item_by_uid(uid)
+        return item is not None and bool(self.active_subtasks(item))
+
+    def find_subtask(self, uid: str) -> Subtask | None:
+        """The active subtask with a subtask uid, ``None`` when unknown or hidden."""
+        if (ref := split_subtask_uid(uid)) is None:
+            return None
+        if (item := self._item_by_uid(ref[0])) is None:
+            return None
+        return next((s for s in self.active_subtasks(item) if s.id == ref[1]), None)
+
     @callback
     def set_progress(self, uid: str, progress: int) -> None:
-        """Set the progress (0-100) of an item and tell the listeners."""
+        """Set the progress (0-100) of an item or subtask and tell the listeners."""
         progress = _clamp(progress)
+        if (ref := split_subtask_uid(uid)) is not None:
+            self._set_subtask_progress(ref, progress)
+            return
         entry = self._progress.get(uid)
         previous = entry[PROGRESS] if entry else 0
         last_partial = entry[LAST_PARTIAL] if entry else 0
@@ -580,22 +690,131 @@ class HomeworkManager:
         elif previous < 100:
             last_partial = previous
         updated = {
+            **(entry or _blank_entry()),
             PROGRESS: progress,
             LAST_PARTIAL: last_partial,
             UPDATED: dt_util.utcnow().isoformat(),
-            LABELS: entry[LABELS] if entry else [],
         }
-        if entry and OVERRIDE in entry:
-            updated[OVERRIDE] = entry[OVERRIDE]
         self._progress[uid] = updated
         self._drop_if_empty(uid)
         self._changed()
 
+    def _set_subtask_progress(self, ref: tuple[str, str], progress: int) -> None:
+        stored = self._stored_subtask(*ref)
+        if stored is None or progress == stored["progress"]:
+            return
+        previous = stored["progress"]
+        if progress < 100:
+            stored["last_partial"] = progress
+            stored["completed_on"] = None
+        else:
+            if previous < 100:
+                stored["last_partial"] = previous
+            stored["completed_on"] = self.today().isoformat()
+        stored["progress"] = progress
+        self._invalidate()
+        self._changed()
+
+    def _stored_subtask(self, item_uid_: str, sub_id: str) -> dict[str, Any] | None:
+        entry = self._progress.get(item_uid_)
+        return next(
+            (s for s in (entry or {}).get(SUBTASKS, []) if s["id"] == sub_id), None
+        )
+
     @callback
     def reopen(self, uid: str) -> None:
-        """Untick an item: restore the last progress below 100."""
+        """Untick an item or subtask: restore the last progress below 100."""
         if self.progress(uid) >= 100:
             self.set_progress(uid, self.last_partial(uid))
+
+    # -- subtasks -----------------------------------------------------------
+
+    def _subtask_item(self, child_id: int, item_uid_: str) -> HomeworkItem:
+        """The item subtasks can be changed on (not disabled)."""
+        item = self.find_item(child_id, item_uid_)
+        if item is None:
+            raise LabelError(ERR_ITEM_NOT_FOUND)
+        if self.effective(item).disabled:
+            raise LabelError(ERR_ITEM_DISABLED)
+        return item
+
+    def _check_planned(self, item: HomeworkItem, planned: date) -> None:
+        if not subtask_date_allowed(planned, item.due_date, self.today()):
+            raise LabelError(ERR_INVALID_DATE)
+
+    @callback
+    def add_subtask(
+        self, child_id: int, item_uid_: str, title: str, planned: date | None
+    ) -> HomeworkItem:
+        """Add a subtask (planned today by default) to an item; returns the item."""
+        item = self._subtask_item(child_id, item_uid_)
+        if len(item.subtasks) >= MAX_SUBTASKS:
+            raise LabelError(ERR_TOO_MANY_SUBTASKS)
+        planned = planned or self.today()
+        self._check_planned(item, planned)
+        entry = self._progress.get(item_uid_)
+        if entry is None:
+            entry = self._progress[item_uid_] = _blank_entry()
+        entry.setdefault(SUBTASKS, []).append(
+            {
+                "id": new_label_id(),
+                "title": title,
+                "planned": planned.isoformat(),
+                "progress": 0,
+                "last_partial": 0,
+                "completed_on": None,
+            }
+        )
+        return self._subtasks_changed(child_id, item_uid_)
+
+    @callback
+    def update_subtask(
+        self,
+        child_id: int,
+        uid: str,
+        title: str | None,
+        planned: date | None,
+    ) -> HomeworkItem:
+        """Change the title and/or planned date of a subtask; returns the item."""
+        if title is None and planned is None:
+            raise LabelError(ERR_NOTHING_TO_UPDATE)
+        item, stored = self._find_stored_subtask(child_id, uid)
+        if planned is not None:
+            self._check_planned(item, planned)
+            stored["planned"] = planned.isoformat()
+        if title is not None:
+            stored["title"] = title
+        return self._subtasks_changed(child_id, item.uid)
+
+    @callback
+    def delete_subtask(self, child_id: int, uid: str) -> HomeworkItem:
+        """Delete a subtask; returns the item (its own progress applies without any)."""
+        item, stored = self._find_stored_subtask(child_id, uid)
+        entry = self._progress[item.uid]
+        entry[SUBTASKS].remove(stored)
+        if not entry[SUBTASKS]:
+            del entry[SUBTASKS]
+            self._drop_if_empty(item.uid)
+        return self._subtasks_changed(child_id, item.uid)
+
+    def _find_stored_subtask(
+        self, child_id: int, uid: str
+    ) -> tuple[HomeworkItem, dict[str, Any]]:
+        ref = split_subtask_uid(uid)
+        if ref is None:
+            raise LabelError(ERR_SUBTASK_NOT_FOUND)
+        item = self._subtask_item(child_id, ref[0])
+        stored = self._stored_subtask(*ref)
+        if stored is None:
+            raise LabelError(ERR_SUBTASK_NOT_FOUND)
+        return item, stored
+
+    def _subtasks_changed(self, child_id: int, item_uid_: str) -> HomeworkItem:
+        self._invalidate()
+        self._changed()
+        item = self.find_item(child_id, item_uid_)
+        assert item is not None
+        return item
 
     @callback
     def async_prune(self) -> None:
@@ -724,11 +943,28 @@ class HomeworkManager:
                 )
                 for kind in LABEL_KINDS
             },
+            "subtasks": self._subtask_statistics(items),
             "weights": {
                 "types_set": len(weights.types),
                 "labels_set": len(weights.labels),
                 "subjects_set": len(weights.subjects),
             },
+        }
+
+    def _subtask_statistics(self, items: list[HomeworkItem]) -> dict[str, int]:
+        today = self.today()
+        subtasks = [(item, sub) for item in items for sub in self.active_subtasks(item)]
+        return {
+            "items_with_subtasks": sum(
+                1 for item in items if self.has_subtasks(item.uid)
+            ),
+            "total": len(subtasks),
+            "done": sum(1 for _, sub in subtasks if sub.done),
+            "overdue": sum(
+                1
+                for item, sub in subtasks
+                if subtask_overdue(sub, item.due_date, today)
+            ),
         }
 
     @property
@@ -745,6 +981,54 @@ async def async_remove_store(hass: HomeAssistant, entry_id: str) -> None:
         f"{DOMAIN}.homework.{entry_id}",
         minor_version=STORE_MINOR_VERSION,
     ).async_remove()
+
+
+def _subtask_from_stored(stored: dict[str, Any]) -> Subtask:
+    return Subtask(
+        stored["id"],
+        stored["title"],
+        date.fromisoformat(stored["planned"]),
+        stored["progress"],
+        stored["last_partial"],
+        date.fromisoformat(stored["completed_on"]) if stored["completed_on"] else None,
+    )
+
+
+def _clean_subtasks(raw: Any) -> list[dict[str, Any]]:
+    """Stored subtasks, leniently; unusable ones are dropped, at most 20 are kept."""
+    subtasks: list[dict[str, Any]] = []
+    if not isinstance(raw, list):
+        return subtasks
+    for stored in raw:
+        if not isinstance(stored, dict):
+            continue
+        sub_id, title = stored.get("id"), stored.get("title")
+        planned = _parse_date(stored.get("planned"))
+        if not isinstance(sub_id, str) or not sub_id or planned is None:
+            continue
+        if any(s["id"] == sub_id for s in subtasks):
+            continue
+        if not isinstance(title, str) or not (
+            title := title.strip()[:SUBTASK_TITLE_MAX]
+        ):
+            continue
+        progress = _clamp(stored.get(PROGRESS))
+        completed_on = (
+            _parse_date(stored.get("completed_on")) if progress >= 100 else None
+        )
+        subtasks.append(
+            {
+                "id": sub_id,
+                "title": title,
+                "planned": planned.isoformat(),
+                "progress": progress,
+                "last_partial": min(_clamp(stored.get(LAST_PARTIAL)), 99),
+                "completed_on": completed_on.isoformat() if completed_on else None,
+            }
+        )
+        if len(subtasks) >= MAX_SUBTASKS:
+            break
+    return subtasks
 
 
 def _blank_entry() -> dict[str, Any]:
@@ -830,10 +1114,26 @@ def appointment_to_dict(
     }
 
 
+def subtask_to_dict(item: HomeworkItem, sub: Subtask, today: date) -> Payload:
+    """The WebSocket form of a subtask."""
+    return {
+        "uid": subtask_uid(item.uid, sub.id),
+        "title": sub.title,
+        "planned": sub.planned.isoformat(),
+        "date": subtask_current_date(sub, item.due_date, today).isoformat(),
+        "overdue": subtask_overdue(sub, item.due_date, today),
+        "progress": sub.progress,
+        "completed": sub.done,
+        "last_partial": sub.last_partial,
+    }
+
+
 def item_to_dict(manager: HomeworkManager, item: HomeworkItem) -> Payload:
     """The WebSocket form of an item."""
     local = item.start.astimezone(LOCAL_TZ)
     state = manager.effective(item)
+    today = manager.today()
+    subtasks = manager.active_subtasks(item)
     return {
         "uid": item.uid,
         "due": item.due_date.isoformat() if item.all_day else local.isoformat(),
@@ -853,6 +1153,8 @@ def item_to_dict(manager: HomeworkManager, item: HomeworkItem) -> Payload:
         "progress": manager.progress(item.uid),
         "completed": manager.is_completed(item),
         "last_partial": manager.last_partial(item.uid),
+        "derived": bool(subtasks),
+        "subtasks": [subtask_to_dict(item, sub, today) for sub in subtasks],
     }
 
 
@@ -860,7 +1162,7 @@ def progress_payload(
     manager: HomeworkManager, child_id: int, *, available: bool
 ) -> Payload:
     """The values of the progress sensors; ``None`` where a sensor is unavailable."""
-    today = dt_util.now(LOCAL_TZ).date()
+    today = manager.today()
     result: Payload = {}
     for period in PERIODS:
         if not available or not manager.period_fits(period):

@@ -57,6 +57,12 @@ ATTR_LABEL: Final = "label"
 ATTR_NOTE: Final = "note"
 SERVICE_SET_HOMEWORK_OVERRIDE: Final = "set_homework_override"
 ATTR_MODE: Final = "mode"
+SERVICE_ADD_HOMEWORK_SUBTASK: Final = "add_homework_subtask"
+SERVICE_UPDATE_HOMEWORK_SUBTASK: Final = "update_homework_subtask"
+SERVICE_DELETE_HOMEWORK_SUBTASK: Final = "delete_homework_subtask"
+ATTR_SUBTASK: Final = "subtask"
+ATTR_TITLE: Final = "title"
+ATTR_DATE: Final = "date"
 
 MANUFACTURER: Final = "Magister"
 

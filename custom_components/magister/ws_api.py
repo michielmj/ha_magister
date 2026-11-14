@@ -10,13 +10,17 @@ Commands (any authenticated user, like HA's own ``todo/item/*``):
 * ``magister/homework/remove_label``: ``{"entity_id", "appointment", "label"}``.
 * ``magister/homework/set_override``: ``{"entity_id", "appointment", "mode", "label"?}``
   with mode ``replace`` (needs a label), ``disable`` or ``clear``.
+* ``magister/homework/add_subtask``: ``{"entity_id", "item", "title", "date"?}``.
+* ``magister/homework/update_subtask``: ``{"entity_id", "subtask", "title"?, "date"?}``.
+* ``magister/homework/delete_subtask``: ``{"entity_id", "subtask"}``.
 
-The label and override commands need control permission.
+The label, override and subtask commands need control permission.
 See docs/reference/homework-websocket.md.
 """
 
 from __future__ import annotations
 
+from datetime import date as Date
 from typing import Any
 
 import probatio
@@ -34,14 +38,18 @@ from homeassistant.helpers import config_validation as cv
 from .api.homework import MODE_CLEAR, MODE_DISABLE, MODE_REPLACE
 from .homework import (
     ERR_INVALID_DATE,
+    ERR_ITEM_DISABLED,
+    ERR_ITEM_NOT_FOUND,
     ERR_LABEL_IS_ORIGINAL,
     ERR_LABEL_REQUIRED,
+    ERR_NOTHING_TO_UPDATE,
     LabelError,
     async_subscribe,
     note_text,
     strict_progress,
+    subtask_title,
 )
-from .todo import HomeworkItemDisabled, MagisterHomeworkTodo
+from .todo import HomeworkItemDisabled, HomeworkItemHasSubtasks, MagisterHomeworkTodo
 
 SUBSCRIBE = "magister/homework/subscribe"
 SET_PROGRESS = "magister/homework/set_progress"
@@ -49,12 +57,16 @@ APPOINTMENTS = "magister/homework/appointments"
 ADD_LABEL = "magister/homework/add_label"
 REMOVE_LABEL = "magister/homework/remove_label"
 SET_OVERRIDE = "magister/homework/set_override"
+ADD_SUBTASK = "magister/homework/add_subtask"
+UPDATE_SUBTASK = "magister/homework/update_subtask"
+DELETE_SUBTASK = "magister/homework/delete_subtask"
 
 ERR_NOT_FOUND = "not_found"
-ERR_ITEM_NOT_FOUND = "item_not_found"
-ERR_ITEM_DISABLED = "item_disabled"
+ERR_ITEM_HAS_SUBTASKS = "item_has_subtasks"
 ERR_INVALID_FORMAT = "invalid_format"
-INVALID_INPUT = frozenset({ERR_LABEL_REQUIRED, ERR_LABEL_IS_ORIGINAL})
+INVALID_INPUT = frozenset(
+    {ERR_LABEL_REQUIRED, ERR_LABEL_IS_ORIGINAL, ERR_NOTHING_TO_UPDATE}
+)
 
 
 @callback
@@ -66,6 +78,9 @@ def async_register_websocket_api(hass: HomeAssistant) -> None:
     async_register_command(hass, websocket_add_label)
     async_register_command(hass, websocket_remove_label)
     async_register_command(hass, websocket_set_override)
+    async_register_command(hass, websocket_add_subtask)
+    async_register_command(hass, websocket_update_subtask)
+    async_register_command(hass, websocket_delete_subtask)
 
 
 @callback
@@ -133,6 +148,11 @@ def websocket_set_progress(
     except HomeworkItemDisabled:
         connection.send_error(
             msg["id"], ERR_ITEM_DISABLED, "Restore the Magister label first"
+        )
+        return
+    except HomeworkItemHasSubtasks:
+        connection.send_error(
+            msg["id"], ERR_ITEM_HAS_SUBTASKS, "The progress is derived from subtasks"
         )
         return
     except ServiceValidationError:
@@ -249,6 +269,87 @@ def websocket_set_override(
         connection.send_error(msg["id"], code, f"Cannot set the override: {err.code}")
         return
     connection.send_result(msg["id"], {"item": item})
+
+
+def _subtask_error(
+    connection: ActiveConnection, msg: dict[str, Any], err: LabelError
+) -> None:
+    code = ERR_INVALID_FORMAT if err.code in INVALID_INPUT else err.code
+    connection.send_error(msg["id"], code, f"Cannot change the subtask: {err.code}")
+
+
+@websocket_command(
+    {
+        probatio.Required("type"): ADD_SUBTASK,
+        probatio.Required("entity_id"): cv.entity_domain(TODO_DOMAIN),
+        probatio.Required("item"): cv.string,
+        probatio.Required("title"): subtask_title,
+        probatio.Optional("date"): cv.date,
+    }
+)
+@callback
+def websocket_add_subtask(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Add a subtask to an item."""
+    entity = _controlled_entity(hass, connection, msg)
+    if entity is None:
+        return
+    planned: Date | None = msg.get("date")
+    try:
+        item = entity.add_subtask(msg["item"], msg["title"], planned)
+    except LabelError as err:
+        _subtask_error(connection, msg, err)
+        return
+    connection.send_result(msg["id"], item)
+
+
+@websocket_command(
+    {
+        probatio.Required("type"): UPDATE_SUBTASK,
+        probatio.Required("entity_id"): cv.entity_domain(TODO_DOMAIN),
+        probatio.Required("subtask"): cv.string,
+        probatio.Optional("title"): subtask_title,
+        probatio.Optional("date"): cv.date,
+    }
+)
+@callback
+def websocket_update_subtask(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Change the title and/or the planned date of a subtask."""
+    entity = _controlled_entity(hass, connection, msg)
+    if entity is None:
+        return
+    try:
+        item = entity.update_subtask(msg["subtask"], msg.get("title"), msg.get("date"))
+    except LabelError as err:
+        _subtask_error(connection, msg, err)
+        return
+    connection.send_result(msg["id"], item)
+
+
+@websocket_command(
+    {
+        probatio.Required("type"): DELETE_SUBTASK,
+        probatio.Required("entity_id"): cv.entity_domain(TODO_DOMAIN),
+        probatio.Required("subtask"): cv.string,
+    }
+)
+@callback
+def websocket_delete_subtask(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Delete a subtask."""
+    entity = _controlled_entity(hass, connection, msg)
+    if entity is None:
+        return
+    try:
+        item = entity.delete_subtask(msg["subtask"])
+    except LabelError as err:
+        _subtask_error(connection, msg, err)
+        return
+    connection.send_result(msg["id"], item)
 
 
 @callback

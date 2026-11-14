@@ -133,6 +133,21 @@
     },
     "homework_label_is_original": {
       "message": "Het Magister-label kan niet door zichzelf worden vervangen. Kies een ander label, of herstel het origineel."
+    },
+    "homework_item_has_subtasks": {
+      "message": "Dit huiswerk heeft deelstappen. De voortgang is daarvan afgeleid: wijzig de deelstappen."
+    },
+    "homework_subtask_not_found": {
+      "message": "Deze deelstap bestaat niet (meer)."
+    },
+    "homework_too_many_subtasks": {
+      "message": "Een huiswerkitem kan maximaal 20 deelstappen hebben."
+    },
+    "homework_invalid_date": {
+      "message": "De datum moet vandaag of later zijn en niet na de datum van het huiswerk (of precies de datum van het huiswerk als die vandaag of verleden is)."
+    },
+    "homework_nothing_to_update": {
+      "message": "Geef een nieuwe titel, een nieuwe datum, of beide."
     }
   },
   "options": {
@@ -375,6 +390,52 @@
         "label": {
           "name": "Label",
           "description": "Bij vervangen: de id of naam (hoofdletterongevoelig) van een van de labels van dit kind."
+        }
+      }
+    },
+    "add_homework_subtask": {
+      "name": "Deelstap toevoegen",
+      "description": "Voegt een deelstap toe aan een huiswerkitem, gepland op een dag tot en met de datum van het item (standaard vandaag). Er wordt niets naar Magister geschreven.",
+      "fields": {
+        "item": {
+          "name": "Item",
+          "description": "De id (uid) van het huiswerkitem."
+        },
+        "title": {
+          "name": "Titel",
+          "description": "De titel van de deelstap, 1 tot 100 tekens."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "De geplande dag: vandaag of later, niet na de datum van het item. Standaard vandaag."
+        }
+      }
+    },
+    "update_homework_subtask": {
+      "name": "Deelstap wijzigen",
+      "description": "Wijzigt de titel en/of de geplande datum van een deelstap.",
+      "fields": {
+        "subtask": {
+          "name": "Deelstap",
+          "description": "De id (uid) van de deelstap: de uid van het item, :sub: en de id van de deelstap."
+        },
+        "title": {
+          "name": "Titel",
+          "description": "De nieuwe titel, 1 tot 100 tekens."
+        },
+        "date": {
+          "name": "Datum",
+          "description": "De nieuwe geplande dag: vandaag of later, niet na de datum van het item."
+        }
+      }
+    },
+    "delete_homework_subtask": {
+      "name": "Deelstap verwijderen",
+      "description": "Verwijdert een deelstap. Zonder deelstappen geldt de voortgang van het item zelf weer.",
+      "fields": {
+        "subtask": {
+          "name": "Deelstap",
+          "description": "De id (uid) van de deelstap."
         }
       }
     }

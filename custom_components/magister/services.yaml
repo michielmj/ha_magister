@@ -85,3 +85,59 @@ set_homework_override:
       example: "Huiswerk"
       selector:
         text:
+
+add_homework_subtask:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    item:
+      required: true
+      example: "myschool.magister.net:1001:100070"
+      selector:
+        text:
+    title:
+      required: true
+      example: "H4 woordjes"
+      selector:
+        text:
+    date:
+      required: false
+      example: "2026-11-15"
+      selector:
+        date:
+
+update_homework_subtask:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    subtask:
+      required: true
+      example: "myschool.magister.net:1001:100070:sub:1a2b3c4d"
+      selector:
+        text:
+    title:
+      required: false
+      example: "H4 woordjes leren"
+      selector:
+        text:
+    date:
+      required: false
+      example: "2026-11-16"
+      selector:
+        date:
+
+delete_homework_subtask:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    subtask:
+      required: true
+      example: "myschool.magister.net:1001:100070:sub:1a2b3c4d"
+      selector:
+        text:

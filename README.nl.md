@@ -249,6 +249,41 @@ data:
   label: Huiswerk
 ```
 
+- **Deelstappen** (sinds 1.5.0). Elk huiswerkitem, vooral een toets, kan worden opgesplitst in
+  maximaal 20 **deelstappen** met een titel (1 tot 100 tekens) en een geplande dag, bijvoorbeeld
+  *H4 woordjes* op vrijdag. De geplande dag is vandaag of later en hooguit de dag van de les
+  (standaard vandaag). Een open deelstap **schuift dag voor dag door** (weekenden meegeteld),
+  maar nooit voorbij de les; is de les voorbij, dan blijft hij op die dag staan, als te laat
+  gemarkeerd. Een afgeronde deelstap blijft staan op de dag waarop hij is afgerond. Deelstappen
+  hebben dezelfde voortgangsstappen als items (0/25/50/75/100; aanvinken zet 100, uitvinken
+  herstelt de laatste waarde onder 100). **Een item met deelstappen heeft een afgeleide
+  voortgang**: het afgeronde gemiddelde van de deelstappen, dus de eigen voortgang van het item
+  kan niet worden ingesteld (het item is af als alle deelstappen af zijn). Verwijder je alle
+  deelstappen, dan geldt de eigen voortgang van het item weer. In de voortgangssensoren wordt het
+  item vervangen door zijn deelstappen: elke deelstap telt met het gewicht van het item gedeeld
+  door het aantal deelstappen, in de periode van zijn huidige dag (de attributen `items` en
+  `completed` tellen deze onderdelen). In de to-do-weergave van Home Assistant staat elke
+  deelstap als `↳ <label>: <titel>` met zijn huidige dag als einddatum en kan hij worden
+  aangevinkt; het item zelf kan niet worden aangevinkt zolang het deelstappen heeft. Het aantal
+  van de lijst toont de open onderdelen (items zonder deelstappen en deelstappen) van vandaag of
+  later. Bij een uitgeschakeld item zijn de deelstappen verborgen en tellen ze niet mee. Ze worden
+  alleen in Home Assistant bewaard en samen met de gegevens van het item verwijderd. De `uid`
+  van een deelstap is `<item-uid>:sub:<id>` en werkt in `magister.set_homework_progress`.
+  Services (richt op de to-do-entiteit): `magister.add_homework_subtask` (velden `item`, `title`,
+  `date` optioneel), `magister.update_homework_subtask` (velden `subtask`, en `title` en/of
+  `date`) en `magister.delete_homework_subtask` (veld `subtask`). De kaart volgt in een latere
+  stap.
+
+```yaml
+action: magister.add_homework_subtask
+target:
+  entity_id: todo.kind_myschool_huiswerk
+data:
+  item: "myschool.magister.net:1001:100084"
+  title: "H4 woordjes"
+  date: "2026-11-15"
+```
+
 ## Huiswerkplanner-kaart
 
 De integratie levert een eigen Lovelace-kaart mee, **Magister Homework planner**, één per kind. De

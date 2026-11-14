@@ -235,6 +235,38 @@ data:
   label: Huiswerk
 ```
 
+- **Subtasks** (since 1.5.0). Any homework item, especially a test, can be split into up to 20
+  **subtasks** with a title (1 to 100 characters) and a planned day, for example *H4 woordjes*
+  on Friday. The planned day is today or later and at most the lesson's day (it defaults to
+  today). An open subtask **rolls forward day by day** (weekends included) to the next day, but
+  never past the lesson; once the lesson has passed it stays on that day, marked overdue. A
+  completed subtask stays on the day it was completed. Subtasks use the same progress steps as
+  items (0/25/50/75/100; ticking sets 100, unticking restores the last value below 100). **An
+  item with subtasks has a derived progress**: the rounded mean of its subtasks, so its own
+  progress cannot be set (the item is completed when all subtasks are). Deleting all subtasks
+  brings the item's own progress back. In the progress sensors the item is replaced by its
+  subtasks: each counts with the item's weight divided by the number of subtasks, in the period
+  of its current day (the `items` and `completed` attributes count these entries). In Home
+  Assistant's to-do view each subtask is listed as `↳ <label>: <title>` with its current day as
+  due date and can be ticked; the item itself cannot be ticked while it has subtasks. The count
+  of the list shows the open entries (items without subtasks and subtasks) due today or later.
+  Subtasks are hidden and not counted while the item is disabled. They are stored in Home
+  Assistant only and removed together with the item's data. A subtask's `uid` is
+  `<item uid>:sub:<id>` and works in `magister.set_homework_progress`. Services (target the
+  to-do entity): `magister.add_homework_subtask` (fields `item`, `title`, `date` optional),
+  `magister.update_homework_subtask` (fields `subtask`, and `title` and/or `date`) and
+  `magister.delete_homework_subtask` (field `subtask`). The card follows in a later step.
+
+```yaml
+action: magister.add_homework_subtask
+target:
+  entity_id: todo.kind_myschool_homework
+data:
+  item: "myschool.magister.net:1001:100084"
+  title: "H4 woordjes"
+  date: "2026-11-15"
+```
+
 ## Homework planner card
 
 The integration ships its own Lovelace card, **Magister Homework planner**, one per child. It is
