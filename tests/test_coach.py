@@ -719,6 +719,9 @@ async def test_no_teacher_or_school_data_in_any_output(
         await ok(hass, student.id, "get_progress"),
         await ok(hass, student.id, "list_label_options"),
         await ok(hass, student.id, "add_subtask", item=PROEFWERK, title="x"),
+        await ok(
+            hass, student.id, "get_overview", start="2026-11-02", end="2026-11-30"
+        ),
     ]
     api = await llm.async_get_api(hass, COACH_API_ID, llm_context(student.id))
     text = json.dumps(outputs, ensure_ascii=False) + api.api_prompt
@@ -806,10 +809,8 @@ async def test_custom_guidelines_and_two_children(
         two=True,
     )
     api = await llm.async_get_api(hass, COACH_API_ID, llm_context(parent.id))
-    assert "Coaching guidelines for Anna (id 1001):\nKort." in api.api_prompt
-    assert f"Coaching guidelines for Bram (id 1002):\n{DEFAULT_GUIDELINES}" in (
-        api.api_prompt
-    )
+    assert "Coaching guidelines (for Anna):\nKort." in api.api_prompt
+    assert f"Coaching guidelines (for Bram):\n{DEFAULT_GUIDELINES}" in api.api_prompt
     assert "Always pass `child`" in api.api_prompt
 
 

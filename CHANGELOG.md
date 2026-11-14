@@ -15,13 +15,13 @@ Parent study planner (backend, M11 phase A). The card and the README follow in p
 - **Estimated time on subtasks.** Optional `minutes` (5 to 240 in steps of 5, or empty) in the WebSocket API, the
   services (`add_homework_subtask`, `update_homework_subtask`) and the coach tools; the new error is `invalid_minutes`.
   The store is now 1.6.
-- **Coach.** New tool `get_overview(start, end)` for all linked children (tests, assignments, open items, planned
+- **Coach.** New tool `get_overview(start, end)` for all linked children (tests, assignments, cancelled items, open items, planned
   minutes and the daily maximum per day). `list_children` returns the role and the daily maximum. The prompt names
   the role, the daily maximum and the matching guidelines per child. Subtasks made by a parent are marked
   `created_by: "parent"`; the parent's AI cannot set progress (`not_allowed_for_role`, nothing written or logged).
   Parent writes show as "Ouder via AI: …" in the logbook.
-- Downgrading to 1.6.0 drops the estimated times and shows parent subtasks as added by the user. 1.6.0 only knows
-  the single `users` list: after the coach settings were saved in 1.7.0, link the users again after a downgrade.
+- Downgrading to 1.6.0 drops the estimated times and shows parent subtasks as added by the user. 1.6.0 keeps the
+  student links; parents have no access in 1.6.0, and saving a child's coach settings in 1.6.0 removes its parents.
 
 ## 1.6.0
 

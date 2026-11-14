@@ -50,6 +50,14 @@ def test_daily_max_is_read_leniently() -> None:
     assert clean_daily_max(None) == DAILY_MAX_DEFAULT == 90
     assert [clean_daily_max(v) for v in (15, 480, 120.0)] == [15, 480, 120]
     assert [clean_daily_max(v) for v in (1, 9999)] == [15, 480]
+    # Rounded to the 15-minute step, so the options flow never suggests a refused value.
+    assert [clean_daily_max(v) for v in (100, 107, 108, 100.0, 20)] == [
+        105,
+        105,
+        105,
+        105,
+        15,
+    ]
     assert all(
         clean_daily_max(v) == 90 for v in (True, "120", 100.5, [], {}, float("inf"))
     )

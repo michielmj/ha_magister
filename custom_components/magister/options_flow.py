@@ -63,6 +63,7 @@ from .const import (
     COACH_PARENTS,
     COACH_RESET,
     COACH_STUDENTS,
+    COACH_USERS,
     CONF_CHILDREN,
     CONF_COACH,
     CONF_DAILY_MAX,
@@ -829,6 +830,11 @@ class MagisterOptionsFlow(OptionsFlow):
                 {u for u in user_input.get(COACH_PARENTS) or [] if u in valid_users}
             ),
         }
+        # 1.6.0 mirror: the students (a parent-only child has none), so a downgrade
+        # keeps the student links.
+        setting[COACH_USERS] = [
+            u for u in setting[COACH_STUDENTS] if u not in setting[COACH_PARENTS]
+        ]
         if text:
             setting[COACH_GUIDELINES] = text
         if (

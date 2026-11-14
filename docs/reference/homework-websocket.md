@@ -240,9 +240,12 @@ tool errors are `{"error": <code>, "message": ...}`. Changes in 1.7.0:
 - `list_children` returns `{"id", "name", "role", "daily_max_minutes"}` per child.
 - New read tool `get_overview(start, end)` (at most 31 days, inclusive; errors `invalid_format`, `not_linked`): for every
   accessible child `{"child", "name", "role", "daily_max_minutes", "days": [...]}`; a day is `{"date", "weekday", "tests",
-  "assignments", "open_items", "planned_minutes", "daily_max_minutes", "over_daily_max"}`. `tests` and `assignments` are the
-  non-disabled items due that day (`{"id", "subject", "label", "manual_labels", "progress", "completed", "subtasks"}`, ids
-  without the host, no text, no teacher data); `open_items` the number of those not completed; `planned_minutes` the sum
+  "assignments", "cancelled", "open_items", "planned_minutes", "daily_max_minutes", "over_daily_max"}`. `tests`,
+  `assignments` and `cancelled` are the non-disabled items due that day (`{"id", "subject", "label", "cancelled",
+  "manual_labels", "progress", "completed", "subtasks"}`, ids without the host, no text, no teacher data). `label` is
+  the effective label (the replacement when the label is overridden). Items of a cancelled lesson are listed only
+  under `cancelled` (their `cancelled` is `true`) and are not counted in `tests`, `assignments` or `open_items`;
+  `open_items` is the number of the items in `tests` and `assignments` not completed; `planned_minutes` the sum
   of `minutes` of the subtasks whose current `date` is that day, done or not.
 - `list_homework`, `get_progress` and the write tools return subtasks with `minutes` and `created_by`. `add_subtask` and
   `update_subtask` accept `minutes` (error `invalid_minutes`; `null` clears on update). Subtasks made through the coach get

@@ -252,19 +252,24 @@ def async_accessible_children(
 ) -> list[CoachChild]:
     """The children whose coach is enabled and linked to the (active) user."""
     found: list[tuple[MagisterConfigEntry, dict[str, Any], str]] = []
-    seen: set[tuple[str, int]] = set()
+    seen: dict[tuple[str, int], int] = {}
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.state is not ConfigEntryState.LOADED:
             continue
         for child in entry.data[CONF_CHILDREN]:
             child_id = int(child[CHILD_ID])
-            if (str(entry.data[CONF_HOST]), child_id) in seen:
-                continue  # the same child under two entries (legacy): the first wins
             settings = coach_settings(entry, child_id)
             role = role_of(settings, user_id)
-            if settings.get(COACH_ENABLED) is True and role is not None:
-                seen.add((str(entry.data[CONF_HOST]), child_id))
+            if settings.get(COACH_ENABLED) is not True or role is None:
+                continue
+            key = (str(entry.data[CONF_HOST]), child_id)
+            if key not in seen:
+                seen[key] = len(found)
                 found.append((entry, child, role))
+            elif role == ROLE_PARENT and found[seen[key]][2] != ROLE_PARENT:
+                # The same child under two entries (legacy): the first wins, except
+                # that a parent role beats a student role (the one with fewer rights).
+                found[seen[key]] = (entry, child, role)
     # ``Kind N`` counts within what this user may access, not within the entry.
     children = [
         CoachChild(
@@ -398,10 +403,18 @@ def _appointment_view(
 def _overview_item(manager: HomeworkManager, item: Any) -> Payload:
     """One item of the overview: ids and subject, no text, no teacher data."""
     view = item_to_dict(manager, item)
+    override = view["override"]
+    # The effective label: the replacement when the label is overridden.
+    label = (
+        override["label"]["name"]
+        if override and override["mode"] == MODE_REPLACE
+        else view["label"]
+    )
     return {
         "id": public_id(view["uid"]),
         "subject": view["subject"],
-        "label": view["label"],
+        "label": label,
+        "cancelled": view["cancelled"],
         "manual_labels": [label["name"] for label in view["manual_labels"]],
         "progress": view["progress"],
         "completed": view["completed"],
@@ -424,7 +437,10 @@ def _overview_of(child: CoachChild, days: list[date]) -> Payload:
             planned[subtask_current_date(sub, item.due_date, today)] += sub.minutes or 0
     result = []
     for day in days:
-        due = [item for item in items if item.due_date == day]
+        day_items = [item for item in items if item.due_date == day]
+        # Cancelled items are listed apart, not in tests, assignments or open_items.
+        cancelled = [i for i in day_items if i.cancelled]
+        due = [i for i in day_items if not i.cancelled]
         tests = [i for i in due if manager.effective(i).is_test]
         test_uids = {i.uid for i in tests}
         result.append(
@@ -435,6 +451,7 @@ def _overview_of(child: CoachChild, days: list[date]) -> Payload:
                 "assignments": [
                     _overview_item(manager, i) for i in due if i.uid not in test_uids
                 ],
+                "cancelled": [_overview_item(manager, i) for i in cancelled],
                 "open_items": sum(1 for i in due if not manager.is_completed(i)),
                 "planned_minutes": planned[day],
                 "daily_max_minutes": child.daily_max,
@@ -554,7 +571,10 @@ def _schema(fields: dict[Any, Any]) -> probatio.Schema:
     return probatio.Schema({**_child_field(), **fields})
 
 
-_MINUTES: Final = probatio.Any(int, None)
+# int/None is the hint for MCP; ``object`` lets any value through to the shared minutes
+# check, so the answer is the same as in the WebSocket API (30.0 is fine, "x" is
+# ``invalid_minutes``).
+_MINUTES: Final = probatio.Any(int, None, object)
 _MINUTES_HELP: Final = "Estimated time in minutes: 5 to 240 in steps of 5."
 
 READ_ONLY = llm.ToolAnnotations(
@@ -1160,16 +1180,20 @@ def build_prompt(today: date, children: list[CoachChild], time_zone: str) -> str
                 "You plan with the parent; you cannot set progress, the child reports "
                 "it."
             )
-            title = f"Parent guidelines for {child.name} (id {child.id}):"
         else:
             who = f"You coach the student (role Leerling) {child.name} (id {child.id})."
-            title = f"Coaching guidelines for {child.name} (id {child.id}):"
         lines += [
             "",
             f"{who} Daily maximum: {child.daily_max} study minutes per school day.",
-            title,
-            child.guidelines,
         ]
+    # Each distinct guideline text once, naming the children it applies to.
+    for kind, title in ((False, "Coaching guidelines"), (True, "Parent guidelines")):
+        texts: dict[str, list[str]] = {}
+        for child in children:
+            if child.is_parent is kind:
+                texts.setdefault(child.guidelines, []).append(child.name)
+        for text, names in texts.items():
+            lines += ["", f"{title} (for {', '.join(names)}):", text]
     return "\n".join(lines)
 
 

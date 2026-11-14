@@ -34,7 +34,8 @@ CONF_LABELS: Final = "labels"
 # AI coach settings: ``{child_id: {"enabled", "students", "parents", "guidelines"}}``.
 # Part of the options but not of the reload snapshot, like the weights and labels.
 # ``users`` is the 1.6.0 key of the (student) users: read as ``students`` while that is
-# missing.
+# missing, and kept as a mirror of ``students`` on every save so a downgrade to 1.6.0
+# keeps the student links.
 CONF_COACH: Final = "coach"
 COACH_ENABLED: Final = "enabled"
 COACH_USERS: Final = "users"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -30,6 +31,7 @@ from custom_components.magister.coach_text import (
 )
 from custom_components.magister.const import CONF_PARENT_GUIDELINES, CONF_WEIGHTS
 
+from .api.helpers import RETURN_URL
 from .ha_helpers import NOW, FakeMagister, make_entry
 from .test_coach import (
     COACH_API_ID,
@@ -223,6 +225,57 @@ async def test_user_in_both_lists_gets_the_parent_role(
         await fails(hass, user.id, "set_progress", id=HOMEWORK, progress=50)
         == "not_allowed_for_role"
     )
+
+
+async def test_parent_role_wins_for_a_duplicate_child_across_entries(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Legacy duplicate child: a parent in any entry gets the parent role."""
+    user = await make_user(hass, "Ouder")
+    steps = [
+        {"action": "username"},
+        {"action": "password"},
+        {"redirectURL": RETURN_URL},
+    ]
+    FakeMagister(mocked, children=THREE[:2], challenges=[*steps, *steps])
+    first = make_entry(
+        children=[(1001, "Anna A")],
+        unique_id="school.magister.net:1",
+        options=coach_options(**{"1001": {"enabled": True, "students": [user.id]}}),
+    )
+    second = make_entry(
+        children=[(1002, "Bram B")],
+        unique_id="school.magister.net:2",
+        options=coach_options(**{"1002": {"enabled": True, "parents": [user.id]}}),
+    )
+    for entry in (first, second):
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    # Entry 2 now holds the same child as entry 1 (legacy duplicate).
+    data = dict(second.data)
+    data["children"] = [{**data["children"][0], "id": 1001}]
+    object.__setattr__(second, "data", MappingProxyType(data))
+    hass.config_entries.async_update_entry(
+        second,
+        options=coach_options(**{"1001": {"enabled": True, "parents": [user.id]}}),
+    )
+    (child,) = async_accessible_children(hass, user.id)
+    assert child.role == "parent"
+    assert child.entry is second
+    (listed,) = (await ok(hass, user.id, "list_children"))["children"]
+    assert listed["role"] == "parent"
+    # Parent in the first entry, student in the second: the first (parent) stays.
+    hass.config_entries.async_update_entry(
+        first,
+        options=coach_options(**{"1001": {"enabled": True, "parents": [user.id]}}),
+    )
+    hass.config_entries.async_update_entry(
+        second,
+        options=coach_options(**{"1001": {"enabled": True, "students": [user.id]}}),
+    )
+    (child,) = async_accessible_children(hass, user.id)
+    assert (child.role, child.entry) == ("parent", first)
 
 
 # -- security -----------------------------------------------------------------------
@@ -455,6 +508,102 @@ async def test_overview_range_rules(hass: HomeAssistant, family: Family) -> None
     )
 
 
+async def test_overview_shows_the_effective_label(
+    hass: HomeAssistant, family: Family
+) -> None:
+    """A replaced label counts: Huiswerk -> Proefwerk is listed under the tests."""
+    student = family.student.id
+    before = await ok(
+        hass, student, "get_overview", start="2026-11-16", end="2026-11-16"
+    )
+    (day,) = before["children"][0]["days"]
+    assert HOMEWORK in {a["id"] for a in day["assignments"]}
+    await ok(
+        hass,
+        student,
+        "set_label_override",
+        appointment=HOMEWORK,
+        mode="replace",
+        label="Proefwerk",
+    )
+    after = await ok(
+        hass, student, "get_overview", start="2026-11-16", end="2026-11-16"
+    )
+    (day,) = after["children"][0]["days"]
+    (test,) = [t for t in day["tests"] if t["id"] == HOMEWORK]
+    assert test["label"] == "Proefwerk"
+    assert HOMEWORK not in {a["id"] for a in day["assignments"]}
+
+
+async def test_overview_lists_cancelled_items_apart(
+    hass: HomeAssistant, family: Family
+) -> None:
+    """Cancelled items are in `cancelled`, not in tests, assignments or open_items."""
+    student = family.student.id
+    data = await ok(hass, student, "get_overview", start="2026-11-09", end="2026-11-09")
+    (day,) = data["children"][0]["days"]
+    assert "100131" in {g["id"] for g in day["cancelled"]}
+    assert all(g["cancelled"] is True for g in day["cancelled"])
+    listed = {i["id"] for i in day["tests"] + day["assignments"]}
+    assert not listed & {g["id"] for g in day["cancelled"]}
+    assert day["open_items"] == len(listed) - sum(
+        1 for i in day["tests"] + day["assignments"] if i["completed"]
+    )
+    assert all(i["cancelled"] is False for i in day["tests"] + day["assignments"])
+    # Days without cancelled items have an empty list.
+    data = await ok(hass, student, "get_overview", start="2026-11-16", end="2026-11-16")
+    assert data["children"][0]["days"][0]["cancelled"] == []
+
+
+async def test_overview_over_two_entries_skips_unlinked_and_unloaded(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Linked only in entry 1: entry 2 (other user), 3 (not loaded) add nothing."""
+    parent = await make_user(hass, "Ouder")
+    other = await make_user(hass, "Ander")
+    steps = [
+        {"action": "username"},
+        {"action": "password"},
+        {"redirectURL": RETURN_URL},
+    ]
+    FakeMagister(mocked, children=THREE, challenges=[*steps, *steps, *steps])
+    entries = [
+        make_entry(
+            children=[(1001, "Anna A")],
+            unique_id="school.magister.net:1",
+            options=coach_options(
+                **{"1001": {"enabled": True, "parents": [parent.id]}}
+            ),
+        ),
+        make_entry(
+            children=[(1002, "Bram B")],
+            unique_id="school.magister.net:2",
+            options=coach_options(**{"1002": {"enabled": True, "parents": [other.id]}}),
+        ),
+        make_entry(
+            children=[(1003, "Cato C")],
+            unique_id="school.magister.net:3",
+            options=coach_options(
+                **{"1003": {"enabled": True, "parents": [parent.id]}}
+            ),
+        ),
+    ]
+    for entry in entries:
+        entry.add_to_hass(hass)
+        assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(entries[2].entry_id)
+    await hass.async_block_till_done()
+    data = await ok(
+        hass, parent.id, "get_overview", start="2026-11-16", end="2026-11-16"
+    )
+    assert [c["child"] for c in data["children"]] == ["1001"]
+    text = json.dumps(data)
+    assert "Bram" not in text
+    assert "Cato" not in text
+    assert (await ok(hass, parent.id, "list_children"))["children"][0]["id"] == "1001"
+
+
 # -- estimated time and created_by --------------------------------------------------
 
 
@@ -536,20 +685,34 @@ async def test_minutes_validation_in_the_tools(
         ), bad
     for bad in (5, 240):
         await ok(hass, student, "add_subtask", item=PROEFWERK, title="y", minutes=bad)
-    # Not an integer at all: the schema refuses it.
-    for bad in ("30", 12.5, [5]):
+    # Not an integer at all: the shared check refuses it, as in the WebSocket API.
+    for bad in ("30", 12.5, [5], {"a": 1}):
         assert (
             await fails(
                 hass, student, "add_subtask", item=PROEFWERK, title="x", minutes=bad
             )
-            == "invalid_format"
+            == "invalid_minutes"
         ), bad
+    # A whole float is fine (30.0), like in the WebSocket API.
+    whole = await ok(
+        hass, student, "add_subtask", item=PROEFWERK, title="z", minutes=30.0
+    )
+    assert whole["item"]["subtasks"][-1]["minutes"] == 30
     listed = await ok(
         hass, student, "list_homework", start="2026-11-19", end="2026-11-19"
     )
     item = next(i for i in listed["items"] if i["id"] == PROEFWERK)
-    assert [s["minutes"] for s in item["subtasks"]] == [5, 240]
+    assert [s["minutes"] for s in item["subtasks"]] == [5, 240, 30]
     sub = item["subtasks"][0]["id"]
+    assert (
+        await fails(hass, student, "update_subtask", subtask=sub, minutes="text")
+        == "invalid_minutes"
+    )
+    assert (
+        await fails(hass, student, "update_subtask", subtask=sub, minutes=7.5)
+        == "invalid_minutes"
+    )
+    await ok(hass, student, "update_subtask", subtask=sub, minutes=60.0)
     logged = len(logbook)
     assert (
         await fails(hass, student, "update_subtask", subtask=sub, minutes=6)
@@ -644,19 +807,20 @@ async def test_prompt_per_role(hass: HomeAssistant, family: Family) -> None:
     assert "You are the parent (role Ouder) of Bram (id 1002)" in prompt
     assert "Daily maximum: 90 study minutes per school day." in prompt
     assert "Daily maximum: 150 study minutes per school day." in prompt
-    assert "Parent guidelines for Anna (id 1001):\nKort en bondig." in prompt
-    assert "Parent guidelines for Bram (id 1002):\nKort en bondig." in prompt
+    # One text for both children: emitted once.
+    assert "Parent guidelines (for Anna, Bram):\nKort en bondig." in prompt
+    assert prompt.count("Kort en bondig.") == 1
     assert "get_overview" in prompt
     assert "within the child's daily maximum" in prompt
     assert "cannot set progress" in prompt
     assert DEFAULT_GUIDELINES not in prompt
-    assert "Coaching guidelines for" not in prompt
+    assert "Coaching guidelines" not in prompt
     # The student of A gets the student text, never the parent's.
     api = await llm.async_get_api(hass, COACH_API_ID, llm_context(family.student.id))
     prompt = api.api_prompt
     assert "You coach the student (role Leerling) Anna (id 1001)." in prompt
     assert "Daily maximum: 90 study minutes per school day." in prompt
-    assert "Coaching guidelines for Anna (id 1001):\n" + DEFAULT_GUIDELINES in prompt
+    assert "Coaching guidelines (for Anna):\n" + DEFAULT_GUIDELINES in prompt
     assert "Kort en bondig." not in prompt
     assert "Parent guidelines" not in prompt
     assert "get_overview" in prompt

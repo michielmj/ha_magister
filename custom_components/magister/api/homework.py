@@ -93,12 +93,13 @@ def valid_minutes(value: Any) -> int | None:
 
 
 def clean_daily_max(value: Any) -> int:
-    """A stored daily maximum, leniently: clamped to the range, else the default."""
+    """A stored daily maximum, leniently: rounded to the step, clamped, else default."""
     if isinstance(value, bool) or not isinstance(value, int | float):
         return DAILY_MAX_DEFAULT
     if isinstance(value, float) and not value.is_integer():
         return DAILY_MAX_DEFAULT
-    return min(max(int(value), DAILY_MAX_MIN), DAILY_MAX_MAX)
+    stepped = round(int(value) / DAILY_MAX_STEP) * DAILY_MAX_STEP
+    return min(max(stepped, DAILY_MAX_MIN), DAILY_MAX_MAX)
 
 
 @dataclass(frozen=True, slots=True)

@@ -99,6 +99,7 @@ async def test_enable_link_users_and_edit_guidelines(
             "enabled": True,
             "students": [student.id],
             "parents": [],
+            "users": [student.id],
             "guidelines": "Wees kort.",
         }
     }
@@ -154,6 +155,7 @@ async def test_reset_and_empty_guidelines_and_turn_off(
         "enabled": True,
         "students": [student.id],
         "parents": [],
+        "users": [student.id],
     }
     result = await open_coach(hass, entry)
     await _save(hass, result, {"enabled": False, "students": [], "guidelines": ""})
@@ -370,13 +372,15 @@ async def test_roles_are_saved_per_child_and_refused_when_in_both(
         "enabled": True,
         "students": [student.id],
         "parents": [parent.id],
+        "users": [student.id],
     }
-    # Only parents is enough to keep the setting.
+    # Only parents is enough to keep the setting; the 1.6.0 mirror then holds nobody.
     result = await open_coach(hass, entry)
     await _save(
         hass, result, {"enabled": False, "students": [], "parents": [parent.id]}
     )
     assert entry.options[CONF_COACH]["1001"]["parents"] == [parent.id]
+    assert entry.options[CONF_COACH]["1001"]["users"] == []
     result = await open_coach(hass, entry)
     await _save(hass, result, {"enabled": False, "students": [], "parents": []})
     assert CONF_COACH not in entry.options
@@ -401,6 +405,23 @@ async def test_old_users_key_shows_as_students_and_is_replaced_on_save(
         "enabled": True,
         "students": [student.id],
         "parents": [],
+        "users": [student.id],
+    }
+
+
+async def test_parent_only_child_mirrors_no_users(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """The 1.6.0 `users` mirror holds the students only (empty for parents only)."""
+    parent = await make_user(hass, "Ouder")
+    entry = await setup_coach(hass, mocked, {})
+    result = await open_coach(hass, entry)
+    await _save(hass, result, {"enabled": True, "students": [], "parents": [parent.id]})
+    assert entry.options[CONF_COACH]["1001"] == {
+        "enabled": True,
+        "students": [],
+        "parents": [parent.id],
+        "users": [],
     }
 
 
