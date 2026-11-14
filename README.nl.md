@@ -390,7 +390,7 @@ show_progress_next_week: false
   kies je — dan wordt de tijd gewist). De tijd staat in de regel van de deelstap ("30 min"). Elke dagkop toont de geplande
   tijd van die dag, bijvoorbeeld "± 1 u 15 min gepland": de som van de schattingen van alle deelstappen (af of niet)
   waarvan dit de huidige dag is; bij 0 blijft het weg. Is de som hoger dan het **dagmaximum** van het kind
-  (Configureer, Dagmaximum studietijd, standaard 90 minuten), dan staat het met een waarschuwingsicoon, markering en de zichtbare tekst "/ max 1 u 30" (ook op touchscreens), en
+  (Configureer, Dagmaximum studietijd, standaard 90 minuten), dan staat het met een waarschuwingsicoon, markering en de zichtbare tekst "/ max 1 u 30 min" (ook op touchscreens), en
   lezen schermlezers "boven dagmaximum (1 u 30 min)" voor. De minuten van achterstallige deelstappen tellen mee voor hun
   (voorbije) dag; de groep Achterstallig zelf toont geen totaal. Wijzigingen zijn direct zichtbaar en worden met een
   melding teruggedraaid als opslaan mislukt.

@@ -366,7 +366,7 @@ show_progress_next_week: false
   in the subtask row ("30 min"). Each day heading shows the planned time of that day, for example
   "± 1 h 15 min planned": the sum of the estimates of all subtasks (done or not) whose current day it is,
   left out when it is 0. When the sum is above the child's **daily maximum** (Configure, Daily study maximum,
-  default 90 minutes) it is shown with a warning icon, highlight and the visible text "/ max 1 h 30" (also on touch screens), and
+  default 90 minutes) it is shown with a warning icon, highlight and the visible text "/ max 1 h 30 min" (also on touch screens), and
   screen readers add "over daily maximum (1 h 30 min)". The minutes of overdue subtasks count toward their (past)
   day; the Overdue group itself shows no total. Changes show at once and are rolled back with a message if saving fails.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
@@ -564,7 +564,7 @@ It **reads progress but cannot set it**: the student reports progress, in the pl
 coach. Subtasks the parent's AI creates are marked **Parent** in the card (the child can still edit and tick
 them) and the logbook says "Ouder via AI: ...". It cannot change settings, weights or label options.
 
-**Parent guidelines.** One text for all your children, under Configure, **AI-coach**, **Parent guidelines
+**Parent guidelines.** One text for all your children, under Configure, **AI coach**, **Parent guidelines
 (Ouder-richtlijnen)** (empty means the default; there is a reset option). The default is in Dutch:
 
 > Je helpt een ouder om voor een kind een haalbare studieplanning te maken. Je praat met de ouder, niet met het kind.
