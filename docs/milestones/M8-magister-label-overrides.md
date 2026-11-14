@@ -59,6 +59,11 @@ Magister labels per lesson, without touching Magister.
   - optimistic UI with rollback, NL/EN texts, keyboard and screen-reader accessible menu (menu button pattern).
 - **Diagnostics:** counts of overrides per mode, with no names.
 
+## Accepted deviations (review 2026-11-14)
+- Disabled items show their checkbox (ticked) and progress controls **disabled** rather than hidden.
+- After disabling, an item stays visible for the current session even with "Afgerond" off, so it can be restored at once.
+- Disabled items are excluded from the period counts (`items`/`completed`), as recorded in the contract.
+
 ## Phases
 One phase (backend + card) with Developer → Reviewer, followed by the verification round. Release **1.4.0**.
 

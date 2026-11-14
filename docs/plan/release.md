@@ -47,3 +47,7 @@ tag that already has a published release; bump to the next patch version instead
 The cloud development session cannot push tags. The maintainer creates the release in the GitHub UI:
 Releases → Draft a new release → tag `vX.Y.Z` on `main` (create on publish) → title `X.Y.Z` → notes from
 CHANGELOG → Publish. The release workflow then runs on the new tag (tests, version check) and fills in the same release.
+
+## Privacy check
+Run the privacy grep (patterns in the maintainer's private notes) with `git grep -I`, which skips binary files.
+Compressed images can match short patterns by chance.

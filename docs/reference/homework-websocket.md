@@ -45,7 +45,8 @@ same 100 % rule for empty periods. The periods (since 1.3.0; the first public re
 - `week`: the Saturday on or before today through the following Friday.
 - `next_week`: the following Saturday through Friday.
 - `value`: float 0–100.
-- `items` and `completed`: counts of the items in that period.
+- `items` and `completed`: counts of the items in that period. Since 1.4.0, **disabled** items are not counted and
+  do not affect `value`.
 - An entry is `null` when the corresponding sensor is unavailable, e.g. when next week falls outside the fetch window.
   It is also `null` for every period when `available` is false.
 - Clients that predate the field ignore it.
@@ -159,12 +160,15 @@ Replace, disable or restore the **Magister** label of an appointment.
  "appointment": "school.magister.net:1001:100070", "mode": "replace", "label": "<label option id>"}
 ```
 - `mode` is `replace` (requires `label`, one of this child's label options), `disable`, or `clear` (restore).
-- `clear` without an override succeeds and changes nothing.
-- Result: `{"item": <item>}`; a subscribe event follows.
+- `clear` without an override succeeds and changes nothing. `clear` also succeeds when an override is stored for an
+  appointment that no longer has a Magister label: the override is removed. The result item is then `null` when the
+  appointment is no longer in the planner.
+- Result: `{"item": <item> | null}`; a subscribe event follows.
 - In the `appointments` command result, each appointment also carries `override` (same shape as on items).
 
-Errors: `not_found`, `invalid_format`, `appointment_not_found`, `no_magister_label` (the appointment has no Magister
-InfoType 1–5), `label_not_found`, `unauthorized` (control permission).
+Errors: `not_found`, `invalid_format` (including `replace` without `label`, or replacing with the original's own default
+label), `appointment_not_found`, `no_magister_label` (only for `replace`/`disable`: the appointment has no Magister InfoType 1–5),
+`label_not_found`, `unauthorized` (control permission).
 
 ## Equivalent services
 These target the homework to-do entity and behave the same as the WebSocket commands, for automations:
