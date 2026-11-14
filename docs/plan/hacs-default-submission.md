@@ -13,7 +13,7 @@ https://hacs.xyz/docs/publish/include are the authoritative text; read them befo
 ## Automatic checks HACS runs on the submission PR
 | Check | How this repository meets it |
 |---|---|
-| Releases: at least one GitHub release | Releases since v1.2.0 (publish v1.4.0 first) |
+| Releases: at least one GitHub release | Releases since v1.2.0 (publish the latest release first) |
 | HACS action (`hacs/action`, category integration) **without** an `ignore` key | `.github/workflows/hacs.yml` has no `ignore`; green |
 | Hassfest | `.github/workflows/hassfest.yml`; green |
 | Core domain conflict: `magister` must not be a core HA domain | Not in HA 2026.10.4 |
@@ -23,9 +23,9 @@ https://hacs.xyz/docs/publish/include are the authoritative text; read them befo
 | The `integration` list stays sorted (case-insensitive) | Insert the line in alphabetical order |
 
 ## Steps for the PM
-1. Make sure the latest release (v1.4.0) is published, and that the **HACS** and **Hassfest** workflow runs for that
+1. Make sure the latest release (vX.Y.Z) is published, and that the **HACS** and **Hassfest** workflow runs for that
    commit on `main` are green. Note the links to:
-   - the release: `https://github.com/michielmj/ha_magister/releases/tag/v1.4.0`;
+   - the release: `https://github.com/michielmj/ha_magister/releases/tag/vX.Y.Z`;
    - a green HACS action run: Actions → HACS → the run for the release commit;
    - a green Hassfest run: Actions → Hassfest → the same commit.
 2. On GitHub, open https://github.com/hacs/default and click **Fork** (into your personal account).
