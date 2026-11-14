@@ -68,6 +68,8 @@ async def test_subscribe_sends_the_list_and_pushes_changes(
         "progress": 0,
         "completed": False,
         "last_partial": 0,
+        "derived": False,
+        "subtasks": [],
     }
     assert item["text"].startswith("maken: H3, opgave 31")
     cancelled = next(i for i in payload["items"] if i["uid"] == uid(100131))

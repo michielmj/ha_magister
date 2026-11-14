@@ -249,6 +249,40 @@ data:
   label: Huiswerk
 ```
 
+- **Deelstappen** (sinds 1.5.0). Elk huiswerkitem, vooral een toets, kan worden opgesplitst in
+  maximaal 20 **deelstappen** met een titel (1 tot 100 tekens) en een geplande dag, bijvoorbeeld
+  *H4 woordjes* op vrijdag. De geplande dag is vandaag of later en hooguit de dag van de les
+  (standaard vandaag). Is de les vandaag of in het verleden, dan is alleen de dag van de les toegestaan. Een open deelstap **schuift dag voor dag door** (weekenden meegeteld),
+  maar nooit voorbij de les; is de les voorbij, dan blijft hij op die dag staan, als te laat
+  gemarkeerd. Een afgeronde deelstap blijft staan op de dag waarop hij is afgerond. Deelstappen
+  hebben dezelfde voortgangsstappen als items (0/25/50/75/100; aanvinken zet 100, uitvinken
+  herstelt de laatste waarde onder 100). **Een item met deelstappen heeft een afgeleide
+  voortgang**: het afgeronde gemiddelde van de deelstappen, dus de eigen voortgang van het item
+  kan niet worden ingesteld (het item is af als alle deelstappen af zijn). Verwijder je alle
+  deelstappen, dan geldt de eigen voortgang van het item weer. In de voortgangssensoren wordt het
+  item vervangen door zijn deelstappen: elke deelstap telt met het gewicht van het item gedeeld
+  door het aantal deelstappen, in de periode van zijn huidige dag (de attributen `items` en
+  `completed` tellen deze onderdelen). In de to-do-weergave van Home Assistant staat elke
+  deelstap als `↳ <vak>: <titel>` met zijn huidige dag als einddatum en kan hij worden
+  aangevinkt; het item zelf kan niet worden aangevinkt zolang het deelstappen heeft. Het aantal
+  van de lijst toont de open onderdelen (items zonder deelstappen en deelstappen) van vandaag of
+  later. Bij een uitgeschakeld item zijn de deelstappen verborgen en tellen ze niet mee. Ze worden
+  alleen in Home Assistant bewaard en samen met de gegevens van het item verwijderd. De `uid`
+  van een deelstap is `<item-uid>:sub:<id>` en werkt in `magister.set_homework_progress`.
+  Services (richt op de to-do-entiteit): `magister.add_homework_subtask` (velden `item`, `title`,
+  `date` optioneel), `magister.update_homework_subtask` (velden `subtask`, en `title` en/of
+  `date`) en `magister.delete_homework_subtask` (veld `subtask`).
+
+```yaml
+action: magister.add_homework_subtask
+target:
+  entity_id: todo.kind_myschool_huiswerk
+data:
+  item: "myschool.magister.net:1001:100084"
+  title: "H4 woordjes"
+  date: "2026-11-15"
+```
+
 ## Huiswerkplanner-kaart
 
 De integratie levert een eigen Lovelace-kaart mee, **Magister Homework planner**, één per kind. De
@@ -331,6 +365,22 @@ show_progress_next_week: false
   de afgeronde (schakelaar **Afgerond** aan), doorgestreept en met uitgeschakelde bediening; het menu
   biedt *Herstellen*. Wijzigingen zijn direct zichtbaar en worden met een melding teruggedraaid als
   opslaan mislukt.
+- **Deelstappen** (sinds 1.5.0). Onder een item opent **+ deelstap** een klein formulier: een titel
+  (maximaal 100 tekens, verplicht) en een dag (vanaf vandaag tot en met de dag van de les, standaard
+  vandaag; vast op de dag van de les als die vandaag of in het verleden is). Toevoegen wacht op het
+  antwoord en toont een weigering (te veel deelstappen, een dag die niet mag, een uitgeschakeld item) in
+  het formulier. Een deelstap is een ingesprongen "↳"-regel op zijn **huidige dag** met een verwijzing
+  naar het item ("voor Proefwerk Engels (di 17 nov)"), een eigen vinkje en dezelfde stappen
+  0/25/50/75/100, een potlood om titel en dag te wijzigen en een kruisje om te verwijderen (met
+  bevestiging). Niet-afgeronde deelstappen van een les die voorbij is, zijn **achterstallig**: ze worden
+  altijd getoond, in een groep "Achterstallig" bovenaan (ook als **Eerder** uit staat). Afgeronde
+  deelstappen volgen de schakelaar **Afgerond**, andere eerdere dagen de schakelaar **Eerder**. Een
+  item met deelstappen toont "1 van 3 deelstappen" en het afgeleide percentage als balk die je niet kunt
+  aanpassen (zijn eigen vinkje is uitgeschakeld en de stappen zijn verborgen). Aanvinken, stappen,
+  wijzigen en verwijderen zijn direct zichtbaar en worden met een melding teruggedraaid als opslaan
+  mislukt. Alles werkt met het toetsenbord (Escape sluit een formulier of bevestiging) en met een
+  schermlezer; de focus gaat na toevoegen naar de nieuwe regel en na verwijderen naar een naastgelegen
+  knop.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
 

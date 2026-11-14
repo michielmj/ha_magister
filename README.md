@@ -235,6 +235,38 @@ data:
   label: Huiswerk
 ```
 
+- **Subtasks** (since 1.5.0). Any homework item, especially a test, can be split into up to 20
+  **subtasks** with a title (1 to 100 characters) and a planned day, for example *H4 woordjes*
+  on Friday. The planned day is today or later and at most the lesson's day (it defaults to
+  today). If the lesson is today or in the past, only the lesson's day is allowed. An open subtask **rolls forward day by day** (weekends included) to the next day, but
+  never past the lesson; once the lesson has passed it stays on that day, marked overdue. A
+  completed subtask stays on the day it was completed. Subtasks use the same progress steps as
+  items (0/25/50/75/100; ticking sets 100, unticking restores the last value below 100). **An
+  item with subtasks has a derived progress**: the rounded mean of its subtasks, so its own
+  progress cannot be set (the item is completed when all subtasks are). Deleting all subtasks
+  brings the item's own progress back. In the progress sensors the item is replaced by its
+  subtasks: each counts with the item's weight divided by the number of subtasks, in the period
+  of its current day (the `items` and `completed` attributes count these entries). In Home
+  Assistant's to-do view each subtask is listed as `↳ <subject>: <title>` with its current day as
+  due date and can be ticked; the item itself cannot be ticked while it has subtasks. The count
+  of the list shows the open entries (items without subtasks and subtasks) due today or later.
+  Subtasks are hidden and not counted while the item is disabled. They are stored in Home
+  Assistant only and removed together with the item's data. A subtask's `uid` is
+  `<item uid>:sub:<id>` and works in `magister.set_homework_progress`. Services (target the
+  to-do entity): `magister.add_homework_subtask` (fields `item`, `title`, `date` optional),
+  `magister.update_homework_subtask` (fields `subtask`, and `title` and/or `date`) and
+  `magister.delete_homework_subtask` (field `subtask`).
+
+```yaml
+action: magister.add_homework_subtask
+target:
+  entity_id: todo.kind_myschool_homework
+data:
+  item: "myschool.magister.net:1001:100084"
+  title: "H4 woordjes"
+  date: "2026-11-15"
+```
+
 ## Homework planner card
 
 The integration ships its own Lovelace card, **Magister Homework planner**, one per child. It is
@@ -311,6 +343,20 @@ show_progress_next_week: false
   chip (without ×; restoring goes through the menu). Disabled items are listed with the completed
   ones (switch **Done** on), struck through, with their controls disabled; the menu offers
   *Restore*. Changes show at once and are rolled back with a message if saving fails.
+- **Subtasks** (since 1.5.0). Under an item, **+ subtask** opens a small form: a title (up to 100
+  characters, required) and a day (from today up to the day of the lesson, today by default; fixed to
+  the lesson's day when that is today or past). Adding waits for Home Assistant's answer and shows a refusal
+  (too many subtasks, a day that is not allowed, a disabled item) in the form. A subtask is an indented
+  "↳" row on its **current day** with a reference to the item ("for Test English (Tue 17 Nov)"), its own
+  checkbox and the same 0/25/50/75/100 steps, a pencil to edit title and day, and a cross to delete
+  (with confirmation). Subtasks of a lesson that has passed and are not done are **overdue**: they are
+  always shown, in an "Overdue" group at the top (also with **Earlier** off). Done subtasks follow the
+  **Done** switch, other earlier days the **Earlier** switch. An item with subtasks shows "1 of 3
+  subtasks" and the derived percentage as a read-only bar (its own checkbox is disabled and its steps are
+  hidden). Ticking, steps, editing and deleting show at once and are rolled back with a message if
+  saving fails. Everything works with the keyboard (Escape closes a form or confirmation) and with a
+  screen reader; the focus moves to the new row after adding and to a neighbouring control after
+  deleting.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
 
 ## How it behaves

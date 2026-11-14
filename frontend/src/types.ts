@@ -33,6 +33,24 @@ export type ItemOverride =
   | { mode: "replace"; label: LabelOption }
   | { mode: "disable" };
 
+/** A subtask of an item (since 1.5.0). */
+export interface Subtask {
+  /** `<item uid>:sub:<id>` */
+  uid: string;
+  title: string;
+  /** Planned local date, YYYY-MM-DD. */
+  planned: string;
+  /** Current local date: subtasks are grouped by this. */
+  date: string;
+  /** Not done and the item date is before today. */
+  overdue: boolean;
+  /** 0-100 */
+  progress: number;
+  completed: boolean;
+  /** The value that unticking restores (0-99). */
+  last_partial: number;
+}
+
 export interface HomeworkItem {
   uid: string;
   due: string;
@@ -62,6 +80,10 @@ export interface HomeworkItem {
   completed: boolean;
   /** The value that unticking restores (0-99). */
   last_partial: number;
+  /** Since 1.5.0: the item has subtasks; its progress is then derived (the mean) and read-only. */
+  derived?: boolean;
+  /** Since 1.5.0: in creation order; empty (or absent) when none. */
+  subtasks?: Subtask[];
 }
 
 /** The value of one progress sensor (since 1.2.0); null when that sensor is unavailable. */
@@ -89,6 +111,9 @@ export interface SetProgressResult {
   progress: number;
   completed: boolean;
 }
+
+/** The result of add_subtask, update_subtask and delete_subtask: the updated parent item. */
+export type SubtaskResult = HomeworkItem;
 
 export interface SetOverrideResult {
   /** Null when the appointment is not in the planner any more. */

@@ -133,6 +133,21 @@
     },
     "homework_label_is_original": {
       "message": "The Magister label cannot be replaced by itself. Choose another label, or restore the original."
+    },
+    "homework_item_has_subtasks": {
+      "message": "This homework item has subtasks. Its progress is derived from them: change the subtasks instead."
+    },
+    "homework_subtask_not_found": {
+      "message": "This subtask does not exist (any more)."
+    },
+    "homework_too_many_subtasks": {
+      "message": "An item can have at most 20 subtasks."
+    },
+    "homework_invalid_date": {
+      "message": "The date must be today or later and not after the date of the item (or exactly the date of the item when that is today or in the past)."
+    },
+    "homework_nothing_to_update": {
+      "message": "Give a new title, a new date, or both."
     }
   },
   "options": {
@@ -375,6 +390,52 @@
         "label": {
           "name": "Label",
           "description": "For replace: the id or the name (not case-sensitive) of one of the labels configured for this child."
+        }
+      }
+    },
+    "add_homework_subtask": {
+      "name": "Add homework subtask",
+      "description": "Adds a subtask to a homework item, planned on a day up to the item's date (today by default). Nothing is written to Magister.",
+      "fields": {
+        "item": {
+          "name": "Item",
+          "description": "The id (uid) of the homework item."
+        },
+        "title": {
+          "name": "Title",
+          "description": "The title of the subtask, 1 to 100 characters."
+        },
+        "date": {
+          "name": "Date",
+          "description": "The planned day: today or later, not after the date of the item. Today by default."
+        }
+      }
+    },
+    "update_homework_subtask": {
+      "name": "Update homework subtask",
+      "description": "Changes the title and/or the planned date of a subtask.",
+      "fields": {
+        "subtask": {
+          "name": "Subtask",
+          "description": "The id (uid) of the subtask: the item uid, :sub: and the subtask id."
+        },
+        "title": {
+          "name": "Title",
+          "description": "The new title, 1 to 100 characters."
+        },
+        "date": {
+          "name": "Date",
+          "description": "The new planned day: today or later, not after the date of the item."
+        }
+      }
+    },
+    "delete_homework_subtask": {
+      "name": "Delete homework subtask",
+      "description": "Deletes a subtask. Without any subtasks the progress of the item itself applies again.",
+      "fields": {
+        "subtask": {
+          "name": "Subtask",
+          "description": "The id (uid) of the subtask."
         }
       }
     }

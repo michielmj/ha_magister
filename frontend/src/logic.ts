@@ -7,6 +7,7 @@ import type {
   LabelOption,
   PeriodProgress,
   ProgressPeriod,
+  Subtask,
 } from "./types";
 
 /** The progress steps of the card (PM decision). */
@@ -23,7 +24,7 @@ export function snapToStep(progress: number): number {
 }
 
 /** The progress to send when an item is ticked (100) or unticked (its last_partial). */
-export function toggleTarget(item: HomeworkItem): number {
+export function toggleTarget(item: Pick<HomeworkItem, "completed" | "last_partial">): number {
   if (!item.completed) return 100;
   const restore = Math.round(item.last_partial);
   return Math.min(Math.max(Number.isFinite(restore) ? restore : 0, 0), 99);
@@ -149,23 +150,192 @@ export interface Overlay {
  * backend: below 100 the value itself is the last partial; reaching 100 keeps the value
  * from before (so tick, untick restores it even while requests are still in flight).
  */
-export function optimisticOverlay(item: HomeworkItem, progress: number): Overlay {
+export function optimisticOverlay(
+  item: Pick<HomeworkItem, "progress" | "last_partial">,
+  progress: number,
+): Overlay {
   let lastPartial = item.last_partial;
   if (progress < 100) lastPartial = progress;
   else if (item.progress < 100) lastPartial = item.progress;
   return { progress, completed: progress >= 100, last_partial: lastPartial };
 }
 
-/** The items with the optimistic (not yet confirmed) progress applied. */
+/** The mean of the subtasks' progress, rounded half up (the backend's derived progress). */
+export function derivedProgress(subtasks: readonly Pick<Subtask, "progress">[]): number {
+  if (subtasks.length === 0) return 0;
+  const total = subtasks.reduce((sum, subtask) => sum + subtask.progress, 0);
+  return Math.min(Math.max(Math.floor(total / subtasks.length + 0.5), 0), 100);
+}
+
+/** The item has subtasks that count (a disabled item hides them). */
+export function isDerived(item: HomeworkItem): boolean {
+  return item.derived === true && item.disabled !== true && (item.subtasks?.length ?? 0) > 0;
+}
+
+/**
+ * The item with another list of subtasks; its progress follows. When the last subtask is
+ * deleted the item shows the derived value of no subtasks (0) until the push brings back its own.
+ */
+function withSubtasks(item: HomeworkItem, subtasks: Subtask[]): HomeworkItem {
+  if (subtasks.length === 0) return { ...item, subtasks, derived: false };
+  const progress = derivedProgress(subtasks);
+  return { ...item, subtasks, derived: true, progress, completed: progress >= 100 };
+}
+
+/** The items with the optimistic (not yet confirmed) progress applied, to items and subtasks. */
 export function applyOverlay(
   items: readonly HomeworkItem[],
   overlay: ReadonlyMap<string, Overlay>,
 ): HomeworkItem[] {
   if (overlay.size === 0) return [...items];
   return items.map((item) => {
+    const subtasks = item.subtasks;
+    if (subtasks?.some((subtask) => overlay.has(subtask.uid))) {
+      return withSubtasks(
+        item,
+        subtasks.map((subtask) => {
+          const change = overlay.get(subtask.uid);
+          return change ? { ...subtask, ...change } : subtask;
+        }),
+      );
+    }
     const change = overlay.get(item.uid);
     return change ? { ...item, ...change } : item;
   });
+}
+
+// -- subtasks --
+
+/** An optimistic change of a subtask (not yet confirmed): a new title and/or date, or a deletion. */
+export interface SubtaskEdit {
+  title?: string;
+  planned?: string;
+  deleted?: boolean;
+}
+
+/** The uid of the item a subtask uid belongs to. */
+export function parentUid(subtaskUid: string): string {
+  const index = subtaskUid.indexOf(":sub:");
+  return index < 0 ? subtaskUid : subtaskUid.slice(0, index);
+}
+
+/** The current date of a not-done subtask (the backend rule); a done one does not move. */
+export function currentDate(subtask: Subtask, planned: string, itemDate: string, today: string): string {
+  if (subtask.completed) return subtask.date;
+  const moved = planned < today ? today : planned;
+  return moved > itemDate ? itemDate : moved;
+}
+
+/** The items with the optimistic subtask edits and deletions applied. */
+export function applySubtaskEdits(
+  items: readonly HomeworkItem[],
+  edits: ReadonlyMap<string, SubtaskEdit>,
+  today: string,
+): HomeworkItem[] {
+  if (edits.size === 0) return [...items];
+  return items.map((item) => {
+    const subtasks = item.subtasks;
+    if (!subtasks?.some((subtask) => edits.has(subtask.uid))) return item;
+    const next: Subtask[] = [];
+    for (const subtask of subtasks) {
+      const edit = edits.get(subtask.uid);
+      if (!edit) next.push(subtask);
+      else if (!edit.deleted) {
+        const planned = edit.planned ?? subtask.planned;
+        next.push({
+          ...subtask,
+          title: edit.title ?? subtask.title,
+          planned,
+          date: currentDate(subtask, planned, item.date, today),
+        });
+      }
+    }
+    return withSubtasks(item, next);
+  });
+}
+
+/** The edit's fields are what the subtask now shows (the backend has caught up). */
+export function reflectsEdit(subtask: Subtask | undefined, edit: SubtaskEdit): boolean {
+  if (edit.deleted) return subtask === undefined;
+  if (!subtask) return true;
+  return (
+    (edit.title === undefined || subtask.title === edit.title) &&
+    (edit.planned === undefined || subtask.planned === edit.planned)
+  );
+}
+
+export type Entry =
+  | { type: "item"; item: HomeworkItem }
+  | { type: "subtask"; subtask: Subtask; parent: HomeworkItem };
+
+/** The key of the group of overdue subtasks (never a date). */
+export const OVERDUE_GROUP = "overdue";
+
+export interface EntryGroup {
+  date: string;
+  kind: DayKind | "overdue";
+  entries: Entry[];
+}
+
+/**
+ * Items and subtasks per day. Subtasks sit on their current date. Overdue ones (the item
+ * date has passed) are always shown, in a separate group at the top, so the "past days"
+ * switch cannot hide them. Done subtasks follow `showCompleted` like items do. Within a
+ * day the items come first, then the subtasks.
+ */
+export function groupEntries(items: readonly HomeworkItem[], options: FilterOptions): EntryGroup[] {
+  const last = addDays(options.today, options.daysAhead);
+  const groups = new Map<string, EntryGroup>();
+  const add = (date: string, entry: Entry): void => {
+    let group = groups.get(date);
+    if (!group) {
+      group = {
+        date,
+        kind: date === OVERDUE_GROUP ? "overdue" : kindOf(date, options.today),
+        entries: [],
+      };
+      groups.set(date, group);
+    }
+    group.entries.push(entry);
+  };
+  for (const item of filterItems(items, options)) add(item.date, { type: "item", item });
+  const subtasks: [string, Entry][] = [];
+  for (const parent of items) {
+    if (parent.disabled === true) continue;
+    for (const subtask of parent.subtasks ?? []) {
+      if (subtask.completed && !options.showCompleted && !options.keep?.has(subtask.uid)) continue;
+      // A kept (just ticked) subtask of a passed lesson stays where it was under the finger.
+      const keptOverdue =
+        options.keep?.has(subtask.uid) === true && parent.date < options.today;
+      if (subtask.overdue || keptOverdue) {
+        subtasks.push([OVERDUE_GROUP, { type: "subtask", subtask, parent }]);
+        continue;
+      }
+      if (subtask.date < options.today ? !options.showPast : subtask.date > last) continue;
+      subtasks.push([subtask.date, { type: "subtask", subtask, parent }]);
+    }
+  }
+  for (const [date, entry] of subtasks) add(date, entry);
+  return [...groups.values()].sort((a, b) => {
+    if (a.kind === "overdue" || b.kind === "overdue") {
+      return a.kind === b.kind ? 0 : a.kind === "overdue" ? -1 : 1;
+    }
+    return a.date.localeCompare(b.date);
+  });
+}
+
+/** "di 17 nov" / "Tue 17 Nov" */
+export function formatShortDay(iso: string, language: string): string {
+  const date = utcDate(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return new Intl.DateTimeFormat(language, {
+    timeZone: "UTC",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+    .format(date)
+    .replace(/\./g, "");
 }
 
 // -- config --

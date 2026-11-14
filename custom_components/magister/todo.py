@@ -26,26 +26,36 @@ from .api.homework import (
     HomeworkItem,
     LabelOption,
     Override,
+    Subtask,
     find_label_option,
     magister_label_text,
+    split_subtask_uid,
+    subtask_current_date,
+    subtask_uid,
 )
 from .api.mapping import ATTACHMENTS_LINE, LOCAL_TZ
 from .const import (
     ATTR_APPOINTMENT,
+    ATTR_DATE,
     ATTR_ITEM,
     ATTR_LABEL,
     ATTR_MODE,
     ATTR_NOTE,
     ATTR_PROGRESS,
+    ATTR_SUBTASK,
+    ATTR_TITLE,
     CHILD_ID,
     CHILD_SHORT_NAME,
     CONF_CHILDREN,
     CONF_HOST,
     DOMAIN,
     SERVICE_ADD_HOMEWORK_LABEL,
+    SERVICE_ADD_HOMEWORK_SUBTASK,
+    SERVICE_DELETE_HOMEWORK_SUBTASK,
     SERVICE_REMOVE_HOMEWORK_LABEL,
     SERVICE_SET_HOMEWORK_OVERRIDE,
     SERVICE_SET_HOMEWORK_PROGRESS,
+    SERVICE_UPDATE_HOMEWORK_SUBTASK,
 )
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
 from .entity import MagisterMidnightEntity
@@ -60,6 +70,7 @@ from .homework import (
     build_payload,
     note_text,
     service_progress,
+    subtask_title,
 )
 from .homework import (
     item_to_dict as item_dict,
@@ -67,7 +78,10 @@ from .homework import (
 
 PARALLEL_UPDATES = 0
 
+type Day = date
+
 CANCELLED_NOTE = "Les vervallen"
+SUBTASK_PREFIX = "\u21b3 "
 
 
 async def async_setup_entry(
@@ -141,6 +155,38 @@ def async_register_homework_services(hass: HomeAssistant) -> None:
             probatio.Required(ATTR_PROGRESS): service_progress,
         },
     )
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_ADD_HOMEWORK_SUBTASK,
+        entity_domain=TODO_DOMAIN,
+        func="async_add_homework_subtask",
+        schema={
+            probatio.Required(ATTR_ITEM): cv.string,
+            probatio.Required(ATTR_TITLE): subtask_title,
+            probatio.Optional(ATTR_DATE): cv.date,
+        },
+    )
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_UPDATE_HOMEWORK_SUBTASK,
+        entity_domain=TODO_DOMAIN,
+        func="async_update_homework_subtask",
+        schema={
+            probatio.Required(ATTR_SUBTASK): cv.string,
+            probatio.Optional(ATTR_TITLE): subtask_title,
+            probatio.Optional(ATTR_DATE): cv.date,
+        },
+    )
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_DELETE_HOMEWORK_SUBTASK,
+        entity_domain=TODO_DOMAIN,
+        func="async_delete_homework_subtask",
+        schema={probatio.Required(ATTR_SUBTASK): cv.string},
+    )
 
 
 def item_summary(item: HomeworkItem) -> str:
@@ -156,6 +202,30 @@ def item_summary(item: HomeworkItem) -> str:
         label.name for label in item.manual_labels
     ]
     return " ".join([*(f"[{name}]" for name in names), item.subject]).rstrip()
+
+
+def to_subtask_todo_item(item: HomeworkItem, sub: Subtask, today: date) -> TodoItem:
+    """The to-do item of a subtask: ``↳ <subject>: <title>``."""
+    return TodoItem(
+        summary=f"{SUBTASK_PREFIX}{item.subject}: {sub.title}",
+        uid=subtask_uid(item.uid, sub.id),
+        status=TodoItemStatus.COMPLETED if sub.done else TodoItemStatus.NEEDS_ACTION,
+        due=subtask_current_date(sub, item.due_date, today),
+        description=f"({sub.progress} %)" if 0 < sub.progress < 100 else None,
+    )
+
+
+def to_todo_items(manager: HomeworkManager, child_id: int) -> list[TodoItem]:
+    """The to-do list of a child: each item followed by its subtasks."""
+    today = manager.today()
+    todo: list[TodoItem] = []
+    for item in manager.items(child_id):
+        todo.append(to_todo_item(manager, item))
+        todo.extend(
+            to_subtask_todo_item(item, sub, today)
+            for sub in manager.active_subtasks(item)
+        )
+    return todo
 
 
 def to_todo_item(manager: HomeworkManager, item: HomeworkItem) -> TodoItem:
@@ -182,6 +252,16 @@ def to_todo_item(manager: HomeworkManager, item: HomeworkItem) -> TodoItem:
         description="\n".join(lines) or None,
         completed=manager.completed_at(item.uid),
     )
+
+
+class HomeworkItemHasSubtasks(ServiceValidationError):
+    """The item has subtasks: its progress is derived and cannot be set."""
+
+    def __init__(self) -> None:
+        """Create the translated error."""
+        super().__init__(
+            translation_domain=DOMAIN, translation_key="homework_item_has_subtasks"
+        )
 
 
 class HomeworkItemDisabled(ServiceValidationError):
@@ -234,10 +314,7 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
 
     @callback
     def _rebuild(self) -> None:
-        self._attr_todo_items = [
-            to_todo_item(self._manager, item)
-            for item in self._manager.items(self._child_id)
-        ]
+        self._attr_todo_items = to_todo_items(self._manager, self._child_id)
 
     async def async_added_to_hass(self) -> None:
         """Follow progress changes."""
@@ -254,6 +331,12 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
     def _handle_coordinator_update(self) -> None:
         self._rebuild()
         super()._handle_coordinator_update()
+
+    @callback
+    def _on_new_day(self) -> None:
+        """Subtasks roll over: new due dates, a new payload and a new count."""
+        self._rebuild()
+        super()._on_new_day()
 
     @callback
     def _async_write_ha_state(self) -> None:
@@ -294,16 +377,50 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         return item
 
     def _require_enabled(self, uid: str) -> HomeworkItem:
-        item = self._require_item(uid)
+        """The item (or the parent of a subtask uid): it must exist and not be disabled.
+
+        A subtask uid must also name an existing (visible) subtask; an item with
+        subtasks is refused as ``HomeworkItemHasSubtasks`` unless ``uid`` is a subtask.
+        """
+        ref = split_subtask_uid(uid)
+        item = self._require_item(ref[0] if ref else uid)
         if self._manager.effective(item).disabled:
             raise HomeworkItemDisabled
+        if ref is not None:
+            if self._manager.find_subtask(uid) is None:
+                raise ServiceValidationError(
+                    translation_domain=DOMAIN,
+                    translation_key="homework_item_not_found",
+                )
+        elif self._manager.has_subtasks(uid):
+            raise HomeworkItemHasSubtasks
         return item
 
     @callback
     def set_progress(self, uid: str, progress: int) -> None:
-        """Set the progress (0-100) of one of this child's items."""
+        """Set the progress (0-100) of one of this child's items or subtasks."""
         self._require_enabled(uid)
         self._manager.set_progress(uid, progress)
+
+    @callback
+    def add_subtask(self, item: str, title: str, planned: Day | None) -> Payload:
+        """Add a subtask; returns the updated item (``LabelError`` on failure)."""
+        parent = self._manager.add_subtask(self._child_id, item, title, planned)
+        return item_dict(self._manager, parent)
+
+    @callback
+    def update_subtask(
+        self, subtask: str, title: str | None, planned: Day | None
+    ) -> Payload:
+        """Change a subtask's title and/or date; returns the updated item."""
+        parent = self._manager.update_subtask(self._child_id, subtask, title, planned)
+        return item_dict(self._manager, parent)
+
+    @callback
+    def delete_subtask(self, subtask: str) -> Payload:
+        """Delete a subtask; returns the updated item."""
+        parent = self._manager.delete_subtask(self._child_id, subtask)
+        return item_dict(self._manager, parent)
 
     @callback
     def stored_progress(self, uid: str) -> int:
@@ -388,6 +505,31 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         """Service ``magister.set_homework_override``."""
         try:
             self.set_override(appointment, mode, label, by_name=True)
+        except LabelError as err:
+            raise _label_exception(err) from None
+
+    async def async_add_homework_subtask(
+        self, item: str, title: str, date: Day | None = None
+    ) -> None:
+        """Service ``magister.add_homework_subtask``."""
+        try:
+            self.add_subtask(item, title, date)
+        except LabelError as err:
+            raise _label_exception(err) from None
+
+    async def async_update_homework_subtask(
+        self, subtask: str, title: str | None = None, date: Day | None = None
+    ) -> None:
+        """Service ``magister.update_homework_subtask``."""
+        try:
+            self.update_subtask(subtask, title, date)
+        except LabelError as err:
+            raise _label_exception(err) from None
+
+    async def async_delete_homework_subtask(self, subtask: str) -> None:
+        """Service ``magister.delete_homework_subtask``."""
+        try:
+            self.delete_subtask(subtask)
         except LabelError as err:
             raise _label_exception(err) from None
 

@@ -52,6 +52,31 @@ DEFAULT_WEIGHT: Final = 1.0
 
 PROGRESS_STEPS: Final = (0, 25, 50, 75, 100)
 
+# Subtasks (since 1.5.0).
+SUBTASK_TITLE_MAX: Final = 100
+MAX_SUBTASKS: Final = 20
+SUBTASK_SEPARATOR: Final = ":sub:"
+
+
+@dataclass(frozen=True, slots=True)
+class Subtask:
+    """A step of a homework item, planned on a day on or before the item's date.
+
+    ``completed_on`` is the local date the subtask reached 100 (``None`` below 100).
+    """
+
+    id: str
+    title: str
+    planned: date
+    progress: int = 0
+    last_partial: int = 0
+    completed_on: date | None = None
+
+    @property
+    def done(self) -> bool:
+        """Whether the subtask is at 100 %."""
+        return self.progress >= 100
+
 
 @dataclass(frozen=True, slots=True)
 class LabelOption:
@@ -165,6 +190,7 @@ class HomeworkItem:
     has_attachments: bool
     manual_labels: tuple[ManualLabel, ...] = ()
     override: Override | None = None
+    subtasks: tuple[Subtask, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,12 +282,14 @@ def extract_homework(
     child_id: int,
     manual: Mapping[str, Sequence[ManualLabel]] | None = None,
     overrides: Mapping[str, Override] | None = None,
+    subtasks: Mapping[str, Sequence[Subtask]] | None = None,
 ) -> list[HomeworkItem]:
     """Homework items of a child, ordered by due time, lesson hour and id.
 
     An item is an appointment with a Magister InfoType 1-5 or a manual label
     (``manual`` maps item uids to their labels). ``overrides`` (by uid) only apply to
-    appointments that have a Magister label.
+    appointments that have a Magister label. ``subtasks`` (by uid) are the stored
+    subtasks of the items.
     """
     items: list[HomeworkItem] = []
     for appointment in appointments:
@@ -286,6 +314,7 @@ def extract_homework(
                 has_attachments=appointment.has_attachments,
                 manual_labels=labels,
                 override=(overrides or {}).get(uid) if info_type is not None else None,
+                subtasks=tuple((subtasks or {}).get(uid, ())),
             )
         )
     items.sort(key=lambda i: (i.start, i.lesson_hour or 0, i.uid))
@@ -423,27 +452,141 @@ def items_in_period(
     ]
 
 
-def summarize(
+def subtask_uid(item_uid_: str, subtask_id: str) -> str:
+    """The uid of a subtask: ``<item uid>:sub:<id>``."""
+    return f"{item_uid_}{SUBTASK_SEPARATOR}{subtask_id}"
+
+
+def split_subtask_uid(uid: str) -> tuple[str, str] | None:
+    """``(item uid, subtask id)`` of a subtask uid, ``None`` when it is not one."""
+    item, separator, sub_id = uid.rpartition(SUBTASK_SEPARATOR)
+    return (item, sub_id) if separator and item and sub_id else None
+
+
+def subtask_current_date(sub: Subtask, item_date: date, today: date) -> date:
+    """The day a subtask is on, for the local date ``today``.
+
+    Not done: ``min(max(planned, today), item date)``: it rolls forward day by day
+    (weekends included) but never past the item. Done: the day it was completed,
+    clamped to the item date; it no longer moves.
+    """
+    if sub.done:
+        return min(sub.completed_on or sub.planned, item_date)
+    return min(max(sub.planned, today), item_date)
+
+
+def subtask_overdue(sub: Subtask, item_date: date, today: date) -> bool:
+    """Not done while the item date has passed."""
+    return not sub.done and item_date < today
+
+
+def derived_progress(subtasks: Sequence[Subtask]) -> int:
+    """The mean progress of the subtasks, rounded half up (0 without subtasks)."""
+    count = len(subtasks)
+    if not count:
+        return 0
+    return (2 * sum(sub.progress for sub in subtasks) + count) // (2 * count)
+
+
+def subtask_date_allowed(planned: date, item_date: date, today: date) -> bool:
+    """``today <= planned <= item date``, or exactly the item date when it is past."""
+    if item_date < today:
+        return planned == item_date
+    return today <= planned <= item_date
+
+
+def active_subtasks(item: HomeworkItem, state: EffectiveState) -> tuple[Subtask, ...]:
+    """The subtasks that count: none while the item is disabled."""
+    return () if state.disabled else item.subtasks
+
+
+@dataclass(frozen=True, slots=True)
+class Entry:
+    """One thing that counts in the progress: an item or one of its subtasks."""
+
+    uid: str
+    item_uid: str
+    day: date
+    weight: float
+    progress: int
+    is_test: bool
+
+
+def item_entries(
+    item: HomeworkItem,
+    state: EffectiveState,
+    own_progress: int,
+    today: date,
+) -> list[Entry]:
+    """The entries of an item: the single place that expands subtasks.
+
+    * disabled: nothing;
+    * no subtasks: the item itself, on its due date;
+    * ``n`` subtasks: ``n`` entries of weight ``item weight / n``, each on its current
+      date with its own progress (so the weights over all periods add up to the item's).
+    """
+    if state.disabled:
+        return []
+    subtasks = active_subtasks(item, state)
+    if not subtasks:
+        return [
+            Entry(
+                item.uid,
+                item.uid,
+                item.due_date,
+                state.weight,
+                own_progress,
+                state.is_test,
+            )
+        ]
+    weight = state.weight / len(subtasks)
+    return [
+        Entry(
+            subtask_uid(item.uid, sub.id),
+            item.uid,
+            subtask_current_date(sub, item.due_date, today),
+            weight,
+            sub.progress,
+            state.is_test,
+        )
+        for sub in subtasks
+    ]
+
+
+def homework_entries(
     items: Iterable[HomeworkItem],
     progress: Callable[[str], int],
     weights: Weights,
-) -> PeriodSummary:
-    """Weighted average progress: sum(w x p) / sum(w), 100 when nothing counts.
-
-    Disabled items are ignored altogether (weight 0, not counted).
-    """
-    count = completed = tests = 0
-    weighted = total_weight = 0.0
+    today: date,
+) -> list[Entry]:
+    """The entries of all ``items`` (``progress`` gives the own progress of an item)."""
+    entries: list[Entry] = []
     for item in items:
         state = effective_state(item, weights)
-        if state.disabled:
-            continue
+        entries.extend(item_entries(item, state, progress(item.uid), today))
+    return entries
+
+
+def entries_in_period(
+    entries: Iterable[Entry],
+    period: tuple[date, date],
+    skipped: frozenset[date] = frozenset(),
+) -> list[Entry]:
+    """Entries on a day in ``[first, end)`` that is not in ``skipped``."""
+    first, end = period
+    return [e for e in entries if first <= e.day < end and e.day not in skipped]
+
+
+def summarize_entries(entries: Iterable[Entry]) -> PeriodSummary:
+    """Weighted average progress: sum(w x p) / sum(w), 100 when nothing counts."""
+    count = completed = tests = 0
+    weighted = total_weight = 0.0
+    for entry in entries:
         count += 1
-        done = progress(item.uid)
-        completed += done >= 100
-        tests += state.is_test
-        weighted += state.weight * done
-        total_weight += state.weight
+        completed += entry.progress >= 100
+        tests += entry.is_test
+        weighted += entry.weight * entry.progress
+        total_weight += entry.weight
     average = weighted / total_weight if total_weight > 0 else 100.0
     return PeriodSummary(
         value=round(average, 1),
@@ -452,6 +595,21 @@ def summarize(
         open=count - completed,
         tests=tests,
     )
+
+
+def summarize(
+    items: Iterable[HomeworkItem],
+    progress: Callable[[str], int],
+    weights: Weights,
+    today: date | None = None,
+) -> PeriodSummary:
+    """Weighted average progress of all entries of ``items`` (see ``item_entries``).
+
+    Disabled items are ignored altogether (weight 0, not counted). ``today`` only
+    matters for the periods of subtasks; it defaults to the local date.
+    """
+    day = today or datetime.now(LOCAL_TZ).date()
+    return summarize_entries(homework_entries(items, progress, weights, day))
 
 
 def effective_weights(
