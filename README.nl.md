@@ -67,19 +67,19 @@ browser.
 
 ## Instellen
 
-1. Ga naar **Instellingen > Apparaten & diensten > Integratie toevoegen** en kies **Magister**.
+1. Ga naar **Instellingen > Apparaten en diensten > Voeg integratie toe** en kies **Magister**.
 2. Vul de school in (`myschool`, `myschool.magister.net` of het webadres), de gebruikersnaam en het
    wachtwoord. Bij tweestapsverificatie vul je ook het authenticator-geheim in.
 3. Kies bij een ouderaccount de kinderen die een agenda moeten krijgen.
 
 Elke Magister-login is één vermelding. Meer logins zijn prima, ook bij dezelfde school en bij
 andere scholen, mits elk kind onder één login wordt toegevoegd (twee ouders: voeg elk kind één
-keer toe). De installatie en **Configureren** verbergen kinderen die al onder een andere login van
+keer toe). De installatie en **Configureer** verbergen kinderen die al onder een andere login van
 dezelfde school zijn toegevoegd. Hetzelfde account kan niet twee keer worden toegevoegd.
 
 ### Opties
 
-**Configureren** op de integratiepagina opent een menu: **Algemene instellingen** wijzigt de kinderen, de weken terug (0 tot 8), de weken
+**Configureer** op de integratiepagina opent een menu: **Algemene instellingen** wijzigt de kinderen, de weken terug (0 tot 8), de weken
 vooruit (1 tot 12) en het verversingsinterval (15 tot 360 minuten). Opslaan laadt de integratie
 opnieuw, zonder nieuwe wachtwoordlogin zolang de sessie nog geldig is. Een kind toevoegen voegt
 een agenda, een huiswerklijst en voortgangssensoren toe (sensoren voor de eerste afspraak voeg je
@@ -89,7 +89,7 @@ bij de huiswerkplanner.
 ## Sensoren voor de eerste afspraak
 
 Er wordt niets automatisch aangemaakt. Kies op de integratiepagina **Sensor voor eerste afspraak
-toevoegen** (naast **Configureren**):
+toevoegen** (naast **Configureer**):
 
 1. Kies het kind en het **Aantal dagen vooruit** (0 = vandaag, 1 = morgen, ...). De dag moet
    binnen het opgehaalde venster liggen: hooguit `7 x weken vooruit - 1` dagen vooruit (20 bij de
@@ -188,7 +188,7 @@ data:
   aan Magister, en volgen de beschikbaarheidsregel van 24 uur. "Volgende week" heeft minstens
   2 weken vooruit nodig; bij 1 week vooruit is die sensor niet beschikbaar en legt een
   reparatiemelding het uit.
-- **Gewichten.** Kies in **Configureren > Huiswerkgewichten** een kind en stel per soort, per
+- **Gewichten.** Kies in **Configureer > Huiswerkgewichten** een kind en stel per soort, per
   handmatig label en per vak een gewicht in (0 tot 10, stappen van 0,5, standaard 1). Een item
   telt mee met `gewicht label x gewicht vak`; een item met meerdere labels (zijn Magister-soort en
   eventuele handmatige labels) gebruikt het hoogste labelgewicht; een gewicht van 0 laat het item buiten het gemiddelde (het blijft
@@ -203,7 +203,7 @@ data:
   item als toets meetellen. Handmatige labels worden alleen in Home Assistant bewaard, blijven
   bestaan zolang de afspraak bestaat en worden 14 dagen nadat die verdwenen is verwijderd. Ze staan
   ook in de agendatitel, achter het label van Magister.
-  - **Configureren > Labels:** kies een kind en voeg een label toe (naam en soort: huiswerk of
+  - **Configureer > Labels:** kies een kind en voeg een label toe (naam en soort: huiswerk of
     toets), hernoem het of wijzig de soort, of verwijder het. De lijst begint met de vijf namen van
     Magister (Huiswerk is *huiswerk*, de rest *toets*). Een label dat nog op een les staat kan niet
     worden verwijderd. Labels wijzigen laadt de integratie niet opnieuw. Het gewicht van een eigen label
@@ -350,7 +350,7 @@ show_progress_next_week: false
   haal `card_id` uit de YAML van de kopie om aparte schakelaars te krijgen.
 - **Label toevoegen.** De **+**-knop in de kop (zichtbaar als het kind labelopties heeft en Magister
   beschikbaar is) opent een venster: kies een dag, een les van die dag, een label (in te stellen
-  onder *Configureren > Labels*, met de soort erbij) en typ eventueel een notitie; kies dan
+  onder *Configureer > Labels*, met de soort erbij) en typ eventueel een notitie; kies dan
   *Opslaan*. Het venster werkt met het toetsenbord (Escape sluit het) en op een telefoon. Dagen
   buiten het opgehaalde venster worden met een melding geweigerd.
 - **Handmatige labels op de kaart.** Naast het label van Magister toont een item zijn handmatige
@@ -435,7 +435,7 @@ bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde Home Assist
 De MCP Server is één enkele invoer: door alleen de coach te kiezen verdwijnt Assist van `/api/mcp`. Maar
 **elke** Home Assistant-gebruiker, dus ook het token van de leerling, kan Assist nog steeds bereiken op
 `/api/mcp/assist`, wat je ook bij de MCP Server-opties instelt, en daarmee de entiteiten bedienen die aan
-Assist zijn blootgesteld. Beperk die onder Instellingen, Spraakassistenten, **Beschikbaar maken**. De
+Assist zijn blootgesteld. Beperk die onder Instellingen, Spraakassistenten, **Ontsluit**. De
 coachtools werken ook met de eigen gespreksagenten van Home Assistant.
 
 ### De Claude desktop-app verbinden
@@ -515,10 +515,10 @@ inloggen mislukt, de aanvraagheader `Authorization: Bearer <langlevend token>`.
 - **De grens van de afscherming.** De afscherming geldt **alleen voor de coach**. De Home Assistant-gebruiker van
   de leerling, en het token op diens computer, kunnen **alle entiteitsstatussen** lezen **en
   apparaten bedienen**, via de Home Assistant-app en de REST/WebSocket-API en via Assist (zie de opmerking
-  bij Instellen). Dat geldt ook voor de agenda's van de andere kinderen met de namen van docenten. Zie de
-  gebruiker en het token als die toegang: gebruik een aparte gebruiker zonder beheerdersrechten, houd het
+  bij Instellen). Dat geldt ook voor de agenda's van de andere kinderen met de namen van docenten. Behandel de
+  gebruiker en het token daarom als die toegang: gebruik een aparte gebruiker zonder beheerdersrechten, houd het
   token privé, trek het in als het niet meer nodig is en beperk welke entiteiten aan Assist zijn
-  blootgesteld (Instellingen, Spraakassistenten, Beschikbaar maken).
+  blootgesteld (Instellingen, Spraakassistenten, Ontsluit).
 - **Het token.** Een langlevend token staat leesbaar (platte tekst) in de Claude-configuratie op die computer.
   Gebruik waar mogelijk **HTTPS**: met `http://` gaat het token onversleuteld over je netwerk. Trek het token in op
   het profiel als het niet meer nodig is.
@@ -554,18 +554,18 @@ een optie "terugzetten naar standaard").
 - **Opnieuw inloggen bij Magister** (kaart op de integratiepagina): de login werkt niet meer,
   meestal na een wachtwoordwijziging. Vul het nieuwe wachtwoord in (en alleen een nieuw
   authenticator-geheim als dat veranderd is). De integratie logt dan precies één keer in. Wil je
-  bewust de gebruikersnaam of het geheim wijzigen, gebruik dan **Opnieuw configureren** in het
+  bewust de gebruikersnaam of het geheim wijzigen, gebruik dan **Herconfigureer** in het
   drie-puntjesmenu van de vermelding. Beide accepteren alleen hetzelfde Magister-account.
 - **Inloggen geblokkeerd / "Inloggen bij Magister is geblokkeerd na herhaalde fouten"**: om te
   voorkomen dat je account op slot gaat, stopt de integratie na herhaalde fouten met proberen. Los
   de oorzaak op (wachtwoord, netwerk) en **herlaad de integratie** (drie-puntjesmenu,
-  **Herladen**): dat probeert het nog één keer. Klopt het wachtwoord niet, gebruik dan Opnieuw
-  configureren of de kaart voor opnieuw inloggen.
+  **Herlaad**): dat probeert het nog één keer. Klopt het wachtwoord niet, gebruik dan
+  **Herconfigureer** of de kaart voor opnieuw inloggen.
 - **Reparatie "Magister heeft de loginpagina gewijzigd"**: Magister heeft de loginpagina's
   aangepast. Werk de integratie bij in HACS; blijft het probleem, meld het dan als issue.
 - **Reparatie "Een kind staat bij meer dan één login"**: een kind is ingesteld bij meer dan één
   login van dezelfde school (mogelijk bij installaties van vóór deze controle). Open
-  **Configureren** bij één van die logins en haal het kind uit de selectie.
+  **Configureer** bij één van die logins en haal het kind uit de selectie.
 - **Reparatie "Sensor voor eerste afspraak buiten het venster"**: een sensor kijkt verder vooruit
   dan de weken vooruit toelaten. Verhoog **Weken vooruit** of wijzig de sensor.
 - **Logboeken**: Instellingen > Systeem > Logboeken, filter op `magister`. Voor meer detail zet
@@ -577,8 +577,7 @@ een optie "terugzetten naar standaard").
       custom_components.magister: debug
   ```
 
-- **Diagnostische gegevens**: op de integratiepagina, drie-puntjesmenu, **Diagnostische gegevens
-  downloaden**. Het bestand bevat opties, aantallen en de loginstatus; gebruikersnamen,
+- **Diagnostische gegevens**: op de integratiepagina, drie-puntjesmenu, **Download diagnostieken**. Het bestand bevat opties, aantallen en de loginstatus; gebruikersnamen,
   wachtwoorden, geheimen, tokens, namen, id's en de schoolhost zijn verwijderd.
 
 **Plaats nooit namen, schermafbeeldingen met namen of wachtwoorden in een issue.** Voeg het
