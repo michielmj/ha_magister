@@ -4,10 +4,12 @@ import {
   applyLabelRemovals,
   applyOverlay,
   applyOverrides,
+  applySubtaskEdits,
   dateBounds,
-  filterItems,
   formatDay,
-  groupByDay,
+  formatShortDay,
+  groupEntries,
+  isDerived,
   hasOverrideFields,
   labelKey,
   loadSwitches,
@@ -18,16 +20,20 @@ import {
   optimisticOverlay,
   optimisticOverride,
   overrideFieldsOf,
+  parentUid,
+  reflectsEdit,
   saveSwitches,
   snapToStep,
   storageKey,
   todayIso,
   toggleTarget,
-  type DayGroup,
+  type Entry,
+  type EntryGroup,
   type NormalizedConfig,
   type OverrideChange,
   type OverrideFields,
   type Overlay,
+  type SubtaskEdit,
 } from "./logic";
 import "./label-dialog";
 import {
@@ -47,6 +53,8 @@ import type {
   ManualLabel,
   SetOverrideResult,
   SetProgressResult,
+  Subtask,
+  SubtaskResult,
   Unsubscribe,
   WsError,
 } from "./types";
@@ -55,10 +63,26 @@ const SUBSCRIBE = "magister/homework/subscribe";
 const SET_PROGRESS = "magister/homework/set_progress";
 const REMOVE_LABEL = "magister/homework/remove_label";
 const SET_OVERRIDE = "magister/homework/set_override";
+const ADD_SUBTASK = "magister/homework/add_subtask";
+const UPDATE_SUBTASK = "magister/homework/update_subtask";
+const DELETE_SUBTASK = "magister/homework/delete_subtask";
+const MAX_TITLE = 100;
 const TOAST_MS = 6000;
 /** Retry of a failed subscribe: 30 s, doubling, at most 10 minutes. */
 const RETRY_START_MS = 30_000;
 const RETRY_MAX_MS = 600_000;
+
+/** The inline form to add a subtask to an item, or to edit one. */
+interface SubForm {
+  mode: "add" | "edit";
+  itemUid: string;
+  /** Edit only. */
+  subUid?: string;
+  title: string;
+  date: string;
+  error: string;
+  busy: boolean;
+}
 
 type LoadError = "not_found" | "unauthorized" | "load_failed";
 
@@ -89,6 +113,9 @@ export class MagisterHomeworkCard extends LitElement {
     _dialogOpen: { state: true },
     _overrideOverlay: { state: true },
     _menu: { state: true },
+    _subEdits: { state: true },
+    _form: { state: true },
+    _subConfirm: { state: true },
   };
 
   declare _payload: HomeworkPayload | undefined;
@@ -108,6 +135,11 @@ export class MagisterHomeworkCard extends LitElement {
   declare _overrideOverlay: ReadonlyMap<string, OverrideFields>;
   /** The uid of the item whose Magister-label menu is open. */
   declare _menu: string | undefined;
+  /** Optimistic subtask edits and deletions, until the backend has answered. */
+  declare _subEdits: ReadonlyMap<string, SubtaskEdit>;
+  declare _form: SubForm | undefined;
+  /** The uid of the subtask waiting for its delete confirmation. */
+  declare _subConfirm: string | undefined;
 
   private _storageKey = "";
   private readonly _removing = new Set<string>();
@@ -121,6 +153,11 @@ export class MagisterHomeworkCard extends LitElement {
   /** The request that last changed an item: only its outcome touches the view. */
   private readonly _tokens = new Map<string, number>();
   private readonly _overrideTokens = new Map<string, number>();
+  private readonly _subTokens = new Map<string, number>();
+  /** A subtask row that should take the focus as soon as it is rendered (after an add). */
+  private _pendingFocus: string | undefined;
+  /** The inline form should focus its title field when it renders. */
+  private _focusForm = false;
   private _nextToken = 0;
   private _retryTimer: ReturnType<typeof setTimeout> | undefined;
   private _retryDelay = RETRY_START_MS;
@@ -153,6 +190,9 @@ export class MagisterHomeworkCard extends LitElement {
     this._dialogOpen = false;
     this._overrideOverlay = new Map();
     this._menu = undefined;
+    this._subEdits = new Map();
+    this._form = undefined;
+    this._subConfirm = undefined;
   }
 
   // -- Home Assistant card API --
@@ -186,6 +226,11 @@ export class MagisterHomeworkCard extends LitElement {
       this._dialogOpen = false;
       this._overrideOverlay = new Map();
       this._overrideTokens.clear();
+      this._subEdits = new Map();
+      this._subTokens.clear();
+      this._form = undefined;
+      this._subConfirm = undefined;
+      this._pendingFocus = undefined;
       this._closeMenu(false);
       this._retryDelay = RETRY_START_MS;
     }
@@ -336,6 +381,11 @@ export class MagisterHomeworkCard extends LitElement {
       if (this._overrideTokens.has(uid)) keptOverrides.set(uid, fields);
     }
     this._overrideOverlay = keptOverrides;
+    const keptEdits = new Map<string, SubtaskEdit>();
+    for (const [uid, edit] of this._subEdits) {
+      if (this._subTokens.has(uid)) keptEdits.set(uid, edit);
+    }
+    this._subEdits = keptEdits;
     // Removals that were confirmed are in the pushed state; those in flight stay hidden.
     this._hiddenLabels = new Set([...this._hiddenLabels].filter((key) => this._removing.has(key)));
   }
@@ -345,12 +395,16 @@ export class MagisterHomeworkCard extends LitElement {
   private async _setProgress(uid: string, progress: number): Promise<void> {
     const hass = this._hass;
     const entity = this._config?.entity;
-    const source = this._payload?.items.find((candidate) => candidate.uid === uid);
+    const source = this._findTarget(uid);
     if (!hass || !entity || !source || !this._payload?.available || this._offline) return;
     const token = ++this._nextToken;
     this._tokens.set(uid, token);
-    if (progress >= 100) this._touched.add(uid);
-    const shown = applyOverlay([source], this._overlay)[0] ?? source;
+    if (progress >= 100) {
+      this._touched.add(uid);
+      // A ticked subtask keeps its item visible too, so neither vanishes under the finger.
+      this._touched.add(parentUid(uid));
+    }
+    const shown = { ...source, ...this._overlay.get(uid) };
     const optimistic = optimisticOverlay(shown, progress);
     this._overlay = new Map(this._overlay).set(uid, optimistic);
     try {
@@ -362,7 +416,7 @@ export class MagisterHomeworkCard extends LitElement {
       });
       if (this._tokens.get(uid) !== token) return;
       this._tokens.delete(uid);
-      const current = this._payload.items.find((item) => item.uid === uid);
+      const current = this._findTarget(uid);
       const next = new Map(this._overlay);
       if (current?.progress === stored.progress) {
         next.delete(uid);
@@ -387,6 +441,16 @@ export class MagisterHomeworkCard extends LitElement {
             : texts.save_failed,
       );
     }
+  }
+
+  /** An item or a subtask of the pushed state (without optimistic changes). */
+  private _findTarget(uid: string): Pick<HomeworkItem, "uid" | "progress" | "completed" | "last_partial"> | undefined {
+    for (const item of this._payload?.items ?? []) {
+      if (item.uid === uid) return item;
+      const subtask = item.subtasks?.find((candidate) => candidate.uid === uid);
+      if (subtask) return subtask;
+    }
+    return undefined;
   }
 
   private _showToast(message: string): void {
@@ -622,7 +686,13 @@ export class MagisterHomeworkCard extends LitElement {
   private _items(): HomeworkItem[] {
     if (!this._payload) return [];
     return applyLabelRemovals(
-      applyOverrides(applyOverlay(this._payload.items, this._overlay), this._overrideOverlay),
+      applyOverrides(
+        applyOverlay(
+          applySubtaskEdits(this._payload.items, this._subEdits, this._currentDay()),
+          this._overlay,
+        ),
+        this._overrideOverlay,
+      ),
       this._hiddenLabels,
     );
   }
@@ -647,10 +717,10 @@ export class MagisterHomeworkCard extends LitElement {
     return this._shownDay;
   }
 
-  private _visibleItems(): HomeworkItem[] {
+  private _visibleGroups(): EntryGroup[] {
     const config = this._config;
     if (!config || !this._payload) return [];
-    return filterItems(this._items(), {
+    return groupEntries(this._items(), {
       showCompleted: this._showCompleted,
       showPast: this._showPast,
       daysAhead: config.days_ahead,
@@ -659,7 +729,12 @@ export class MagisterHomeworkCard extends LitElement {
     });
   }
 
-  private _dayTitle(group: DayGroup, texts: Texts): string {
+  private _visibleItems(): Entry[] {
+    return this._visibleGroups().flatMap((group) => group.entries);
+  }
+
+  private _dayTitle(group: Pick<EntryGroup, "kind" | "date">, texts: Texts): string {
+    if (group.kind === "overdue") return texts.sub.overdue_group;
     if (group.kind === "today") return texts.today;
     if (group.kind === "tomorrow") return texts.tomorrow;
     return formatDay(group.date, this._language() === "nl" ? "nl" : "en-GB");
@@ -671,6 +746,12 @@ export class MagisterHomeworkCard extends LitElement {
     // A removal can no longer be confirmed while the card is read-only.
     if (this._confirm && (this._offline || this._payload?.available !== true)) {
       this._confirm = undefined;
+    }
+    // Subtask forms and confirmations go when the card turns read-only or their target is gone.
+    const readOnly = this._offline || this._payload?.available !== true;
+    if (this._form && (readOnly || !this._formTarget(this._form))) this._form = undefined;
+    if (this._subConfirm && (readOnly || !this._findSubtask(this._subConfirm))) {
+      this._subConfirm = undefined;
     }
     // The menu goes when the card turns read-only or its item is gone.
     if (
@@ -706,7 +787,7 @@ export class MagisterHomeworkCard extends LitElement {
     if (!this._payload) return html`<p class="state">${texts.loading}</p>`;
     const available = this._payload.available;
     const enabled = available && !this._offline;
-    const groups = groupByDay(this._visibleItems(), this._today());
+    const groups = this._visibleGroups();
     const bars = this._renderBars(texts, this._offline);
     const banners = html`${this._renderToolbar(texts, enabled)}${bars}${!available
       ? html`<p class="banner" role="status">${texts.unavailable}</p>`
@@ -728,7 +809,7 @@ export class MagisterHomeworkCard extends LitElement {
             <section class="day" aria-labelledby="day-${group.date}">
               <h4 id="day-${group.date}" class=${group.kind}>${this._dayTitle(group, texts)}</h4>
               <ul>
-                ${group.items.map((item) => this._renderItem(item, texts, enabled))}
+                ${group.entries.map((entry) => this._renderEntry(entry, texts, enabled))}
               </ul>
             </section>
           `,
@@ -854,16 +935,24 @@ export class MagisterHomeworkCard extends LitElement {
     ]
       .filter(Boolean)
       .join(" ");
+    const derived = isDerived(item);
     return html`<li class=${classes} data-uid=${itemUid}>
-      <input
-        type="checkbox"
-        .checked=${item.completed}
-        ?disabled=${!enabled || item.disabled === true}
-        aria-label=${format(item.completed ? texts.mark_open : texts.mark_done, {
-          subject: item.subject,
-        })}
-        @change=${() => void this._setProgress(item.uid, toggleTarget(item))}
-      />
+      ${derived
+        ? html`<input
+            type="checkbox"
+            .checked=${item.completed}
+            disabled
+            aria-label=${format(texts.sub.derived_check, { subject: item.subject })}
+          />`
+        : html`<input
+            type="checkbox"
+            .checked=${item.completed}
+            ?disabled=${!enabled || item.disabled === true}
+            aria-label=${format(item.completed ? texts.mark_open : texts.mark_done, {
+              subject: item.subject,
+            })}
+            @change=${() => void this._setProgress(item.uid, toggleTarget(item))}
+          />`}
       <div class="main">
         <div class="head">
           ${this._renderMagisterChip(item, texts, enabled)}
@@ -917,9 +1006,479 @@ export class MagisterHomeworkCard extends LitElement {
               }}>${texts.confirm_yes}</button>
             </div>`
           : nothing}
-        ${this._renderProgress(item, texts, enabled)}
+        ${derived
+          ? this._renderDerived(item, texts)
+          : this._renderProgress(
+              item,
+              format(texts.progress_of, { subject: item.subject }),
+              texts,
+              enabled && item.disabled !== true,
+            )}
+        ${this._renderAddSubtask(item, texts, enabled)}
       </div>
     </li>`;
+  }
+
+  private _renderEntry(entry: Entry, texts: Texts, enabled: boolean): TemplateResult {
+    return entry.type === "item"
+      ? this._renderItem(entry.item, texts, enabled)
+      : this._renderSubtask(entry.subtask, entry.parent, texts, enabled);
+  }
+
+  // -- subtasks --
+
+  private _findSubtask(uid: string): Subtask | undefined {
+    for (const item of this._payload?.items ?? []) {
+      const subtask = item.subtasks?.find((candidate) => candidate.uid === uid);
+      if (subtask) return subtask;
+    }
+    return undefined;
+  }
+
+  /** The item (or subtask) an open form belongs to; undefined when it is gone. */
+  private _formTarget(form: SubForm): HomeworkItem | undefined {
+    const item = this._payload?.items.find((candidate) => candidate.uid === form.itemUid);
+    if (!item || item.disabled === true) return undefined;
+    if (form.mode === "edit" && !item.subtasks?.some((sub) => sub.uid === form.subUid)) return undefined;
+    return item;
+  }
+
+  /** Allowed dates of a subtask of `item`; fixed to the item date when that is not in the future. */
+  private _dateBounds(item: HomeworkItem): { min: string; max: string; fixed: boolean } {
+    const today = this._currentDay();
+    return item.date <= today
+      ? { min: item.date, max: item.date, fixed: true }
+      : { min: today, max: item.date, fixed: false };
+  }
+
+  private _clampDate(date: string, bounds: { min: string; max: string }): string {
+    return date < bounds.min ? bounds.min : date > bounds.max ? bounds.max : date;
+  }
+
+  /** The name of an item's (effective) label, for the reference of its subtasks. */
+  private _itemLabel(item: HomeworkItem, texts: Texts): string {
+    const override = item.override ?? null;
+    if (override?.mode === "replace") return override.label.name;
+    if (item.info_type !== null && override?.mode !== "disable") {
+      return typeLabel(texts, item.info_type, item.label ?? "");
+    }
+    return item.manual_labels[0]?.name ?? "";
+  }
+
+  private _renderDerived(item: HomeworkItem, texts: Texts): TemplateResult {
+    const subtasks = item.subtasks ?? [];
+    const done = subtasks.filter((subtask) => subtask.completed).length;
+    const count = format(texts.sub.count, { done, total: subtasks.length });
+    const value = format(texts.percent, { n: item.progress });
+    return html`<div class="progress derived">
+      <div
+        class="track"
+        role="progressbar"
+        aria-label=${format(texts.progress_of, { subject: item.subject })}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow=${item.progress}
+        aria-valuetext=${format(texts.sub.derived_value, { count, n: item.progress })}
+        title=${texts.sub.derived_hint}
+      >
+        <div class="fill" style="width: ${item.progress}%"></div>
+      </div>
+      <span class="percent">${value}</span>
+      <span class="meta sub-count">${count}</span>
+    </div>`;
+  }
+
+  private _renderAddSubtask(item: HomeworkItem, texts: Texts, enabled: boolean): TemplateResult | typeof nothing {
+    if (item.disabled === true) return nothing;
+    const form = this._form;
+    const open = form?.mode === "add" && form.itemUid === item.uid;
+    return html`${enabled
+      ? html`<button
+          type="button"
+          class="link add-sub"
+          data-add-sub=${item.uid}
+          aria-expanded=${open ? "true" : "false"}
+          aria-label=${format(texts.sub.add_aria, { subject: item.subject })}
+          @click=${() => {
+            this._openForm({ mode: "add", itemUid: item.uid }, item);
+          }}
+        >${texts.sub.add}</button>`
+      : nothing}${open ? this._renderSubForm(form, item, texts) : nothing}`;
+  }
+
+  private _renderSubtask(
+    subtask: Subtask,
+    parent: HomeworkItem,
+    texts: Texts,
+    enabled: boolean,
+  ): TemplateResult {
+    const lang = this._language() === "nl" ? "nl" : "en-GB";
+    const form = this._form;
+    const editing = form?.mode === "edit" && form.subUid === subtask.uid ? form : undefined;
+    const confirming = this._subConfirm === subtask.uid;
+    const reference = format(texts.sub.for_item, {
+      label: this._itemLabel(parent, texts),
+      subject: parent.subject,
+      date: formatShortDay(parent.date, lang),
+    }).replace(/\s+/g, " ");
+    const classes = [
+      "item",
+      "subtask",
+      subtask.completed ? "done" : "",
+      subtask.overdue ? "overdue" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return html`<li class=${classes} data-uid=${subtask.uid}>
+      <input
+        type="checkbox"
+        .checked=${subtask.completed}
+        ?disabled=${!enabled}
+        aria-label=${format(subtask.completed ? texts.sub.mark_open : texts.sub.mark_done, {
+          title: subtask.title,
+        })}
+        @change=${() => void this._setProgress(subtask.uid, toggleTarget(subtask))}
+      />
+      <div class="main">
+        ${editing
+          ? this._renderSubForm(editing, parent, texts)
+          : html`<div class="head">
+              <span class="arrow" aria-hidden="true">↳</span>
+              <span class="subject sub-title">${subtask.title}</span>
+              ${subtask.overdue ? html`<span class="badge">${texts.sub.overdue}</span>` : nothing}
+              ${enabled
+                ? html`<button
+                      type="button"
+                      class="icon-btn"
+                      data-edit=${subtask.uid}
+                      title=${texts.sub.edit}
+                      aria-label=${format(texts.sub.edit_aria, { title: subtask.title })}
+                      @click=${() => {
+                        this._openForm({ mode: "edit", itemUid: parent.uid, subUid: subtask.uid }, parent);
+                      }}
+                    >✎</button>
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      data-delete=${subtask.uid}
+                      title=${texts.sub.delete}
+                      aria-label=${format(texts.sub.delete_aria, { title: subtask.title })}
+                      @click=${() => {
+                        this._askDeleteSubtask(subtask.uid);
+                      }}
+                    >✕</button>`
+                : nothing}
+            </div>
+            <div class="meta ref">${reference}</div>`}
+        ${confirming
+          ? html`<div
+              class="confirm subconfirm"
+              role="group"
+              aria-label=${format(texts.sub.confirm_delete, { title: subtask.title })}
+              @keydown=${(event: KeyboardEvent) => {
+                if (event.key === "Escape") {
+                  event.stopPropagation();
+                  this._cancelDeleteSubtask(subtask.uid);
+                }
+              }}
+            >
+              <span>${format(texts.sub.confirm_delete, { title: subtask.title })}</span>
+              <button type="button" class="cancel" @click=${() => {
+                this._cancelDeleteSubtask(subtask.uid);
+              }}>${texts.confirm_no}</button>
+              <button type="button" class="danger" ?disabled=${!enabled} @click=${() => {
+                void this._deleteSubtask(subtask.uid);
+              }}>${texts.sub.confirm_yes}</button>
+            </div>`
+          : nothing}
+        ${this._renderProgress(
+          subtask,
+          format(texts.sub.progress_of, { title: subtask.title }),
+          texts,
+          enabled,
+        )}
+      </div>
+    </li>`;
+  }
+
+  private _renderSubForm(form: SubForm, item: HomeworkItem, texts: Texts): TemplateResult {
+    const bounds = this._dateBounds(item);
+    const name =
+      form.mode === "add"
+        ? format(texts.sub.form_add, { subject: item.subject })
+        : format(texts.sub.form_edit, {
+            title: item.subtasks?.find((sub) => sub.uid === form.subUid)?.title ?? "",
+          });
+    const errorId = `sub-error-${form.mode}`;
+    return html`<form
+      class="subform"
+      aria-label=${name}
+      novalidate
+      @submit=${(event: Event) => {
+        event.preventDefault();
+        void this._submitForm();
+      }}
+      @keydown=${(event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          this._cancelForm();
+        }
+      }}
+    >
+      <label>
+        <span>${texts.sub.title}</span>
+        <input
+          class="sub-title-input"
+          type="text"
+          required
+          maxlength=${MAX_TITLE}
+          .value=${form.title}
+          ?disabled=${form.busy}
+          aria-invalid=${form.error ? "true" : "false"}
+          aria-describedby=${form.error ? errorId : nothing}
+          @input=${(event: Event) => {
+            this._patchForm({ title: (event.target as HTMLInputElement).value, error: "" });
+          }}
+        />
+      </label>
+      <label>
+        <span>${bounds.fixed ? texts.sub.date_fixed : texts.sub.date}</span>
+        <input
+          class="sub-date-input"
+          type="date"
+          .value=${bounds.fixed ? bounds.max : form.date}
+          min=${bounds.min}
+          max=${bounds.max}
+          ?disabled=${form.busy || bounds.fixed}
+          @input=${(event: Event) => {
+            this._patchForm({ date: (event.target as HTMLInputElement).value, error: "" });
+          }}
+        />
+      </label>
+      ${form.error
+        ? html`<p class="form-error" id=${errorId} role="alert">${form.error}</p>`
+        : nothing}
+      <div class="form-actions">
+        <button type="button" class="cancel" ?disabled=${form.busy} @click=${() => {
+          this._cancelForm();
+        }}>${texts.sub.cancel}</button>
+        <button type="submit" class="primary" ?disabled=${form.busy}>${form.busy
+          ? texts.sub.saving
+          : texts.sub.save}</button>
+      </div>
+    </form>`;
+  }
+
+  private _patchForm(patch: Partial<SubForm>): void {
+    if (this._form) this._form = { ...this._form, ...patch };
+  }
+
+  private _openForm(
+    target: { mode: "add"; itemUid: string } | { mode: "edit"; itemUid: string; subUid: string },
+    item: HomeworkItem,
+  ): void {
+    this._confirm = undefined;
+    this._subConfirm = undefined;
+    this._closeMenu(false);
+    const bounds = this._dateBounds(item);
+    const sub = target.mode === "edit" ? item.subtasks?.find((s) => s.uid === target.subUid) : undefined;
+    this._form = {
+      ...target,
+      title: sub?.title ?? "",
+      date: sub ? this._clampDate(sub.planned, bounds) : bounds.fixed ? bounds.max : bounds.min,
+      error: "",
+      busy: false,
+    };
+    this._focusForm = true;
+  }
+
+  private _cancelForm(): void {
+    const form = this._form;
+    if (!form || form.busy) return;
+    this._form = undefined;
+    const selector =
+      form.mode === "add"
+        ? `[data-add-sub="${CSS.escape(form.itemUid)}"]`
+        : `[data-edit="${CSS.escape(form.subUid ?? "")}"]`;
+    void this.updateComplete.then(() => {
+      this.shadowRoot?.querySelector<HTMLElement>(selector)?.focus();
+    });
+  }
+
+  private _formError(form: SubForm, code: string | undefined): void {
+    const errors = this._texts().sub.errors;
+    this._form = { ...form, busy: false, error: (code ? errors[code] : undefined) ?? errors.default ?? "" };
+    this._focusForm = true;
+  }
+
+  private async _submitForm(): Promise<void> {
+    const form = this._form;
+    const hass = this._hass;
+    const entity = this._config?.entity;
+    if (!form || form.busy || !hass || !entity || !this._payload?.available || this._offline) return;
+    const item = this._items().find((candidate) => candidate.uid === form.itemUid);
+    if (!item) return;
+    const title = form.title.trim();
+    if (title === "" || title.length > MAX_TITLE) {
+      this._formError(form, "invalid_format");
+      return;
+    }
+    const bounds = this._dateBounds(item);
+    if (form.mode === "add") {
+      const date = bounds.fixed ? bounds.max : form.date;
+      if (date < bounds.min || date > bounds.max) {
+        this._formError(form, "invalid_date");
+        return;
+      }
+      // The add waits for the answer instead of being optimistic: the backend assigns the
+      // subtask's id, and a refusal (too many, bad date) must keep the form with its input.
+      this._form = { ...form, busy: true, error: "" };
+      try {
+        const result = await hass.callWS<SubtaskResult>({
+          type: ADD_SUBTASK,
+          entity_id: entity,
+          item: item.uid,
+          title,
+          date,
+        });
+        const known = new Set((item.subtasks ?? []).map((sub) => sub.uid));
+        const created = (result.subtasks ?? []).filter((sub) => !known.has(sub.uid)).pop();
+        this._form = undefined;
+        this._pendingFocus = created?.uid ?? result.subtasks?.at(-1)?.uid;
+      } catch (error) {
+        this._formError({ ...form, title: form.title }, (error as WsError | undefined)?.code);
+      }
+      return;
+    }
+    const subtask = item.subtasks?.find((candidate) => candidate.uid === form.subUid);
+    if (!subtask) return;
+    const edit: SubtaskEdit = {};
+    if (title !== subtask.title) edit.title = title;
+    if (!bounds.fixed && form.date !== this._clampDate(subtask.planned, bounds)) {
+      if (form.date < bounds.min || form.date > bounds.max) {
+        this._formError(form, "invalid_date");
+        return;
+      }
+      edit.planned = form.date;
+    }
+    if (edit.title === undefined && edit.planned === undefined) {
+      this._cancelForm();
+      return;
+    }
+    this._form = undefined;
+    this._focusAfter([`[data-edit="${CSS.escape(subtask.uid)}"]`]);
+    await this._changeSubtask(subtask.uid, edit, {
+      type: UPDATE_SUBTASK,
+      entity_id: entity,
+      subtask: subtask.uid,
+      ...(edit.title !== undefined ? { title: edit.title } : {}),
+      ...(edit.planned !== undefined ? { date: edit.planned } : {}),
+    }, form);
+  }
+
+  /** Apply an optimistic subtask edit or deletion, send it, and roll back when it fails. */
+  private async _changeSubtask(
+    uid: string,
+    edit: SubtaskEdit,
+    message: Record<string, unknown>,
+    form?: SubForm,
+  ): Promise<void> {
+    const hass = this._hass;
+    if (!hass) return;
+    const token = ++this._nextToken;
+    this._subTokens.set(uid, token);
+    this._subEdits = new Map(this._subEdits).set(uid, edit);
+    try {
+      await hass.callWS<SubtaskResult>(message);
+      if (this._subTokens.get(uid) !== token) return;
+      this._subTokens.delete(uid);
+      // The push usually arrived first; otherwise keep the change until it does.
+      if (reflectsEdit(this._findSubtask(uid), edit)) {
+        const next = new Map(this._subEdits);
+        next.delete(uid);
+        this._subEdits = next;
+      }
+    } catch (error) {
+      if (this._subTokens.get(uid) !== token) return;
+      this._subTokens.delete(uid);
+      const next = new Map(this._subEdits);
+      next.delete(uid);
+      this._subEdits = next;
+      const code = (error as WsError | undefined)?.code;
+      if (form && !this._form && this._formTarget(form)) {
+        // An edit comes back as the form it was sent from, with the reason inline.
+        this._formError({ ...form, busy: false }, code);
+      } else {
+        const errors = this._texts().sub.errors;
+        this._showToast((code ? errors[code] : undefined) ?? this._texts().save_failed);
+      }
+    }
+  }
+
+  private _askDeleteSubtask(uid: string): void {
+    this._form = undefined;
+    this._confirm = undefined;
+    this._subConfirm = uid;
+    void this.updateComplete.then(() => {
+      this.shadowRoot?.querySelector<HTMLElement>(".subconfirm .cancel")?.focus();
+    });
+  }
+
+  private _cancelDeleteSubtask(uid: string): void {
+    this._subConfirm = undefined;
+    void this.updateComplete.then(() => {
+      this.shadowRoot?.querySelector<HTMLElement>(`[data-delete="${CSS.escape(uid)}"]`)?.focus();
+    });
+  }
+
+  private async _deleteSubtask(uid: string): Promise<void> {
+    const entity = this._config?.entity;
+    this._subConfirm = undefined;
+    if (!entity || !this._hass || !this._payload?.available || this._offline) return;
+    // The focused buttons vanish with the row: the next row, the previous one, else the item's add button.
+    const row = this.shadowRoot?.querySelector(`li[data-uid="${CSS.escape(uid)}"]`);
+    const around = [row?.nextElementSibling, row?.previousElementSibling]
+      .map((sibling) => sibling?.getAttribute("data-uid"))
+      .filter((value): value is string => typeof value === "string");
+    this._focusAfter([
+      ...around.map((other) => `li[data-uid="${CSS.escape(other)}"] input[type="checkbox"]`),
+      `[data-add-sub="${CSS.escape(parentUid(uid))}"]`,
+      ".add",
+    ]);
+    await this._changeSubtask(uid, { deleted: true }, {
+      type: DELETE_SUBTASK,
+      entity_id: entity,
+      subtask: uid,
+    });
+  }
+
+  /** After the next render, focus the first of these selectors that exists. */
+  private _focusAfter(selectors: string[]): void {
+    void this.updateComplete.then(() => {
+      for (const selector of selectors) {
+        const element = this.shadowRoot?.querySelector<HTMLElement>(selector);
+        if (element) {
+          element.focus();
+          return;
+        }
+      }
+    });
+  }
+
+  protected override updated(): void {
+    if (this._focusForm && this._form) {
+      this._focusForm = false;
+      this.shadowRoot?.querySelector<HTMLElement>(".subform .sub-title-input")?.focus();
+    }
+    if (this._pendingFocus) {
+      const row = this.shadowRoot?.querySelector<HTMLElement>(
+        `li[data-uid="${CSS.escape(this._pendingFocus)}"] input[type="checkbox"]`,
+      );
+      if (row) {
+        this._pendingFocus = undefined;
+        row.focus();
+      }
+    }
   }
 
   /**
@@ -1028,18 +1587,21 @@ export class MagisterHomeworkCard extends LitElement {
     >`;
   }
 
-  private _renderProgress(item: HomeworkItem, texts: Texts, enabled: boolean): TemplateResult {
+  private _renderProgress(
+    item: { uid: string; progress: number },
+    label: string,
+    texts: Texts,
+    enabled: boolean,
+  ): TemplateResult {
     // A stored value between the steps (say 40 %) leaves every radio unchecked; the
     // nearest step takes the tab stop and the tint.
     const nearest = snapToStep(item.progress);
     const exact = (STEPS as readonly number[]).includes(item.progress);
-    // A disabled item keeps its progress, but cannot be changed until it is restored.
-    enabled = enabled && item.disabled !== true;
     return html`<div class="progress">
       <div
         class="segments"
         role="radiogroup"
-        aria-label=${format(texts.progress_of, { subject: item.subject })}
+        aria-label=${label}
       >
         ${STEPS.map(
           (step) => html`<button
@@ -1569,6 +2131,112 @@ export class MagisterHomeworkCard extends LitElement {
       font-weight: 700;
       text-decoration: underline;
       cursor: pointer;
+    }
+    h4.overdue {
+      color: var(--error-color);
+    }
+    .arrow {
+      color: var(--secondary-text-color);
+    }
+    .item.subtask {
+      padding-left: 24px;
+    }
+    .item.overdue .ref {
+      color: var(--error-color);
+    }
+    .ref {
+      overflow-wrap: anywhere;
+    }
+    .progress.derived .track {
+      flex: 0 1 260px;
+      margin: 0;
+    }
+    .sub-count {
+      white-space: nowrap;
+    }
+    .icon-btn,
+    button.link {
+      min-height: 32px;
+      min-width: 32px;
+      padding: 0 6px;
+      border: none;
+      background: none;
+      color: var(--primary-color);
+      font: inherit;
+      font-size: 0.85em;
+      cursor: pointer;
+    }
+    .icon-btn {
+      color: var(--secondary-text-color);
+    }
+    button.link {
+      display: block;
+      margin-top: 4px;
+      padding: 0;
+    }
+    .icon-btn:focus-visible,
+    button.link:focus-visible,
+    .subform button:focus-visible,
+    .subform input:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+    .subform {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+      padding: 8px;
+      max-width: 360px;
+      border: 1px solid var(--divider-color);
+      border-radius: 8px;
+    }
+    .subform label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.8em;
+      color: var(--secondary-text-color);
+    }
+    .subform input {
+      min-height: 36px;
+      padding: 0 8px;
+      border: 1px solid var(--divider-color);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--primary-text-color);
+      font: inherit;
+      font-size: 1.1em;
+    }
+    .form-error {
+      margin: 0;
+      font-size: 0.85em;
+      color: var(--error-color);
+    }
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .form-actions button {
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 18px;
+      border: 1px solid var(--divider-color);
+      background: transparent;
+      color: var(--primary-text-color);
+      font: inherit;
+      font-size: 0.85em;
+      cursor: pointer;
+    }
+    .form-actions .primary {
+      border-color: var(--primary-color);
+      background: var(--primary-color);
+      color: var(--text-primary-color, #fff);
+    }
+    .form-actions button:disabled {
+      cursor: default;
+      opacity: 0.6;
     }
     @media (max-width: 480px) {
       .segments {

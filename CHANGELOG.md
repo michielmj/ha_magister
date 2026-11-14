@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+## 1.5.0
+
+Subtasks ("deelstappen") for homework, especially for tests.
+
+- **Subtasks.** A homework item, usually a Proefwerk, can be split into subtasks with a title (1 to 100
+  characters) and a planned day. A new subtask defaults to today; the latest allowed day is the lesson's
+  day (or exactly that day when it is today or past), at most 20 per item, not on disabled items. A
+  subtask that is not done moves forward day by day (weekends included) but never past the lesson; a
+  done subtask stays on the day it was completed. A subtask uses the same 0/25/50/75/100 steps as an item.
+- **Derived progress.** An item with subtasks shows the mean of its subtasks' progress (rounded half
+  up) and is completed when all are done. Its own progress setting is not used while it has subtasks
+  and applies again when the last subtask is deleted.
+- **Bars and sensors.** An item with n subtasks is not counted itself. Each subtask counts with weight
+  item weight / n in the period of its current day, so the weights still add up to the item's weight.
+  The `items` and `completed` counts and the to-do count count these entries.
+- **Home Assistant to-do list.** Each subtask is listed as `↳ <subject>: <title>` with its current day
+  as due date. Ticking a subtask sets 100 or restores its last partial value; ticking an item that
+  has subtasks gives a translated error.
+- **API.** Items carry `derived` and `subtasks`; `set_progress` accepts a subtask uid (and returns
+  `item_has_subtasks` for an item with subtasks); new WebSocket commands `add_subtask`,
+  `update_subtask` and `delete_subtask`; new services `magister.add_homework_subtask`,
+  `magister.update_homework_subtask` and `magister.delete_homework_subtask`
+  (`docs/reference/homework-websocket.md`).
+- **Homework planner card.** "+ deelstap" on an item opens an inline form (title, day). Subtasks are
+  indented "↳" rows on their current day with a reference to the item ("voor Proefwerk Engels (di 17
+  nov)"), their own checkbox and progress steps, and edit and delete (with confirmation). Overdue
+  subtasks (the lesson has passed) are always shown in a group "Achterstallig" at the top. Completed
+  subtasks follow the "Afgerond" switch, other past days the "Eerder" switch. An item with subtasks shows
+  "x van y deelstappen" and the derived percentage, read-only. Everything works with the keyboard and
+  screen readers, and changes are optimistic with rollback (adding waits for the answer).
+- **Store.** The progress store moves to schema 1.4 (adds the optional `subtasks` per item). Upgrading
+  needs no action. Downgrading to 1.4.0 keeps your progress, labels and overrides, but 1.4.0 ignores subtasks and deletes them the next time it saves.
+
 ## 1.4.0
 
 Replace or disable Magister labels.
