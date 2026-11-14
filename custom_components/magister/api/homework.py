@@ -58,6 +58,12 @@ MAX_SUBTASKS: Final = 20
 SUBTASK_SEPARATOR: Final = ":sub:"
 
 
+# Who created a subtask (since 1.6.0): the user (card, service) or the AI coach.
+CREATED_BY_USER: Final = "user"
+CREATED_BY_AI: Final = "ai"
+CREATED_BY: Final = (CREATED_BY_USER, CREATED_BY_AI)
+
+
 @dataclass(frozen=True, slots=True)
 class Subtask:
     """A step of a homework item, planned on a day on or before the item's date.
@@ -71,6 +77,7 @@ class Subtask:
     progress: int = 0
     last_partial: int = 0
     completed_on: date | None = None
+    created_by: str = "user"
 
     @property
     def done(self) -> bool:

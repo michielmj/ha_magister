@@ -4,3 +4,10 @@ aioresponses==0.7.9
 ruff==0.17.4
 mypy==2.4.1
 pyotp==2.10.0
+# Needed by HA's `llm` helper (conversation) and the mcp_server integration in tests;
+# keep in step with the versions of the HA release in pytest-homeassistant-custom-component.
+gazetteer-matcher==1.1.0
+hassil==3.12.1
+home-assistant-intents==2026.10.6
+mcp==1.28.1
+aiohttp_sse==2.2.0

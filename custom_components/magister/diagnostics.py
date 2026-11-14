@@ -12,7 +12,10 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CHILD_ID,
+    COACH_ENABLED,
+    COACH_USERS,
     CONF_CHILDREN,
+    CONF_COACH,
     CONF_EXCLUDED,
     CONF_HOST,
     CONF_LABELS,
@@ -52,6 +55,19 @@ def _counts(values: list[int | None]) -> dict[str, int]:
     return {str(key): count for key, count in sorted(Counter(values).items(), key=str)}
 
 
+def _coach_counts(entry: MagisterConfigEntry) -> dict[str, int]:
+    """Counts only: the children with the AI coach on and the users linked to them."""
+    stored = entry.options.get(CONF_COACH)
+    settings = (
+        [v for v in stored.values() if isinstance(v, dict)]
+        if isinstance(stored, dict)
+        else []
+    )
+    enabled = [v for v in settings if v.get(COACH_ENABLED)]
+    users = {u for v in enabled for u in v.get(COACH_USERS, [])}
+    return {"enabled_children": len(enabled), "linked_users": len(users)}
+
+
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: MagisterConfigEntry
 ) -> dict[str, Any]:
@@ -83,10 +99,11 @@ async def async_get_config_entry_diagnostics(
             "options": {
                 k: v
                 for k, v in entry.options.items()
-                if k not in (CONF_WEIGHTS, CONF_LABELS)
+                if k not in (CONF_WEIGHTS, CONF_LABELS, CONF_COACH)
             },
         },
         "children": children,
+        "coach": _coach_counts(entry),
         "homework_store": {"stored_entries": runtime.homework.stored_entries},
         "sensors": [
             {

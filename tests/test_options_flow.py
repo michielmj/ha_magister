@@ -76,7 +76,7 @@ async def _open_general(hass: HomeAssistant, entry: Any) -> Any:
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.MENU
     assert result["step_id"] == "init"
-    assert result["menu_options"] == ["general", "weights", "labels"]
+    assert result["menu_options"] == ["general", "weights", "labels", "coach"]
     return await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "general"}
     )

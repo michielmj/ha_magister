@@ -31,6 +31,15 @@ WEEKS_BACK: Final = 1
 # of the options but not of the reload snapshot.
 CONF_LABELS: Final = "labels"
 
+# AI coach settings: ``{child_id: {"enabled", "users", "guidelines"}}``. Part of
+# the options but not of the reload snapshot, like the weights and labels.
+CONF_COACH: Final = "coach"
+COACH_ENABLED: Final = "enabled"
+COACH_USERS: Final = "users"
+COACH_GUIDELINES: Final = "guidelines"
+COACH_RESET: Final = "reset_guidelines"
+
+GUIDELINES_MAX: Final = 4000
 WEEKS_AHEAD: Final = 3
 INTERVAL_MINUTES: Final = 30
 UPDATE_INTERVAL: Final = timedelta(minutes=INTERVAL_MINUTES)

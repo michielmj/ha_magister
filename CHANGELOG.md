@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **AI homework coach (backend).** LLM API `magister_coach` ("Magister huiswerkcoach") with read tools (children,
+  schedule, homework, progress, label options) and write tools (subtasks, progress, labels, label overrides) for
+  HA's MCP Server and conversation agents. Opt-in per child, linked to HA users under Configure > AI-coach, with
+  editable coaching guidelines. Writes are logged in the logbook. No teacher data is shared.
+- **Subtasks** carry `created_by` (`"user"` or `"ai"`); the store is now 1.5 (older files read as `"user"`).
+
 ## 1.5.0
 
 Subtasks ("deelstappen") for homework, especially for tests.

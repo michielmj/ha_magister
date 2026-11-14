@@ -19,6 +19,8 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .api.homework import (
+    CREATED_BY,
+    CREATED_BY_USER,
     LABEL_KINDS,
     MAX_SUBTASKS,
     MODE_DISABLE,
@@ -70,7 +72,7 @@ if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
 
 STORE_VERSION: Final = 1
-STORE_MINOR_VERSION: Final = 4
+STORE_MINOR_VERSION: Final = 5
 SAVE_DELAY: Final = 5.0
 PRUNE_AFTER: Final = timedelta(days=14)
 
@@ -190,8 +192,9 @@ class _HomeworkStore(Store[dict[str, Any]]):
     ) -> dict[str, Any]:
         """1.1 (progress only) to 1.2 (adds ``labels`` to every item).
 
-        1.2 to 1.3 adds the optional ``override`` per item and 1.3 to 1.4 the optional
-        ``subtasks`` list: neither needs a migration.
+        1.2 to 1.3 adds the optional ``override`` per item, 1.3 to 1.4 the optional
+        ``subtasks`` list and 1.4 to 1.5 the optional ``created_by`` of a subtask
+        (a missing value reads as ``"user"``): none of these needs a migration.
         The major version stays 1 so that an older release can still read the file.
         """
         if old_major_version == 1:
@@ -750,7 +753,12 @@ class HomeworkManager:
 
     @callback
     def add_subtask(
-        self, child_id: int, item_uid_: str, title: str, planned: date | None
+        self,
+        child_id: int,
+        item_uid_: str,
+        title: str,
+        planned: date | None,
+        created_by: str = CREATED_BY_USER,
     ) -> HomeworkItem:
         """Add a subtask (planned today by default) to an item; returns the item."""
         item = self._subtask_item(child_id, item_uid_)
@@ -769,6 +777,7 @@ class HomeworkManager:
                 "progress": 0,
                 "last_partial": 0,
                 "completed_on": None,
+                "created_by": created_by,
             }
         )
         return self._subtasks_changed(child_id, item_uid_)
@@ -997,6 +1006,7 @@ def _subtask_from_stored(stored: dict[str, Any]) -> Subtask:
         stored["progress"],
         stored["last_partial"],
         date.fromisoformat(stored["completed_on"]) if stored["completed_on"] else None,
+        stored.get("created_by") or CREATED_BY_USER,
     )
 
 
@@ -1030,6 +1040,9 @@ def _clean_subtasks(raw: Any) -> list[dict[str, Any]]:
                 "progress": progress,
                 "last_partial": min(_clamp(stored.get(LAST_PARTIAL)), 99),
                 "completed_on": completed_on.isoformat() if completed_on else None,
+                "created_by": created_by
+                if (created_by := stored.get("created_by")) in CREATED_BY
+                else CREATED_BY_USER,
             }
         )
         if len(subtasks) >= MAX_SUBTASKS:
@@ -1131,6 +1144,7 @@ def subtask_to_dict(item: HomeworkItem, sub: Subtask, today: date) -> Payload:
         "progress": sub.progress,
         "completed": sub.done,
         "last_partial": sub.last_partial,
+        "created_by": sub.created_by,
     }
 
 

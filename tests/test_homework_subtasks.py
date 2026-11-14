@@ -115,6 +115,7 @@ async def test_add_subtask_returns_the_item_and_pushes(
         "progress": 0,
         "completed": False,
         "last_partial": 0,
+        "created_by": "user",
     }
     (event,) = events
     assert payload_item(event, HOMEWORK)["subtasks"] == [sub]
@@ -809,7 +810,7 @@ def stored_file(entry_id: str, items: dict[str, Any], minor: int) -> dict[str, A
 BASE = {"progress": 0, "last_partial": 0, "updated": "", "labels": []}
 
 
-async def test_store_1_4_0_loads_and_is_saved_as_minor_4(
+async def test_store_1_4_0_loads_and_is_saved_as_minor_5(
     hass: HomeAssistant, mocked: aioresponses, hass_storage: dict[str, Any]
 ) -> None:
     """A 1.4.0 file (minor 3, no subtasks) loads unchanged; subtasks persist."""
@@ -835,7 +836,7 @@ async def test_store_1_4_0_loads_and_is_saved_as_minor_4(
     manager.add_subtask(CHILD_ID, uid(HOMEWORK), "t", None)
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 4)
+    assert (saved["version"], saved["minor_version"]) == (1, 5)
     (stored_sub,) = saved["data"]["items"][uid(HOMEWORK)]["subtasks"]
     assert set(stored_sub) == {
         "id",
@@ -844,6 +845,7 @@ async def test_store_1_4_0_loads_and_is_saved_as_minor_4(
         "progress",
         "last_partial",
         "completed_on",
+        "created_by",
     }
     assert "subtasks" not in saved["data"]["items"][uid(PROEFWERK)]
 

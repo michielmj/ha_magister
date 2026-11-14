@@ -158,7 +158,8 @@
         "menu_options": {
           "general": "General settings",
           "weights": "Homework weights",
-          "labels": "Labels"
+          "labels": "Labels",
+          "coach": "AI coach"
         }
       },
       "general": {
@@ -247,6 +248,27 @@
         "data": {
           "label": "Label"
         }
+      },
+      "coach": {
+        "title": "AI coach",
+        "description": "Choose the child. The AI coach lets a student use an AI assistant (through Home Assistant's MCP Server) to plan homework in this planner.",
+        "data": {
+          "child": "Child"
+        }
+      },
+      "coach_settings": {
+        "title": "AI coach of {child}",
+        "description": "Turn the coach on, choose which Home Assistant users may use it for this child, and adjust the coaching guidelines. Leave the guidelines empty (or reset them) to use the default text. At most {max} characters. Changes apply immediately.",
+        "data": {
+          "enabled": "AI coach enabled",
+          "users": "Linked Home Assistant users",
+          "guidelines": "Coaching guidelines",
+          "reset_guidelines": "Reset the guidelines to the default"
+        },
+        "data_description": {
+          "users": "Only these users can see this child's schedule and homework through the AI coach, and change subtasks, progress and labels. Use a separate non-admin user for each student.",
+          "guidelines": "Instructions for the AI. Homework texts are shared with the AI provider; teacher names and codes are never shared."
+        }
       }
     },
     "error": {
@@ -256,7 +278,8 @@
       "name_required": "Enter a name.",
       "name_too_long": "The name can be at most 40 characters.",
       "name_exists": "This child already has a label with this name.",
-      "name_invalid_chars": "The name cannot contain [ or ]."
+      "name_invalid_chars": "The name cannot contain [ or ].",
+      "guidelines_too_long": "The guidelines are too long."
     },
     "abort": {
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",

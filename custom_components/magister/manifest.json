@@ -1,6 +1,7 @@
 {
   "domain": "magister",
   "name": "Magister",
+  "after_dependencies": ["logbook"],
   "codeowners": ["@michielmj"],
   "config_flow": true,
   "dependencies": ["frontend", "http"],

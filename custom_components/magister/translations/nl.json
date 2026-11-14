@@ -158,7 +158,8 @@
         "menu_options": {
           "general": "Algemene instellingen",
           "weights": "Huiswerkgewichten",
-          "labels": "Labels"
+          "labels": "Labels",
+          "coach": "AI-coach"
         }
       },
       "general": {
@@ -247,6 +248,27 @@
         "data": {
           "label": "Label"
         }
+      },
+      "coach": {
+        "title": "AI-coach",
+        "description": "Kies het kind. Met de AI-coach kan een leerling via de MCP-server van Home Assistant een AI-assistent gebruiken om huiswerk in deze planner te plannen.",
+        "data": {
+          "child": "Kind"
+        }
+      },
+      "coach_settings": {
+        "title": "AI-coach van {child}",
+        "description": "Zet de coach aan, kies welke Home Assistant-gebruikers de coach voor dit kind mogen gebruiken en pas de coachrichtlijnen aan. Laat de richtlijnen leeg (of zet ze terug) voor de standaardtekst. Maximaal {max} tekens. Wijzigingen gelden direct.",
+        "data": {
+          "enabled": "AI-coach ingeschakeld",
+          "users": "Gekoppelde Home Assistant-gebruikers",
+          "guidelines": "Coachrichtlijnen",
+          "reset_guidelines": "Richtlijnen terugzetten naar de standaard"
+        },
+        "data_description": {
+          "users": "Alleen deze gebruikers kunnen via de AI-coach het rooster en huiswerk van dit kind zien en deelstappen, voortgang en labels wijzigen. Gebruik voor elke leerling een eigen gebruiker zonder beheerdersrechten.",
+          "guidelines": "Instructies voor de AI. Huiswerkteksten worden gedeeld met de AI-aanbieder; namen en codes van docenten worden nooit gedeeld."
+        }
       }
     },
     "error": {
@@ -256,7 +278,8 @@
       "name_required": "Vul een naam in.",
       "name_too_long": "De naam mag maximaal 40 tekens zijn.",
       "name_exists": "Dit kind heeft al een label met deze naam.",
-      "name_invalid_chars": "De naam mag geen [ of ] bevatten."
+      "name_invalid_chars": "De naam mag geen [ of ] bevatten.",
+      "guidelines_too_long": "De richtlijnen zijn te lang."
     },
     "abort": {
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",
