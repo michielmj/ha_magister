@@ -410,34 +410,38 @@ bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde Home Assist
 
 ### Instellen
 
-1. **Maak per leerling een Home Assistant-gebruiker:** Instellingen, Personen, **Persoon toevoegen**, zet
-   **Inloggen toestaan** aan en laat **Beheerder** uit. (Het tabblad **Gebruikers** zie je pas als de
-   geavanceerde modus in je profiel aanstaat.) Gebruik per leerling een aparte gebruiker; een ouder kan één
+1. **Maak per leerling een Home Assistant-gebruiker:** Instellingen, Personen, **Voeg persoon toe**, zet
+   **Inloggen toestaan** aan en laat **Beheerder** uit. Gebruik per leerling een aparte gebruiker; een ouder kan één
    gebruiker hebben die aan meerdere kinderen is gekoppeld.
-2. **Koppel de gebruiker aan het kind:** Instellingen, Apparaten en diensten, Magister, **Configureren**,
+2. **Koppel de gebruiker aan het kind:** Instellingen, Apparaten en diensten, Magister, **Configureer**,
    **AI-coach**. Kies het kind, zet **AI-coach ingeschakeld** aan, kies de gebruiker(s) en pas zo nodig de
    **coachrichtlijnen** aan (zie hieronder). Wijzigingen werken direct, zonder herladen.
 3. **Voeg de integratie "Model Context Protocol Server" toe** (Instellingen, Apparaten en diensten,
-   Integratie toevoegen). Bij toevoegen worden alle LLM-API's blootgesteld en is een beheerder vereist; pas
-   dat aan onder **Configureren**:
-   1. Open de integratie en kies **Configureren**.
-   2. Zet **Expose all LLM APIs** uit (Home Assistant toont deze optie in het Engels). De API-lijst verschijnt.
+   Voeg integratie toe). Bij toevoegen worden alle LLM-API's blootgesteld en is een beheerder vereist; pas
+   dat aan onder **Configureer**:
+   1. Open de integratie en kies **Configureer**.
+   2. Zet **Expose all LLM APIs** uit (Home Assistant toont deze optie in het Engels) en druk op
+      **Verzenden**. Het formulier opent opnieuw met de API-lijst.
    3. Kies in de lijst (**Beheer Home Assistant**) **alleen "Magister huiswerkcoach"**.
    4. Zet **Require an administrator account** uit (ook Engels), zodat leerlingen zonder beheerdersrechten
       kunnen verbinden.
-   5. Verstuur.
+   5. Druk nogmaals op **Verzenden**.
 
-   > **Let op:** laat je **Expose all LLM APIs** aanstaan, dan krijgen de leerlingen ook Assist, dat elke
-   > entiteit kan bedienen die je aan Assist blootstelt.
+   > **Let op:** laat je **Expose all LLM APIs** aanstaan, dan krijgen de leerlingen via `/api/mcp` ook
+   > Assist, dat elke entiteit kan bedienen die je aan Assist blootstelt. Uitzetten haalt Assist niet
+   > helemaal weg, zie de opmerking hieronder.
 4. **Verbind de AI-app** als leerling, zie hieronder.
 
-De MCP Server is één enkele invoer: door alleen de coach te kiezen verdwijnt Assist van `/api/mcp`.
-Beheerders kunnen Assist nog gebruiken op `/api/mcp/assist`. De coachtools werken ook met de eigen
-gespreksagenten van Home Assistant.
+De MCP Server is één enkele invoer: door alleen de coach te kiezen verdwijnt Assist van `/api/mcp`. Maar
+**elke** Home Assistant-gebruiker, dus ook het token van de leerling, kan Assist nog steeds bereiken op
+`/api/mcp/assist`, wat je ook bij de MCP Server-opties instelt, en daarmee de entiteiten bedienen die aan
+Assist zijn blootgesteld. Beperk die onder Instellingen, Spraakassistenten, **Beschikbaar maken**. De
+coachtools werken ook met de eigen gespreksagenten van Home Assistant.
+
 ### De Claude desktop-app verbinden
 
 Maak een **langlevend toegangstoken** aan op het eigen Home Assistant-profiel van de leerling (profiel,
-Beveiliging, Langlevende toegangstokens). Welke methode werkt hangt af van hoe Home Assistant bereikbaar is.
+Beveiliging, Toegangstokens met lange levensduur). Welke methode werkt hangt af van hoe Home Assistant bereikbaar is.
 
 **A. Lokale brug (werkt op je thuisnetwerk; probeer dit eerst).** Claude desktop start lokale MCP-servers vanuit
 `claude_desktop_config.json` (in de app: Instellingen [Settings], Ontwikkelaar [Developer], Configuratie
@@ -463,14 +467,19 @@ gebruik dus het **volledige pad** als `command`: voer `which mcp-proxy` (macOS/L
 }
 ```
 
-Een alternatieve brug is `mcp-remote`, ook als invoer in `claude_desktop_config.json`:
+Een alternatieve brug is `mcp-remote`. Gebruik dit blok in plaats van de `magister`-invoer hierboven (zelfde
+bestand, binnen `mcpServers`):
 
 ```json
-"magister": {
-  "command": "npx",
-  "args": ["mcp-remote", "http://homeassistant.local:8123/api/mcp",
-           "--header", "Authorization:${AUTH_HEADER}", "--allow-http"],
-  "env": { "AUTH_HEADER": "Bearer <langlevend token>" }
+{
+  "mcpServers": {
+    "magister": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://homeassistant.local:8123/api/mcp",
+               "--header", "Authorization:${AUTH_HEADER}", "--allow-http"],
+      "env": { "AUTH_HEADER": "Bearer <langlevend token>" }
+    }
+  }
 }
 ```
 
@@ -504,10 +513,12 @@ inloggen mislukt, de aanvraagheader `Authorization: Bearer <langlevend token>`.
   worden via de coach **niet** gedeeld, en ook niets over andere kinderen. De aanbieder verwerkt dit onder zijn eigen
   voorwaarden; lees die eerst.
 - **De grens van de afscherming.** De afscherming geldt **alleen voor de coach**. De Home Assistant-gebruiker van
-  de leerling, en het token op diens computer, kunnen nog steeds **alle entiteitsstatussen** lezen in de Home
-  Assistant-app en de API, inclusief de agenda's van de andere kinderen met de namen van docenten. Zie de
-  gebruiker en het token als toegang tot die gegevens, gebruik een aparte gebruiker zonder beheerdersrechten en geef
-  het token aan niemand anders.
+  de leerling, en het token op diens computer, kunnen **alle entiteitsstatussen** lezen **en
+  apparaten bedienen**, via de Home Assistant-app en de REST/WebSocket-API en via Assist (zie de opmerking
+  bij Instellen). Dat geldt ook voor de agenda's van de andere kinderen met de namen van docenten. Zie de
+  gebruiker en het token als die toegang: gebruik een aparte gebruiker zonder beheerdersrechten, houd het
+  token privé, trek het in als het niet meer nodig is en beperk welke entiteiten aan Assist zijn
+  blootgesteld (Instellingen, Spraakassistenten, Beschikbaar maken).
 - **Het token.** Een langlevend token staat leesbaar (platte tekst) in de Claude-configuratie op die computer.
   Gebruik waar mogelijk **HTTPS**: met `http://` gaat het token onversleuteld over je netwerk. Trek het token in op
   het profiel als het niet meer nodig is.
@@ -527,7 +538,7 @@ De assistent krijgt richtlijnen mee met de tools. Zonder eigen tekst gelden deze
 > - Spreek Nederlands, tenzij de leerling een andere taal gebruikt.
 > - Leg kort uit wat je in de planner verandert, en vraag toestemming voor het verwijderen van deelstappen of labels.
 
-Je kunt de tekst **per kind** aanpassen onder Configureren, AI-coach (leeg betekent de standaardtekst, en er is
+Je kunt de tekst **per kind** aanpassen onder Configureer, AI-coach (leeg betekent de standaardtekst, en er is
 een optie "terugzetten naar standaard").
 
 ## Gedrag

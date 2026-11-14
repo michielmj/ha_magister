@@ -383,7 +383,7 @@ tests. It works through Home Assistant's built-in **Model Context Protocol Serve
 ### Set up
 
 1. **Create a Home Assistant user per student**: Settings, People, **Add person**, turn on **Allow login**
-   and keep **Administrator** off. (The **Users** tab only shows when Advanced mode is on in your profile.)
+   and keep **Administrator** off.
    Use a separate user for each student; a parent may have one user that is linked to several children.
 2. **Link the user to the child:** Settings, Devices & services, Magister, **Configure**, **AI-coach**.
    Choose the child, turn on **AI coach enabled**, select the user(s) and, if you want, edit the
@@ -391,18 +391,22 @@ tests. It works through Home Assistant's built-in **Model Context Protocol Serve
 3. **Add the integration "Model Context Protocol Server"** (Settings, Devices & services, Add integration).
    Adding it exposes all LLM APIs and requires an administrator, so change that under **Configure**:
    1. Open the integration and choose **Configure**.
-   2. Turn **Expose all LLM APIs** off. The API list appears.
+   2. Turn **Expose all LLM APIs** off and press **Submit**. The form reopens with the API list.
    3. In the list (labelled **Control Home Assistant**) select **only "Magister huiswerkcoach"**.
    4. Turn **Require an administrator account** off, so that non-admin student users can connect.
-   5. Submit.
+   5. Press **Submit** again.
 
-   > **Warning:** if you leave **Expose all LLM APIs** on, the students also get Assist, which can control
-   > every entity you expose to Assist.
+   > **Warning:** if you leave **Expose all LLM APIs** on, the students also get Assist via `/api/mcp`,
+   > which can control every entity you expose to Assist. Turning it off does not remove Assist
+   > completely, see the note below.
 4. **Connect the AI app** as a student, see below.
 
-The MCP Server is a single entry: selecting only the coach removes Assist from `/api/mcp`. Administrators
-can still use Assist at `/api/mcp/assist`. The coach tools also work with Home Assistant's own
+The MCP Server is a single entry: selecting only the coach removes Assist from `/api/mcp`. But **every**
+Home Assistant user, including the student's token, can still reach Assist at `/api/mcp/assist`, whatever
+the MCP Server options say, and it can control the entities exposed to Assist. To limit those, go to
+Settings, Voice assistants, **Expose**. The coach tools also work with Home Assistant's own
 conversation agents.
+
 ### Connect the Claude desktop app
 
 Create a **long-lived access token** on the student's own Home Assistant profile (profile, Security,
@@ -432,14 +436,19 @@ from `claude_desktop_config.json` (in the app: Settings, Developer, Edit config;
 }
 ```
 
-An alternative bridge is `mcp-remote`, also as an entry in `claude_desktop_config.json`:
+An alternative bridge is `mcp-remote`. Use this block instead of the `magister` entry above (same file,
+inside `mcpServers`):
 
 ```json
-"magister": {
-  "command": "npx",
-  "args": ["mcp-remote", "http://homeassistant.local:8123/api/mcp",
-           "--header", "Authorization:${AUTH_HEADER}", "--allow-http"],
-  "env": { "AUTH_HEADER": "Bearer <long-lived token>" }
+{
+  "mcpServers": {
+    "magister": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://homeassistant.local:8123/api/mcp",
+               "--header", "Authorization:${AUTH_HEADER}", "--allow-http"],
+      "env": { "AUTH_HEADER": "Bearer <long-lived token>" }
+    }
+  }
 }
 ```
 
@@ -473,9 +482,12 @@ header `Authorization: Bearer <long-lived token>`.
   are **not** shared through the coach, and neither is anything about other children. The provider handles
   this data under its own terms; read them first.
 - **The limit of the isolation.** The isolation holds **only for the coach**. The student's Home Assistant
-  user, and the token on their computer, can still read **all entity states** in the Home Assistant app and
-  API, including the other children's calendars with the teachers' names. Treat the user and the token
-  as access to that data, use a dedicated non-admin user and do not give the token to anyone else.
+  user, and so the token in the Claude configuration on their computer, can read **all entity states**
+  **and control devices**, through the Home Assistant app and its REST/WebSocket API and through Assist
+  (see the note under Set up). That includes the other children's calendars with the teachers' names.
+  Treat the user and the token as that access: use a dedicated non-admin user, keep the token private,
+  revoke it when it is no longer needed, and limit which entities are exposed to Assist (Settings, Voice
+  assistants, Expose).
 - **The token.** A long-lived token is stored in plain text in the Claude configuration on that computer.
   Use **HTTPS** wherever you can: with `http://` the token travels unencrypted over your network. Revoke the
   token on the profile when it is no longer needed.
@@ -500,7 +512,7 @@ The assistant gets guidelines with the tools. Without your own text it uses this
 > or tests for the student; explain, ask questions and give hints. Help split tests and big assignments into
 > small steps (15 to 45 minutes) spread over the days before the deadline, taking other tests and homework
 > in the same period into account. Plan realistically: no more than about 1.5 hours of extra work per
-> school day, and leave the day before a test free for revision. First ask what the student has already
+> school day, and leave room for revision on the day before a test. First ask what the student has already
 > finished before changing progress, and only change progress when the student confirms. Be positive and
 > concrete, name what goes well, no pressure or guilt. Speak Dutch unless the student uses another
 > language. Briefly explain what you change in the planner and ask permission before deleting subtasks or

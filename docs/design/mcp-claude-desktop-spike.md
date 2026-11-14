@@ -58,7 +58,7 @@ not available in claude.ai or cloud sessions). Bridge a stdio client to HA's Str
 }
 ```
 (`mcp-proxy` from `sparfenyuk/mcp-proxy` reads `API_ACCESS_TOKEN` and sends `Authorization: Bearer`; alternatively
-`npx mcp-remote http://homeassistant.local:8123/api/mcp --header "Authorization: Bearer <token>" --allow-http`.
+`npx mcp-remote http://homeassistant.local:8123/api/mcp --header "Authorization:${AUTH_HEADER}" --allow-http` with `AUTH_HEADER=Bearer <token>` in the entry's `env`.
 Check the flags of the installed version.) The token is created on the student's HA profile (Security, Long-lived
 access tokens) and is stored in plain text in the Claude config on that computer.
 
@@ -71,7 +71,7 @@ Security of (b):
 
 ## Settings in HA (both options)
 1. A non-admin HA user per student.
-2. Integration "Model Context Protocol Server" (HA 2026.10.4): adding it exposes all LLM APIs with require admin on. Change it under **Configure**: turn **Expose all LLM APIs** off, select only "Magister huiswerkcoach" in the API picker (label "Control Home Assistant", nl "Beheer Home Assistant", shown only when "Expose all" is off), and turn **Require an administrator account** off. Leaving "Expose all LLM APIs" on gives students Assist (can control every entity exposed to Assist).
+2. Integration "Model Context Protocol Server" (HA 2026.10.4): adding it exposes all LLM APIs with require admin on. Change it under **Configure**: turn **Expose all LLM APIs** off and press Submit (the form reopens with the API list), select only "Magister huiswerkcoach" in the API picker (label "Control Home Assistant", nl "Beheer Home Assistant", shown only when "Expose all" is off), turn **Require an administrator account** off, and press Submit again. Leaving "Expose all LLM APIs" on gives students Assist via /api/mcp. Turning it off does not remove Assist fully: `/api/mcp/assist` stays open to every HA user (non-admin included) for the entities exposed to Assist (Settings, Voice assistants, Expose).
 3. Magister, Configure, AI-coach: enable per child and link the user.
 
 ## Open points for the PM test
