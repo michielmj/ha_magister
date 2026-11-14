@@ -69,12 +69,14 @@ Item (sorted by `due`, then `lesson_hour` (null sorts as 0, i.e. first), then `u
 | `info_type` | int \| null | Magister type: 1 Huiswerk, 2 Proefwerk, 3 Tentamen, 4 SO, 5 MO; `null` when the item is in the planner only because of manual labels. **The card translates its own labels from this** |
 | `label` | string \| null | The Dutch Magister label. For reference only |
 | `manual_labels` | array | Since 1.3.0: `[{"id": str, "name": str, "kind": "homework"\|"test", "note": str}]`, in the order they were added. Only these can be removed. A label whose option was renamed shows its current name. |
-| `is_test` | bool | `info_type` 2–5, or any manual label of kind `test` |
+| `override` | object \| null | Since 1.4.0: an override of the Magister label: `{"mode": "replace", "label": {"id", "name", "kind"}}` or `{"mode": "disable"}`; `null` when there is none (always `null` when `info_type` is null) |
+| `disabled` | bool | Since 1.4.0: no active labels left (the Magister label is disabled and there are no manual labels). The item counts as completed with weight 0 |
+| `is_test` | bool | Any **active** label of kind test: the effective Magister label (the replacement's kind if replaced, `info_type` 2–5 if not overridden, none if disabled) or a manual label of kind `test` |
 | `text` | string | Magister homework text, plain text: newlines and `- ` bullets, may be empty (manual notes are in `manual_labels`) |
 | `cancelled` | bool | The lesson is cancelled (Status 4/5) |
 | `has_attachments` | bool | Magister has attachments (not downloadable here) |
 | `progress` | int | 0–100 |
-| `completed` | bool | `progress >= 100` |
+| `completed` | bool | `progress >= 100`, or `disabled` (since 1.4.0) |
 | `last_partial` | int | The value that unticking restores (0–99) |
 
 Errors: `not_found` (unknown entity, or not a Magister homework list), `invalid_format` (not a todo entity),
@@ -103,8 +105,8 @@ Result (the **stored** values):
 ```
 A subscribe event with the new state follows.
 
-Errors: `not_found`, `item_not_found` (the uid is not in this entity's list), `invalid_format`, `unauthorized`
-(no control permission).
+Errors: `not_found`, `item_not_found` (the uid is not in this entity's list), `item_disabled` (since 1.4.0: restore the
+Magister label first), `invalid_format`, `unauthorized` (no control permission).
 
 ## `magister/homework/appointments` (since 1.3.0)
 Lists one day's appointments for the add-label dialog, **including appointments without any label**.
@@ -150,8 +152,23 @@ Errors: `not_found`, `invalid_format`, `appointment_not_found`, `label_not_found
 
 Errors: `not_found`, `invalid_format`, `appointment_not_found`, `label_not_found` (the id is not a label option of this child), `label_not_on_appointment`, `unauthorized`.
 
+## `magister/homework/set_override` (since 1.4.0)
+Replace, disable or restore the **Magister** label of an appointment.
+```json
+{"id": 6, "type": "magister/homework/set_override", "entity_id": "todo.kind_myschool_homework",
+ "appointment": "school.magister.net:1001:100070", "mode": "replace", "label": "<label option id>"}
+```
+- `mode` is `replace` (requires `label`, one of this child's label options), `disable`, or `clear` (restore).
+- `clear` without an override succeeds and changes nothing.
+- Result: `{"item": <item>}`; a subscribe event follows.
+- In the `appointments` command result, each appointment also carries `override` (same shape as on items).
+
+Errors: `not_found`, `invalid_format`, `appointment_not_found`, `no_magister_label` (the appointment has no Magister
+InfoType 1–5), `label_not_found`, `unauthorized` (control permission).
+
 ## Equivalent services
 These target the homework to-do entity and behave the same as the WebSocket commands, for automations:
 - `magister.set_homework_progress` (fields `item`, `progress`)
 - `magister.add_homework_label` (fields `appointment`, `label` (id **or** name, case-insensitive), `note`), since 1.3.0
 - `magister.remove_homework_label` (fields `appointment`, `label` (id or name)), since 1.3.0
+- `magister.set_homework_override` (fields `appointment`, `mode` (`replace`|`disable`|`clear`), `label` (id or name, for replace)), since 1.4.0
