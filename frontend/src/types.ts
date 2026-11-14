@@ -49,8 +49,10 @@ export interface Subtask {
   completed: boolean;
   /** The value that unticking restores (0-99). */
   last_partial: number;
-  /** Since 1.6.0: who created the subtask. A missing field counts as "user". */
-  created_by?: "user" | "ai";
+  /** Since 1.6.0: who created the subtask ("parent" since 1.7.0). A missing field counts as "user". */
+  created_by?: "user" | "ai" | "parent";
+  /** Since 1.7.0: the estimated time in minutes (5-240 in steps of 5); null or absent when unknown. */
+  minutes?: number | null;
 }
 
 export interface HomeworkItem {
@@ -107,6 +109,8 @@ export interface HomeworkPayload {
   labels?: LabelOption[];
   /** Absent when the backend predates 1.2.0. */
   progress?: ProgressMap;
+  /** Since 1.7.0: the child's daily maximum of study minutes per school day; absent on older backends. */
+  daily_max_minutes?: number;
 }
 
 export interface SetProgressResult {

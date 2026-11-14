@@ -210,7 +210,44 @@ export function applyOverlay(
 export interface SubtaskEdit {
   title?: string;
   planned?: string;
+  /** A number sets the estimate, null clears it, undefined leaves it. */
+  minutes?: number | null;
   deleted?: boolean;
+}
+
+/** The estimates the forms offer (minutes). */
+export const MINUTE_CHOICES: readonly number[] = [15, 30, 45, 60, 90, 120, 180, 240];
+
+/** The choices plus an existing value that is not among them, in ascending order. */
+export function minuteChoices(current: number | null | undefined): number[] {
+  if (typeof current !== "number" || MINUTE_CHOICES.includes(current)) return [...MINUTE_CHOICES];
+  return [...MINUTE_CHOICES, current].sort((a, b) => a - b);
+}
+
+/** "45 min", "1 u", "1 u 15 min" (nl) / "1 h 15 min" (en). */
+export function formatMinutes(minutes: number, language: string): string {
+  const hour = language === "nl" ? "u" : "h";
+  const whole = Math.max(0, Math.round(minutes));
+  const hours = Math.floor(whole / 60);
+  const rest = whole % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours} ${hour}` : `${hours} ${hour} ${rest} min`;
+}
+
+/**
+ * The planned minutes per day: the estimates of all subtasks (done or not) by their current
+ * date, over the items that are not disabled. Like `planned_minutes` of the coach's get_overview.
+ */
+export function plannedMinutes(items: readonly HomeworkItem[]): Map<string, number> {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    if (item.disabled === true) continue;
+    for (const subtask of item.subtasks ?? []) {
+      if (typeof subtask.minutes !== "number") continue;
+      totals.set(subtask.date, (totals.get(subtask.date) ?? 0) + subtask.minutes);
+    }
+  }
+  return totals;
 }
 
 /** The uid of the item a subtask uid belongs to. */
@@ -246,6 +283,7 @@ export function applySubtaskEdits(
           ...subtask,
           title: edit.title ?? subtask.title,
           planned,
+          ...(edit.minutes !== undefined ? { minutes: edit.minutes } : {}),
           date: currentDate(subtask, planned, item.date, today),
         });
       }
@@ -260,7 +298,8 @@ export function reflectsEdit(subtask: Subtask | undefined, edit: SubtaskEdit): b
   if (!subtask) return true;
   return (
     (edit.title === undefined || subtask.title === edit.title) &&
-    (edit.planned === undefined || subtask.planned === edit.planned)
+    (edit.planned === undefined || subtask.planned === edit.planned) &&
+    (edit.minutes === undefined || (subtask.minutes ?? null) === edit.minutes)
   );
 }
 

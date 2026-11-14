@@ -382,13 +382,23 @@ show_progress_next_week: false
   mislukt. Alles werkt met het toetsenbord (Escape sluit een formulier of bevestiging) en met een
   schermlezer; de focus gaat na toevoegen naar de nieuwe regel en na verwijderen naar een naastgelegen
   knop. Een deelstap die de AI-coach heeft gemaakt (zie hieronder) toont een klein **AI**-label
-  (tooltip en schermlezertekst "Aangemaakt door AI-coach").
+  (tooltip en schermlezertekst "Aangemaakt door AI-coach"); een deelstap die de AI van een ouder heeft
+  gemaakt toont een **Ouder**-label ("Aangemaakt door ouder via AI").
+- **Geschatte tijd en dagtotaal** (sinds 1.7.0). Een deelstap kan een optionele **Geschatte tijd** hebben: een
+  keuzelijst met —, 15, 30, 45, 60, 90, 120, 180 en 240 minuten, in het formulier om toe te voegen en te
+  bewerken (een waarde die niet in de lijst staat, via de AI of een service ingesteld, blijft bewaard en zichtbaar;
+  kies je — dan wordt de tijd gewist). De tijd staat in de regel van de deelstap ("30 min"). Elke dagkop toont de geplande
+  tijd van die dag, bijvoorbeeld "± 1 u 15 min gepland": de som van de schattingen van alle deelstappen (af of niet)
+  waarvan dit de huidige dag is; bij 0 blijft het weg. Is de som hoger dan het **dagmaximum** van het kind
+  (Configureer, Dagmaximum studietijd, standaard 90 minuten), dan staat het met een waarschuwingsicoon en
+  markering, en lezen schermlezers "boven dagmaximum (1 u 30 min)" voor. Wijzigingen zijn direct zichtbaar en worden met een
+  melding teruggedraaid als opslaan mislukt.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
 
 ## AI-huiswerkcoach
 
-*Sinds 1.6.0. Optioneel en standaard uit.* Een leerling kan een AI-assistent (bijvoorbeeld de Claude
+*Sinds 1.6.0 (ouders sinds 1.7.0). Optioneel en standaard uit.* Een leerling, of een ouder (zie *Voor ouders* hieronder), kan een AI-assistent (bijvoorbeeld de Claude
 desktop-app) koppelen aan **het eigen** rooster en de eigen huiswerkplanner, zodat de assistent kan helpen
 bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde Home Assistant-integratie
 **Model Context Protocol Server**.
@@ -414,7 +424,8 @@ bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde Home Assist
    **Inloggen toestaan** aan en laat **Beheerder** uit. Gebruik per leerling een aparte gebruiker; een ouder kan één
    gebruiker hebben die aan meerdere kinderen is gekoppeld.
 2. **Koppel de gebruiker aan het kind:** Instellingen, Apparaten en diensten, Magister, **Configureer**,
-   **AI-coach**. Kies het kind, zet **AI-coach ingeschakeld** aan, kies de gebruiker(s) en pas zo nodig de
+   **AI-coach**. Kies het kind, zet **AI-coach ingeschakeld** aan, kies de gebruiker(s) onder **Leerlingen** (een ouder
+   komt onder **Ouders**, zie *Voor ouders*) en pas zo nodig de
    **coachrichtlijnen** aan (zie hieronder). Wijzigingen werken direct, zonder herladen.
 3. **Voeg de integratie "Model Context Protocol Server" toe** (Instellingen, Apparaten en diensten,
    Voeg integratie toe). Bij toevoegen worden alle LLM-API's blootgesteld en is een beheerder vereist; pas
@@ -540,6 +551,65 @@ De assistent krijgt richtlijnen mee met de tools. Zonder eigen tekst gelden deze
 
 Je kunt de tekst **per kind** aanpassen onder Configureer, AI-coach (leeg betekent de standaardtekst, en er is
 een optie "terugzetten naar standaard").
+
+### Voor ouders (Ouder)
+
+*Sinds 1.7.0.* Een ouder kan met de eigen AI-assistent een **studieplanning** maken voor elk kind: deelstappen
+met een geschatte tijd, verspreid over de dagen vóór toetsen en opdrachten, binnen een dagmaximum. Het gebruikt
+dezelfde MCP Server-opzet als hierboven (hoofdadres `/api/mcp`); alleen de rol verschilt.
+
+1. **Koppel je gebruiker als Ouder.** Maak een Home Assistant-gebruiker voor jezelf (geen beheerder) en ga naar
+   Instellingen, Apparaten en diensten, Magister, **Configureer**, **AI-coach**, kies het kind, zet **AI-coach
+   ingeschakeld** aan en kies je gebruiker onder **Ouders**. Herhaal dit voor elk kind (één ouder-gebruiker kan aan
+   meerdere kinderen zijn gekoppeld). De gebruiker van een leerling komt onder **Leerlingen**; dezelfde gebruiker kan voor één
+   kind niet in beide lijsten staan. Gebruikers die in 1.6.0 zijn gekoppeld, zijn leerlingen.
+2. **Stel het dagmaximum in** per kind: Configureer, **Dagmaximum studietijd**, kies het kind en vul de
+   studieminuten per schooldag in (15 tot 480 in stappen van 15, standaard 90). De AI plant daarbinnen en de kaart
+   vergelijkt de geplande tijd per dag ermee.
+3. **Verbind de AI-app** met je eigen langlevende token, zoals beschreven bij *De Claude desktop-app verbinden*.
+
+**Wat de AI van de ouder kan.** Ze ziet dezelfde gegevens als de coach van de leerling (geen namen of codes van
+docenten), alleen voor de kinderen waaraan jouw gebruiker is gekoppeld. Ze kan:
+
+- een **overzicht** geven over al je kinderen voor een periode (`get_overview`, maximaal 31 dagen): de toetsen en
+  opdrachten, het aantal openstaande huiswerkitems, de geplande minuten en het dagmaximum per dag;
+- het rooster, het huiswerk met deelstappen en de voortgang lezen;
+- **plannen**: deelstappen met een geschatte tijd (`minutes`, 5 tot 240 in stappen van 5) toevoegen, aanpassen en
+  verwijderen, en labels toevoegen of wijzigen zoals de coach van de leerling.
+
+Ze **leest de voortgang maar kan die niet instellen**: de leerling geeft de voortgang zelf aan, in de planner of via
+de eigen coach. Deelstappen die de AI van de ouder maakt, krijgen in de kaart het label **Ouder** (het kind kan ze
+nog steeds aanpassen en afvinken) en het logboek meldt "Ouder via AI: ...". Ze kan geen instellingen, gewichten of
+labelopties wijzigen.
+
+**Ouder-richtlijnen.** Eén tekst voor al je kinderen, onder Configureer, **AI-coach**, **Ouder-richtlijnen**
+(leeg betekent de standaardtekst; er is een optie om terug te zetten). De standaardtekst:
+
+> Je helpt een ouder om voor een kind een haalbare studieplanning te maken. Je praat met de ouder, niet met het kind.
+> - Geef eerst een overzicht van toetsen, grote opdrachten en huiswerk in de gevraagde periode, en wijs op drukke dagen.
+> - Stel een planning voor met deelstappen van 15–45 minuten, elk met een geschatte tijd, verspreid over de dagen vóór de deadline.
+> - Houd je aan het dagmaximum van het kind en laat de dag vóór een toets ruimte voor herhalen.
+> - Leg de planning eerst voor en voer wijzigingen pas door als de ouder akkoord geeft.
+> - Voortgang geeft het kind zelf aan; jij past die niet aan. Gebruik de voortgang om te zien wat af is en de planning bij te stellen.
+> - Maak geen huiswerk of opdrachten; de planning is bedoeld om het kind zelfstandig te laten werken.
+> - Spreek Nederlands, tenzij de ouder een andere taal gebruikt.
+
+**Voorbeeldgesprek** (met je assistent verbonden):
+
+> **Jij:** Maak een studieplanning voor de toets Engels van volgende week dinsdag.
+>
+> **Assistent:** *(kijkt naar het overzicht van volgende week)* Volgende week dinsdag staat het proefwerk Engels
+> (hoofdstuk 4). Maandag is al druk (huiswerk Duits, 30 minuten gepland bij een maximum van 90). Mijn voorstel:
+> donderdag woordjes leren (30 min), vrijdag grammatica oefenen (30 min), maandag een oefentoets (45 min,
+> dan blijf je binnen het maximum) en dinsdagochtend de samenvatting herhalen (15 min). Zal ik dit zo
+> toevoegen?
+>
+> **Jij:** Ja, graag.
+>
+> **Assistent:** Ik heb vier deelstappen toegevoegd aan Proefwerk Engels, elk met een geschatte tijd.
+
+In de kaart tonen de deelstappen hun tijd en het label **Ouder**, en toont elke dagkop de geplande tijd, met een
+waarschuwing als die boven het dagmaximum komt.
 
 ## Gedrag
 

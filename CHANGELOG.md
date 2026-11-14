@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Parent study planner (backend, M11 phase A). The card and the README follow in phase B.
+## 1.7.0
+
+Parent study planner. Released 2026-11-14.
 
 - **Roles.** Under Configure > AI-coach, each child now has two user lists: students (Leerling) and parents (Ouder).
   The same user cannot be in both lists of a child. Users linked in 1.6.0 are read as students; there is no
@@ -20,6 +22,15 @@ Parent study planner (backend, M11 phase A). The card and the README follow in p
   the role, the daily maximum and the matching guidelines per child. Subtasks made by a parent are marked
   `created_by: "parent"`; the parent's AI cannot set progress (`not_allowed_for_role`, nothing written or logged).
   Parent writes show as "Ouder via AI: …" in the logbook.
+- **Homework planner card.** Subtasks show their estimated time ("30 min"). Subtasks created by a parent's AI show an
+  **Ouder** marker (tooltip and screen reader text "Aangemaakt door ouder via AI" / "Created by parent via AI"), next
+  to the "AI" marker for the student coach. Each day heading shows the planned time ("± 1 u 15 min gepland"), the sum of
+  the estimates of all subtasks of that day, with a warning and "boven dagmaximum (1 u 30 min)" for screen readers when it
+  is above the child's daily maximum. The add and edit forms have an optional "Geschatte tijd" select (15 to 240 minutes);
+  a value outside the list is kept and choosing "—" clears it. A card older than 1.7.0 ignores the new fields.
+- **README.** The AI coach section covers parents (Ouder): linking, what the parent's AI can do, the parent
+  guidelines, the daily maximum, an example conversation and the card's time display. The screenshots show times,
+  a day over the maximum and the Ouder marker.
 - Downgrading to 1.6.0 drops the estimated times and shows parent subtasks as added by the user. 1.6.0 keeps the
   student links; parents have no access in 1.6.0, and saving a child's coach settings in 1.6.0 removes its parents. Saving a child's weights in 1.6.0 drops its daily
   maximum, so the default of 90 applies after upgrading again.
