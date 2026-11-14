@@ -20,6 +20,7 @@ get an **overview across all their children**.
 | 4 | Subtasks made through a parent's AI are marked **"Ouder"** instead of "AI". The child can still edit and tick them. |
 | 5 | The parent assistant sees the **same data** as the student coach: no teacher names or codes. |
 | 6 | 1.6.0 (student coach) is released first; this is 1.7.0. |
+| 7 | **Progress is reported by the student**, in the HA planner or through their own coach, not by the parent. The parent's AI can read progress but not set it. |
 
 ## Roles and linking (options flow "AI-coach", per child)
 - The single "linked HA users" list is replaced by two lists:
@@ -57,6 +58,7 @@ get an **overview across all their children**.
 - **`list_children`** additionally returns the caller's **role** for each child and the child's **daily maximum**.
 - **`list_homework` and `get_progress`:** subtasks include `minutes` and `created_by`.
 - **`add_subtask` and `update_subtask`:** accept `minutes`.
+- **`set_progress`** is refused for a child where the caller has the Ouder role, with the new error `not_allowed_for_role`. The parent's AI reads progress only. The tool description says so, so the AI does not try it. Ticking in the card stays possible for any HA user, as now.
 - **The prompt**, for each accessible child, contains:
   - the role;
   - the daily maximum;
@@ -81,7 +83,7 @@ get an **overview across all their children**.
 > - Stel een planning voor met deelstappen van 15–45 minuten, elk met een geschatte tijd, verspreid over de dagen vóór de deadline.
 > - Houd je aan het dagmaximum van het kind en laat de dag vóór een toets ruimte voor herhalen.
 > - Leg de planning eerst voor en voer wijzigingen pas door als de ouder akkoord geeft.
-> - Pas voortgang alleen aan als de ouder zegt dat het kind iets af heeft.
+> - Voortgang geeft het kind zelf aan; jij past die niet aan. Gebruik de voortgang om te zien wat af is en de planning bij te stellen.
 > - Maak geen huiswerk of opdrachten; de planning is bedoeld om het kind zelfstandig te laten werken.
 > - Spreek Nederlands, tenzij de ouder een andere taal gebruikt.
 
@@ -97,7 +99,7 @@ get an **overview across all their children**.
   - roles and migration, parent guidelines, the daily maximum, `minutes`;
   - `created_by: "parent"`, `get_overview`, the prompt, the logbook;
   - the WebSocket API, services, translations and tests (including security: a parent linked to children A and B
-    cannot reach child C; a student linked to A sees no overview of B).
+    cannot reach child C; a student linked to A sees no overview of B; `set_progress` by a parent is refused and not logged).
 - **B, card and docs:**
   - the time on subtasks, the day total with the maximum warning, the time field in the forms, the "Ouder" chip;
   - README NL/EN: parent setup, roles and the daily maximum, an example conversation;
