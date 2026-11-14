@@ -92,6 +92,10 @@ The **API prompt** (sent to the AI with the tools) contains:
 - **B, card and docs:**
   - the AI marker on subtasks;
   - README NL/EN: "AI homework coach" covering setup (an HA user per student, linking, MCP Server settings, Claude desktop steps), privacy and age notes, and what the AI can and cannot do.
+    The privacy notes must state (see `docs/design/mcp-claude-desktop-spike.md`):
+    - the isolation holds only for the coach: a student's HA user, and the token on their computer, can still read all
+      entity states in HA, including the other children's calendars with teacher names;
+    - the token is stored in plain text; use HTTPS where possible, because `http://` sends it unencrypted on the network.
   - Then release **1.6.0**.
 
 ## Acceptance criteria
