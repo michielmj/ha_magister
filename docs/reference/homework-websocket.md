@@ -81,7 +81,7 @@ Item (sorted by `due`, then `lesson_hour` (null sorts as 0, i.e. first), then `u
 | `progress` | int | 0–100 |
 | `completed` | bool | `progress >= 100`, or `disabled` (since 1.4.0) |
 | `last_partial` | int | The value that unticking restores (0–99) |
-| `derived` | bool | Since 1.5.0: the item has subtasks; `progress` is then the rounded mean of the subtasks' progress and cannot be set directly |
+| `derived` | bool | Since 1.5.0: the item has subtasks; `progress` is then the mean of the subtasks' progress, rounded half up (37.5 → 38), and cannot be set directly |
 | `subtasks` | array | Since 1.5.0: `[<subtask>]` in creation order; empty when none (always empty for disabled items) |
 
 Subtask (since 1.5.0):

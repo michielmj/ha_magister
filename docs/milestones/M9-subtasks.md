@@ -27,14 +27,14 @@ Unfinished subtasks roll forward day by day, but never past the lesson.
   - not done: `min(max(planned, today), item_date)`. If the item date has passed, the subtask stays on the item date, overdue;
   - done: the date it was completed, stored as `completed_on` and clamped the same way. A done subtask no longer moves.
   - Rolling uses **calendar days** (weekends included).
-- **Derived item progress** = round(mean(subtask progress)). The item is completed when every subtask is 100.
+- **Derived item progress** = mean(subtask progress), rounded half up. The item is completed when every subtask is 100.
 - **Periods / weights:** an item with n > 0 subtasks is not counted itself. Instead each subtask is an entry with
   weight `w_item / n` and its own progress, counted in the period of its **current date**. The weights in a period
   therefore still add up to the item's weight across all periods. Items without subtasks count as before.
   `items`/`completed` in the period summaries count **entries** (items without subtasks + subtasks).
 - **To-do count:** open entries with a current date ≥ today: items without subtasks + subtasks.
 - **HA to-do list:** the item stays listed (status completed when derived progress is 100). Each subtask is listed as
-  `↳ <Label/subject>: <title>` with its current date as due. Ticking a subtask in HA sets 100 / restores its last partial value.
+  `↳ <subject>: <title>` (Architect decision: the subject, e.g. "↳ Engels: H4 woordjes") with its current date as due. Ticking a subtask in HA sets 100 / restores its last partial value.
   Ticking an item that has subtasks in HA is refused with a translated error ("has subtasks").
 - **Validation:**
   - title: 1–100 characters, trimmed;
