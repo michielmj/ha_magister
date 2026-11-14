@@ -210,6 +210,31 @@ data:
   note: "H3 + H4"
 ```
 
+- **Replacing or disabling a Magister label** (since 1.4.0). Sometimes a teacher puts *Proefwerk*
+  on a lesson that only prepares for a test. You can **replace** the Magister label of a lesson
+  with one of the child's label options, **disable** it, and always **restore** it; nothing is
+  written to Magister. A replacement makes the item count with the replacement's kind and weight
+  (a test highlight and the `tests` count follow it), and the calendar title shows
+  `[Proefwerk→Huiswerk]`. A disabled label counts as completed: the item is listed among the
+  completed ones, is not in the to-do count, has weight 0 and is ignored by the bars and
+  sensors; its progress is kept and comes back on restore. If the lesson also has an active
+  manual label, the item stays active and its weight comes from the active labels. An item's
+  weight is always the highest weight of its active labels times the subject weight. In
+  Home Assistant's own to-do view a disabled item shows as completed and cannot be ticked
+  (restore it first). A label option that is used as a replacement on a lesson cannot be
+  deleted. Use the card (see below) or the service `magister.set_homework_override` (fields
+  `appointment`, `mode`: `replace`, `disable` or `clear`, and for replace `label`, id or name):
+
+```yaml
+action: magister.set_homework_override
+target:
+  entity_id: todo.kind_myschool_homework
+data:
+  appointment: "myschool.magister.net:1001:100084"
+  mode: replace
+  label: Huiswerk
+```
+
 ## Homework planner card
 
 The integration ships its own Lovelace card, **Magister Homework planner**, one per child. It is
@@ -279,6 +304,13 @@ show_progress_next_week: false
   outlined chips, with the note as text under the homework text. Only manual chips have an **×**;
   it asks for confirmation and then removes the label (Magister's labels cannot be removed). If
   saving fails, the change is rolled back and a message appears.
+- **Replacing or disabling a Magister label.** The Magister chip is a button (when Magister is
+  available) that opens a small menu: *Replace with…* (the child's label options, except the
+  lesson's own label), *Disable* and, when changed, *Restore*. It works with the keyboard (arrow
+  keys, Escape) and on a phone. A changed chip is struck through, followed by the replacement
+  chip (without ×; restoring goes through the menu). Disabled items are listed with the completed
+  ones (switch **Done** on), struck through, with their controls disabled; the menu offers
+  *Restore*. Changes show at once and are rolled back with a message if saving fails.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
 
 ## How it behaves

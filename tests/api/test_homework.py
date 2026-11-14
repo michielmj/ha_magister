@@ -16,6 +16,7 @@ from custom_components.magister.api.homework import (
     ManualLabel,
     Weights,
     default_label_options,
+    effective_state,
     effective_weights,
     extract_homework,
     homework_periods,
@@ -73,7 +74,7 @@ def test_extract_item_fields() -> None:
     assert item.lesson_hour == 3
     assert item.has_attachments
     assert not item.cancelled
-    assert not item.is_test
+    assert not effective_state(item, Weights()).is_test
 
 
 @pytest.mark.parametrize(
@@ -89,7 +90,7 @@ def test_extract_item_fields() -> None:
 def test_info_types_one_to_five(info_type: int, label: str, is_test: bool) -> None:
     """Homework and tests are items."""
     item = make_item(InfoType=info_type)
-    assert (item.label, item.is_test) == (label, is_test)
+    assert (item.label, effective_state(item, Weights()).is_test) == (label, is_test)
 
 
 @pytest.mark.parametrize("info_type", [None, 0, 6, 7, 99])
@@ -290,7 +291,7 @@ def test_summary_zero_weights_do_not_count() -> None:
     weights = Weights.from_options({"types": {"homework": 0}})
     result = summarize(_items(), lambda _: 0, weights)
     assert result.value == 0.0 and result.items == 3
-    only_zero = [i for i in _items() if not i.is_test]
+    only_zero = [i for i in _items() if not effective_state(i, Weights()).is_test]
     assert summarize(only_zero, lambda _: 0, weights).value == 100.0
 
 
@@ -370,10 +371,16 @@ def test_item_set_is_magister_type_or_manual_label() -> None:
         i.appointment_id: i for i in extract_homework(appointments, HOST, 1, manual)
     }
     assert set(items) == {2, 3, 4}
-    assert (items[2].info_type, items[2].label, items[2].is_test) == (None, None, False)
-    assert items[3].info_type is None and items[3].is_test  # a test label
+    assert (
+        items[2].info_type,
+        items[2].label,
+        effective_state(items[2], Weights()).is_test,
+    ) == (None, None, False)
+    assert (
+        items[3].info_type is None and effective_state(items[3], Weights()).is_test
+    )  # a test label
     assert items[4].info_type == 2 and items[4].label == "Proefwerk"
-    assert items[4].is_test  # Magister type 2
+    assert effective_state(items[4], Weights()).is_test  # Magister type 2
 
 
 def test_is_test_rule() -> None:
@@ -387,7 +394,12 @@ def test_is_test_rule() -> None:
             item_uid(HOST, 1, 3): (_label("a", "homework"), _label("b", "test")),
         },
     )
-    assert (plain.is_test, homework.is_test, test.is_test) == (False, False, True)
+    weights = Weights()
+    assert [effective_state(i, weights).is_test for i in (plain, homework, test)] == [
+        False,
+        False,
+        True,
+    ]
 
 
 def test_weight_is_the_max_of_the_labels_times_the_subject() -> None:
@@ -415,7 +427,7 @@ def test_weight_is_the_max_of_the_labels_times_the_subject() -> None:
             },
         )
     }
-    got = {i: weights.item_weight(item) for i, item in items.items()}
+    got = {i: effective_state(item, weights).weight for i, item in items.items()}
     assert got == {1: 6.0, 2: 10.0, 3: 6.0, 4: 10.0, 5: 2.0}
 
 

@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 1.4.0
+
+Replace or disable Magister labels.
+
+- **Overrides.** The Magister label of a lesson can be **replaced** by one of the child's label
+  options or **disabled**, and always **restored**. Nothing is written to Magister. A replacement
+  decides the weight, the test highlight and the sensors' `tests` count; the calendar title shows
+  `[Proefwerk→Huiswerk]`. A disabled label counts as completed: the item is completed in the
+  payload and in Home Assistant's to-do list, is left out of the to-do count, has weight 0 and is
+  ignored by the bars and sensors; its progress is kept. If the lesson also has an active manual
+  label the item stays active. An item's weight is the highest weight of its active labels times
+  the subject weight. A label option used as a replacement on a lesson cannot be deleted; a
+  replacement whose option is gone falls back to the original label.
+- **API.** New WebSocket command `magister/homework/set_override` and service
+  `magister.set_homework_override`; items carry `override` and `disabled`, `completed` is true for
+  disabled items, `set_progress` on a disabled item returns `item_disabled`, and appointments
+  carry `override` (`docs/reference/homework-websocket.md`). Ticking a disabled item in Home
+  Assistant's to-do view gives a translated error. Diagnostics count overrides per mode.
+- **Homework planner card.** The Magister chip is a menu button (replace, disable, restore; with
+  keyboard support and on a phone). Changed chips are struck through, followed by the replacement;
+  disabled items appear with the completed ones.
+- **Store.** The progress store moves to schema 1.3 (adds the optional `override` per item).
+  Upgrading needs no action. Downgrading to 1.3.0 keeps progress and labels but ignores (and on its
+  next save drops) the overrides.
+
 ## 1.3.0
 
 Next school day, manual labels and card switches.

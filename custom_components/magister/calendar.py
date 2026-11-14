@@ -41,10 +41,13 @@ async def async_setup_entry(
 
 
 def to_calendar_event(
-    appointment: Appointment, host: str, manual_labels: Sequence[str] = ()
+    appointment: Appointment,
+    host: str,
+    manual_labels: Sequence[str] = (),
+    magister_label: str | None = None,
 ) -> CalendarEvent:
     """Convert an appointment to a Home Assistant calendar event."""
-    fields = map_appointment(appointment, host, manual_labels)
+    fields = map_appointment(appointment, host, manual_labels, magister_label)
     return CalendarEvent(
         start=fields.start,
         end=fields.end,
@@ -81,7 +84,7 @@ class MagisterCalendar(MagisterEntity, CalendarEntity):
             to_calendar_event(
                 item,
                 self._host,
-                self._manager.manual_label_names(self._child_id, item.id),
+                *self._manager.title_labels(self._child_id, item.id),
             )
             for item in appointments
         ]
@@ -93,7 +96,7 @@ class MagisterCalendar(MagisterEntity, CalendarEntity):
         ]
 
     async def async_added_to_hass(self) -> None:
-        """Follow label changes (the titles carry the manual labels)."""
+        """Follow label and override changes (the titles carry them)."""
         await super().async_added_to_hass()
         self.async_on_remove(
             self._manager.async_add_label_listener(self._handle_labels)

@@ -3,6 +3,8 @@ import type {
   CardConfig,
   CardLanguage,
   HomeworkItem,
+  ItemOverride,
+  LabelOption,
   PeriodProgress,
   ProgressPeriod,
 } from "./types";
@@ -246,7 +248,13 @@ export function applyLabelRemovals(
     if (labels.length === item.manual_labels.length) {
       result.push(item);
     } else if (item.info_type !== null || labels.length > 0) {
-      result.push({ ...item, manual_labels: labels });
+      // The last manual label of an item whose Magister label is disabled: nothing is active.
+      const nothingLeft = labels.length === 0 && item.override?.mode === "disable";
+      result.push({
+        ...item,
+        manual_labels: labels,
+        ...(nothingLeft ? { disabled: true, completed: true, is_test: false } : {}),
+      });
     }
   }
   return result;
@@ -375,4 +383,120 @@ export function saveSwitches(key: string, switches: Switches): void {
   } catch {
     // no storage
   }
+}
+
+// -- overrides of the Magister label (since 1.4.0) --
+
+/** What a menu choice asks the backend to do. */
+export type OverrideChange =
+  | { mode: "replace"; label: LabelOption }
+  | { mode: "disable" }
+  | { mode: "clear" };
+
+/** The fields of an item that an override changes. */
+export type OverrideFields = Pick<HomeworkItem, "override" | "disabled" | "is_test">;
+
+/** The default label option id of each Magister type (the type's own label). */
+const DEFAULT_OPTION_IDS: Readonly<Record<number, string>> = {
+  1: "default_homework",
+  2: "default_test",
+  3: "default_exam",
+  4: "default_written_quiz",
+  5: "default_oral_quiz",
+};
+
+/**
+ * The state an item is in after `change`, as the backend would compute it: the active
+ * labels are the effective Magister label plus the manual labels; no active labels
+ * means disabled; a test is any active label of kind test.
+ */
+export function optimisticOverride(item: HomeworkItem, change: OverrideChange): OverrideFields {
+  const manualTest = item.manual_labels.some((label) => label.kind === "test");
+  switch (change.mode) {
+    case "replace":
+      return {
+        override: { mode: "replace", label: change.label },
+        disabled: false,
+        is_test: change.label.kind === "test" || manualTest,
+      };
+    case "disable":
+      return {
+        override: { mode: "disable" },
+        disabled: item.manual_labels.length === 0,
+        is_test: manualTest,
+      };
+    case "clear":
+      return {
+        override: null,
+        disabled: false,
+        is_test: (item.info_type !== null && item.info_type >= 2) || manualTest,
+      };
+  }
+}
+
+/** The override fields an item as pushed (or answered) carries. */
+export function overrideFieldsOf(item: HomeworkItem): OverrideFields {
+  return {
+    override: item.override ?? null,
+    disabled: item.disabled === true,
+    is_test: item.is_test,
+  };
+}
+
+function sameOverride(a: ItemOverride | null | undefined, b: ItemOverride | null | undefined): boolean {
+  if (!a || !b) return !a && !b;
+  if (a.mode !== b.mode) return false;
+  return a.mode === "replace" && b.mode === "replace" ? a.label.id === b.label.id : true;
+}
+
+/** Whether an item already shows the given override state. */
+export function hasOverrideFields(item: HomeworkItem, fields: OverrideFields): boolean {
+  return (
+    sameOverride(item.override, fields.override) &&
+    (item.disabled === true) === (fields.disabled === true) &&
+    item.is_test === fields.is_test
+  );
+}
+
+/** The items with the optimistic (not yet confirmed) overrides applied. */
+export function applyOverrides(
+  items: readonly HomeworkItem[],
+  overlay: ReadonlyMap<string, OverrideFields>,
+): HomeworkItem[] {
+  if (overlay.size === 0) return [...items];
+  return items.map((item) => {
+    const change = overlay.get(item.uid);
+    if (!change) return item;
+    return {
+      ...item,
+      ...change,
+      completed: item.progress >= 100 || change.disabled === true,
+    };
+  });
+}
+
+/** The things the Magister chip's menu offers for an item. */
+export interface MenuActions {
+  /** The label options an item can be replaced by. */
+  replace: LabelOption[];
+  disable: boolean;
+  restore: boolean;
+}
+
+/**
+ * Replacement options are the child's labels except the original's own default label
+ * (and the current replacement). A disabled item can only be restored; a disabled label
+ * cannot be disabled again.
+ */
+export function menuActions(item: HomeworkItem, options: readonly LabelOption[]): MenuActions {
+  const own = item.info_type !== null ? DEFAULT_OPTION_IDS[item.info_type] : undefined;
+  const current = item.override?.mode === "replace" ? item.override.label.id : undefined;
+  return {
+    replace:
+      item.disabled === true
+        ? []
+        : options.filter((option) => option.id !== own && option.id !== current),
+    disable: item.disabled !== true && item.override?.mode !== "disable",
+    restore: item.override != null,
+  };
 }

@@ -26,7 +26,6 @@ HOMEWORK_TYPES: Final[dict[int, tuple[str, str]]] = {
     5: ("oral_quiz", "MO"),
 }
 TYPE_KEYS: Final[tuple[str, ...]] = tuple(key for key, _ in HOMEWORK_TYPES.values())
-TEST_INFO_TYPES: Final = frozenset({2, 3, 4, 5})
 
 PERIOD_NEXT_DAY: Final = "next_day"
 PERIOD_WEEK: Final = "week"
@@ -37,6 +36,13 @@ PERIODS: Final = (PERIOD_NEXT_DAY, PERIOD_WEEK, PERIOD_NEXT_WEEK)
 KIND_HOMEWORK: Final = "homework"
 KIND_TEST: Final = "test"
 LABEL_KINDS: Final = (KIND_HOMEWORK, KIND_TEST)
+
+# Overrides of the Magister label of an appointment (``clear`` only exists in commands).
+MODE_REPLACE: Final = "replace"
+MODE_DISABLE: Final = "disable"
+MODE_CLEAR: Final = "clear"
+OVERRIDE_MODES: Final = (MODE_REPLACE, MODE_DISABLE)
+ARROW: Final = "\u2192"
 NOTE_MAX: Final = 200
 LABEL_NAME_MAX: Final = 40
 
@@ -54,6 +60,17 @@ class LabelOption:
     id: str
     name: str
     kind: str
+
+
+@dataclass(frozen=True, slots=True)
+class Override:
+    """An override of the Magister label: a replacement option or a disable.
+
+    ``label`` is the resolved replacement option (``None`` for ``disable``).
+    """
+
+    mode: str
+    label: LabelOption | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,13 +161,78 @@ class HomeworkItem:
     lesson_hour: int | None
     has_attachments: bool
     manual_labels: tuple[ManualLabel, ...] = ()
+    override: Override | None = None
 
-    @property
-    def is_test(self) -> bool:
-        """A test: InfoType 2-5, or any manual label of the kind ``test``."""
-        return self.info_type in TEST_INFO_TYPES or any(
-            label.kind == KIND_TEST for label in self.manual_labels
-        )
+
+@dataclass(frozen=True, slots=True)
+class EffectiveState:
+    """What an item is after overrides: see ``effective_state``."""
+
+    effective_label: LabelOption | None
+    active_labels: tuple[LabelOption, ...]
+    disabled: bool
+    is_test: bool
+    weight: float
+
+
+def magister_label_option(info_type: int) -> LabelOption:
+    """The Magister label of an InfoType 1-5 as a (default) label option."""
+    key, name = HOMEWORK_TYPES[info_type]
+    return LabelOption(
+        f"default_{key}", name, KIND_HOMEWORK if info_type == 1 else KIND_TEST
+    )
+
+
+def magister_label_text(item: HomeworkItem) -> str | None:
+    """The Magister label as shown in titles, after an override.
+
+    ``None`` when there is no override (show the original), ``""`` when the label is
+    disabled (show nothing) and ``"Proefwerk\u2192Huiswerk"`` for a replacement.
+    """
+    if item.info_type is None or item.override is None:
+        return None
+    if item.override.mode == MODE_REPLACE and item.override.label is not None:
+        return f"{HOMEWORK_TYPES[item.info_type][1]}{ARROW}{item.override.label.name}"
+    return ""
+
+
+def effective_state(item: HomeworkItem, weights: Weights) -> EffectiveState:
+    """The single place that decides what an item is, with its overrides applied.
+
+    * ``effective_label``: the original Magister label, the replacement option, or
+      ``None`` (no Magister label, or it is disabled);
+    * ``active_labels``: the effective label plus the manual labels;
+    * ``disabled``: no active labels are left (the Magister label is disabled and there
+      are no manual labels): the item counts as completed;
+    * ``is_test``: any active label of the kind ``test``;
+    * ``weight``: ``max(active label weights) x subject weight``, 0 when disabled.
+      The default labels use the weight of their type.
+    """
+    effective: LabelOption | None = None
+    if item.info_type is not None:
+        override = item.override
+        if override is None:
+            effective = magister_label_option(item.info_type)
+        elif override.mode == MODE_REPLACE and override.label is not None:
+            effective = override.label
+    active = tuple(
+        ([effective] if effective is not None else [])
+        + [LabelOption(m.id, m.name, m.kind) for m in item.manual_labels]
+    )
+    disabled = not active
+    weight = (
+        0.0
+        if disabled
+        else max(weights.label_weight(label.id) for label in active)
+        * weights.subject_weight(item.subject)
+    )
+    return EffectiveState(
+        effective_label=effective,
+        active_labels=active,
+        disabled=disabled,
+        is_test=any(label.kind == KIND_TEST for label in active),
+        weight=weight,
+    )
 
 
 def item_uid(host: str, child_id: int, appointment_id: int) -> str:
@@ -178,11 +260,13 @@ def extract_homework(
     host: str,
     child_id: int,
     manual: Mapping[str, Sequence[ManualLabel]] | None = None,
+    overrides: Mapping[str, Override] | None = None,
 ) -> list[HomeworkItem]:
     """Homework items of a child, ordered by due time, lesson hour and id.
 
     An item is an appointment with a Magister InfoType 1-5 or a manual label
-    (``manual`` maps item uids to their labels).
+    (``manual`` maps item uids to their labels). ``overrides`` (by uid) only apply to
+    appointments that have a Magister label.
     """
     items: list[HomeworkItem] = []
     for appointment in appointments:
@@ -206,6 +290,7 @@ def extract_homework(
                 lesson_hour=appointment.period_start,
                 has_attachments=appointment.has_attachments,
                 manual_labels=labels,
+                override=(overrides or {}).get(uid) if info_type is not None else None,
             )
         )
     items.sort(key=lambda i: (i.start, i.lesson_hour or 0, i.uid))
@@ -305,18 +390,6 @@ class Weights:
                 return weight
         return DEFAULT_WEIGHT
 
-    def item_weight(self, item: HomeworkItem) -> float:
-        """``max(label weights) x subject_weight`` of an item.
-
-        The labels are the Magister type (if any) and the manual labels.
-        """
-        candidates = [self.label_weight(label.id) for label in item.manual_labels]
-        if item.info_type is not None:
-            candidates.append(self.type_weight(item.info_type))
-        return max(candidates, default=DEFAULT_WEIGHT) * self.subject_weight(
-            item.subject
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class PeriodSummary:
@@ -360,17 +433,22 @@ def summarize(
     progress: Callable[[str], int],
     weights: Weights,
 ) -> PeriodSummary:
-    """Weighted average progress: sum(w x p) / sum(w), 100 when nothing counts."""
+    """Weighted average progress: sum(w x p) / sum(w), 100 when nothing counts.
+
+    Disabled items are ignored altogether (weight 0, not counted).
+    """
     count = completed = tests = 0
     weighted = total_weight = 0.0
     for item in items:
+        state = effective_state(item, weights)
+        if state.disabled:
+            continue
         count += 1
         done = progress(item.uid)
         completed += done >= 100
-        tests += item.is_test
-        weight = weights.item_weight(item)
-        weighted += weight * done
-        total_weight += weight
+        tests += state.is_test
+        weighted += state.weight * done
+        total_weight += state.weight
     average = weighted / total_weight if total_weight > 0 else 100.0
     return PeriodSummary(
         value=round(average, 1),
@@ -389,7 +467,10 @@ def effective_weights(
     labels: dict[str, float] = {}
     seen: set[str] = set()
     for item in items:
-        for label in item.manual_labels:
+        used: list[LabelOption | ManualLabel] = list(item.manual_labels)
+        if item.override and item.override.label:
+            used.append(item.override.label)
+        for label in used:
             labels[label.name] = weights.label_weight(label.id)
         if item.subject.casefold() not in seen:
             seen.add(item.subject.casefold())

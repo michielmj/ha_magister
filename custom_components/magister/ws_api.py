@@ -8,8 +8,11 @@ Commands (any authenticated user, like HA's own ``todo/item/*``):
 * ``magister/homework/appointments``: ``{"entity_id", "date"}`` (read permission).
 * ``magister/homework/add_label``: ``{"entity_id", "appointment", "label", "note"?}``.
 * ``magister/homework/remove_label``: ``{"entity_id", "appointment", "label"}``.
+* ``magister/homework/set_override``: ``{"entity_id", "appointment", "mode", "label"?}``
+  with mode ``replace`` (needs a label), ``disable`` or ``clear``.
 
-The label commands need control permission. See docs/reference/homework-websocket.md.
+The label and override commands need control permission.
+See docs/reference/homework-websocket.md.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv
 
+from .api.homework import MODE_CLEAR, MODE_DISABLE, MODE_REPLACE
 from .homework import (
     ERR_INVALID_DATE,
     LabelError,
@@ -35,16 +39,19 @@ from .homework import (
     note_text,
     strict_progress,
 )
-from .todo import MagisterHomeworkTodo
+from .todo import HomeworkItemDisabled, MagisterHomeworkTodo
 
 SUBSCRIBE = "magister/homework/subscribe"
 SET_PROGRESS = "magister/homework/set_progress"
 APPOINTMENTS = "magister/homework/appointments"
 ADD_LABEL = "magister/homework/add_label"
 REMOVE_LABEL = "magister/homework/remove_label"
+SET_OVERRIDE = "magister/homework/set_override"
 
 ERR_NOT_FOUND = "not_found"
 ERR_ITEM_NOT_FOUND = "item_not_found"
+ERR_ITEM_DISABLED = "item_disabled"
+ERR_INVALID_FORMAT = "invalid_format"
 
 
 @callback
@@ -55,6 +62,7 @@ def async_register_websocket_api(hass: HomeAssistant) -> None:
     async_register_command(hass, websocket_appointments)
     async_register_command(hass, websocket_add_label)
     async_register_command(hass, websocket_remove_label)
+    async_register_command(hass, websocket_set_override)
 
 
 @callback
@@ -119,6 +127,11 @@ def websocket_set_progress(
         raise Unauthorized(entity_id=msg["entity_id"])
     try:
         entity.set_progress(msg["item"], msg["progress"])
+    except HomeworkItemDisabled:
+        connection.send_error(
+            msg["id"], ERR_ITEM_DISABLED, "Restore the Magister label first"
+        )
+        return
     except ServiceValidationError:
         connection.send_error(msg["id"], ERR_ITEM_NOT_FOUND, "Homework item not found")
         return
@@ -202,6 +215,40 @@ def websocket_remove_label(
     except LabelError as err:
         connection.send_error(
             msg["id"], err.code, f"Cannot remove the label: {err.code}"
+        )
+        return
+    connection.send_result(msg["id"], {"item": item})
+
+
+@websocket_command(
+    {
+        probatio.Required("type"): SET_OVERRIDE,
+        probatio.Required("entity_id"): cv.entity_domain(TODO_DOMAIN),
+        probatio.Required("appointment"): cv.string,
+        probatio.Required("mode"): probatio.In(
+            [MODE_REPLACE, MODE_DISABLE, MODE_CLEAR]
+        ),
+        probatio.Optional("label"): cv.string,
+    }
+)
+@callback
+def websocket_set_override(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Replace, disable or restore the Magister label of an appointment."""
+    entity = _controlled_entity(hass, connection, msg)
+    if entity is None:
+        return
+    if msg["mode"] == MODE_REPLACE and "label" not in msg:
+        connection.send_error(
+            msg["id"], ERR_INVALID_FORMAT, "mode replace needs a label"
+        )
+        return
+    try:
+        item = entity.set_override(msg["appointment"], msg["mode"], msg.get("label"))
+    except LabelError as err:
+        connection.send_error(
+            msg["id"], err.code, f"Cannot set the override: {err.code}"
         )
         return
     connection.send_result(msg["id"], {"item": item})

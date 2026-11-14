@@ -58,3 +58,30 @@ remove_homework_label:
       example: "Toetsweek"
       selector:
         text:
+
+set_homework_override:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    appointment:
+      required: true
+      example: "myschool.magister.net:1001:100070"
+      selector:
+        text:
+    mode:
+      required: true
+      example: "replace"
+      selector:
+        select:
+          translation_key: homework_override_mode
+          options:
+            - replace
+            - disable
+            - clear
+    label:
+      required: false
+      example: "Huiswerk"
+      selector:
+        text:

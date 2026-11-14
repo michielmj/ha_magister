@@ -20,21 +20,28 @@ from homeassistant.util import dt as dt_util
 
 from .api.homework import (
     LABEL_KINDS,
+    MODE_DISABLE,
+    MODE_REPLACE,
     NOTE_MAX,
+    OVERRIDE_MODES,
     PERIOD_NEXT_WEEK,
     PERIODS,
+    EffectiveState,
     HomeworkItem,
     LabelOption,
     ManualLabel,
+    Override,
     PeriodSummary,
     Weights,
     default_label_options,
+    effective_state,
     effective_weights,
     extract_homework,
     homework_periods,
     item_uid,
     items_in_period,
     magister_info_type,
+    magister_label_text,
     next_week_fits,
     parse_label_options,
     skipped_days,
@@ -50,7 +57,7 @@ if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
 
 STORE_VERSION: Final = 1
-STORE_MINOR_VERSION: Final = 2
+STORE_MINOR_VERSION: Final = 3
 SAVE_DELAY: Final = 5.0
 PRUNE_AFTER: Final = timedelta(days=14)
 
@@ -60,6 +67,7 @@ LAST_PARTIAL: Final = "last_partial"
 UPDATED: Final = "updated"
 GONE: Final = "gone"
 LABELS: Final = "labels"
+OVERRIDE: Final = "override"
 
 # Errors of the label commands; the WebSocket API uses them as error codes and the
 # services as ``homework_<code>`` exception translation keys.
@@ -68,6 +76,7 @@ ERR_LABEL_NOT_FOUND: Final = "label_not_found"
 ERR_LABEL_EXISTS: Final = "label_exists"
 ERR_LABEL_NOT_ON_APPOINTMENT: Final = "label_not_on_appointment"
 ERR_INVALID_DATE: Final = "invalid_date"
+ERR_NO_MAGISTER_LABEL: Final = "no_magister_label"
 
 _SUBSCRIBERS: Final = f"{DOMAIN}_homework_subscribers"
 
@@ -146,17 +155,22 @@ class _HomeworkStore(Store[dict[str, Any]]):
     ) -> dict[str, Any]:
         """1.1 (progress only) to 1.2 (adds ``labels`` to every item).
 
+        1.2 to 1.3 adds the optional ``override`` per item, which needs no migration.
         The major version stays 1 so that an older release can still read the file.
         """
-        if old_major_version == 1 and old_minor_version < 2:
-            items = old_data.get("items")
-            return {
-                "items": {
-                    uid: {LABELS: [], **entry}
-                    for uid, entry in (items if isinstance(items, dict) else {}).items()
-                    if isinstance(entry, dict)
+        if old_major_version == 1:
+            if old_minor_version < 2:
+                items = old_data.get("items")
+                return {
+                    "items": {
+                        uid: {LABELS: [], **entry}
+                        for uid, entry in (
+                            items if isinstance(items, dict) else {}
+                        ).items()
+                        if isinstance(entry, dict)
+                    }
                 }
-            }
+            return old_data
         raise NotImplementedError  # pragma: no cover
 
 
@@ -193,6 +207,8 @@ class HomeworkManager:
         self._label_listeners: list[CALLBACK_TYPE] = []
         self._items: dict[int, list[HomeworkItem]] = {}
         self._items_source: Mapping[int, Any] | None = None
+        self._by_uid: dict[str, HomeworkItem] = {}
+        self._effective: dict[str, EffectiveState] = {}
         self._dirty = False
 
     async def async_load(self) -> None:
@@ -211,6 +227,8 @@ class HomeworkManager:
                 if isinstance(gone := entry.get(GONE), str):
                     clean[GONE] = gone
                 clean[LABELS] = _clean_labels(entry.get(LABELS))
+                if (override := _clean_override(entry.get(OVERRIDE))) is not None:
+                    clean[OVERRIDE] = override
                 self._progress[str(uid)] = clean
         self.async_prune()
 
@@ -234,12 +252,47 @@ class HomeworkManager:
         data = self._coordinator.data or {}
         if self._items_source is not data:
             self._items_source = data
+            self._effective = {}
             manual = self._manual_labels()
+            overrides = self._overrides()
             self._items = {
-                child: extract_homework(appointments, self._host, child, manual)
+                child: extract_homework(
+                    appointments, self._host, child, manual, overrides
+                )
                 for child, appointments in data.items()
             }
+            self._by_uid = {i.uid: i for items in self._items.values() for i in items}
         return self._items.get(child_id, [])
+
+    def _invalidate(self) -> None:
+        """Rebuild the items (and their effective state) on next use."""
+        self._items_source = None
+
+    def effective(self, item: HomeworkItem) -> EffectiveState:
+        """The effective state of an item (labels, overrides and weights applied)."""
+        self.items(0)  # refresh the caches when the data changed
+        state = self._effective.get(item.uid)
+        if state is None:
+            weights = self.weights(uid_child_id(item.uid) or 0)
+            state = self._effective[item.uid] = effective_state(item, weights)
+        return state
+
+    def _overrides(self) -> dict[str, Override]:
+        """Stored overrides by uid; a replacement whose option is gone is left out."""
+        options: dict[int, dict[str, LabelOption]] = {}
+        result: dict[str, Override] = {}
+        for uid, entry in self._progress.items():
+            stored = entry.get(OVERRIDE)
+            if stored is None or (child := uid_child_id(uid)) is None:
+                continue
+            if stored["mode"] == MODE_DISABLE:
+                result[uid] = Override(MODE_DISABLE)
+                continue
+            if child not in options:
+                options[child] = {o.id: o for o in self.label_options(child)}
+            if (option := options[child].get(stored["label"])) is not None:
+                result[uid] = Override(MODE_REPLACE, option)
+        return result
 
     def _manual_labels(self) -> dict[str, tuple[ManualLabel, ...]]:
         """The stored manual labels by item uid, resolved against the options."""
@@ -269,10 +322,18 @@ class HomeworkManager:
         """The item uid of an appointment of a child."""
         return item_uid(self._host, child_id, appointment_id)
 
-    def manual_label_names(self, child_id: int, appointment_id: int) -> list[str]:
-        """Names of the manual labels of an appointment (for the calendar title)."""
+    def title_labels(
+        self, child_id: int, appointment_id: int
+    ) -> tuple[list[str], str | None]:
+        """Manual label names and the Magister label text for a calendar title.
+
+        The text is ``None`` for the original label, ``""`` when it is disabled and
+        ``Proefwerk->Huiswerk`` for a replacement.
+        """
         item = self.find_item(child_id, self.uid_of(child_id, appointment_id))
-        return [label.name for label in item.manual_labels] if item else []
+        if item is None:
+            return [], None
+        return [label.name for label in item.manual_labels], magister_label_text(item)
 
     def find_appointment(self, child_id: int, uid: str) -> Appointment | None:
         """The appointment of ``child_id`` with item uid ``uid`` in the window."""
@@ -315,13 +376,13 @@ class HomeworkManager:
         return default_label_options() if parsed is None else parsed
 
     def label_in_use(self, child_id: int, label_id: str) -> bool:
-        """Whether an appointment in the current data still has this manual label."""
+        """Whether a present appointment has this manual label or replacement."""
         present = {self.uid_of(child_id, a.id) for a in self._appointments(child_id)}
         return any(
-            stored["id"] == label_id
+            any(stored["id"] == label_id for stored in entry[LABELS])
+            or (entry.get(OVERRIDE) or {}).get("label") == label_id
             for uid, entry in self._progress.items()
             if uid in present
-            for stored in entry[LABELS]
         )
 
     def _appointments(self, child_id: int) -> list[Appointment]:
@@ -335,13 +396,49 @@ class HomeworkManager:
             entry = self._progress[uid]
             if uid_child_id(uid) != child_id:
                 continue
+            touched = False
             kept = [s for s in entry[LABELS] if s["id"] != label_id]
             if len(kept) != len(entry[LABELS]):
                 entry[LABELS] = kept
+                touched = True
+            if (entry.get(OVERRIDE) or {}).get("label") == label_id:
+                del entry[OVERRIDE]
+                touched = True
+            if touched:
                 self._drop_if_empty(uid)
                 changed = True
         if changed:
             self._labels_changed()
+
+    @callback
+    def set_override(
+        self, child_id: int, uid: str, override: Override | None
+    ) -> HomeworkItem:
+        """Replace, disable (or with ``None`` restore) the Magister label of an item."""
+        appointment = self.find_appointment(child_id, uid)
+        if appointment is None:
+            raise LabelError(ERR_APPOINTMENT_NOT_FOUND)
+        if magister_info_type(appointment) is None:
+            raise LabelError(ERR_NO_MAGISTER_LABEL)
+        stored: dict[str, str] | None = None
+        if override is not None:
+            stored = {"mode": override.mode}
+            if override.label is not None:
+                stored["label"] = override.label.id
+        entry = self._progress.get(uid)
+        if (entry.get(OVERRIDE) if entry else None) != stored:
+            if stored is None:
+                assert entry is not None
+                del entry[OVERRIDE]
+                self._drop_if_empty(uid)
+            else:
+                if entry is None:
+                    entry = self._progress[uid] = _blank_entry()
+                entry[OVERRIDE] = stored
+            self._labels_changed()
+        item = self.find_item(child_id, uid)
+        assert item is not None
+        return item
 
     @callback
     def add_label(
@@ -380,7 +477,7 @@ class HomeworkManager:
         return self.find_item(child_id, uid)
 
     def _labels_changed(self) -> None:
-        self._items_source = None
+        self._invalidate()
         self._changed()
         for listener in list(self._label_listeners):
             listener()
@@ -390,6 +487,7 @@ class HomeworkManager:
         if (
             entry is not None
             and not entry[LABELS]
+            and OVERRIDE not in entry
             and entry[PROGRESS] == 0
             and entry[LAST_PARTIAL] == 0
         ):
@@ -397,7 +495,9 @@ class HomeworkManager:
 
     def find_item(self, child_id: int, uid: str) -> HomeworkItem | None:
         """The item of ``child_id`` with ``uid``, ``None`` when unknown."""
-        return next((i for i in self.items(child_id) if i.uid == uid), None)
+        self.items(child_id)
+        item = self._by_uid.get(uid)
+        return item if item is not None and uid_child_id(uid) == child_id else None
 
     # -- periods ------------------------------------------------------------
 
@@ -423,8 +523,12 @@ class HomeworkManager:
         return sum(
             1
             for item in self.items(child_id)
-            if item.due_date >= today and self.progress(item.uid) < 100
+            if item.due_date >= today and not self.is_completed(item)
         )
+
+    def is_completed(self, item: HomeworkItem) -> bool:
+        """Completed: progress 100, or the item is disabled (progress is kept)."""
+        return self.progress(item.uid) >= 100 or self.effective(item).disabled
 
     # -- progress -----------------------------------------------------------
 
@@ -456,13 +560,15 @@ class HomeworkManager:
             last_partial = progress
         elif previous < 100:
             last_partial = previous
-        labels = entry[LABELS] if entry else []
-        self._progress[uid] = {
+        updated = {
             PROGRESS: progress,
             LAST_PARTIAL: last_partial,
             UPDATED: dt_util.utcnow().isoformat(),
-            LABELS: labels,
+            LABELS: entry[LABELS] if entry else [],
         }
+        if entry and OVERRIDE in entry:
+            updated[OVERRIDE] = entry[OVERRIDE]
+        self._progress[uid] = updated
         self._drop_if_empty(uid)
         self._changed()
 
@@ -474,7 +580,7 @@ class HomeworkManager:
 
     @callback
     def async_prune(self) -> None:
-        """Drop progress and labels of appointments gone for more than 14 days."""
+        """Drop progress, labels and overrides of appointments gone over 14 days."""
         data = self._coordinator.data
         if data is None:
             return
@@ -512,7 +618,7 @@ class HomeworkManager:
     @callback
     def async_options_changed(self) -> None:
         """Weights or labels changed in the options: recompute without a reload."""
-        self._items_source = None
+        self._invalidate()
         for listener in list(self._label_listeners):
             listener()
         for listener in list(self._listeners):
@@ -589,6 +695,10 @@ class HomeworkManager:
                 "done": sum(1 for v in values if v == 100),
                 "average": round(sum(values) / len(values), 1) if values else None,
             },
+            "overrides": {
+                mode: sum(1 for i in items if i.override and i.override.mode == mode)
+                for mode in OVERRIDE_MODES
+            },
             "manual_labels": {
                 kind: sum(
                     1 for i in items for label in i.manual_labels if label.kind == kind
@@ -641,6 +751,17 @@ def _clean_labels(raw: Any) -> list[dict[str, str]]:
     return labels
 
 
+def _clean_override(raw: Any) -> dict[str, str] | None:
+    """A stored override, leniently: a replace (with label id) or a disable."""
+    if not isinstance(raw, dict):
+        return None
+    if raw.get("mode") == MODE_DISABLE:
+        return {"mode": MODE_DISABLE}
+    if raw.get("mode") == MODE_REPLACE and isinstance(label := raw.get("label"), str):
+        return {"mode": MODE_REPLACE, "label": label} if label else None
+    return None
+
+
 def _parse_date(value: Any) -> date | None:
     try:
         return date.fromisoformat(str(value))
@@ -654,6 +775,20 @@ def manual_labels_to_list(item: HomeworkItem) -> list[Payload]:
         {"id": label.id, "name": label.name, "kind": label.kind, "note": label.note}
         for label in item.manual_labels
     ]
+
+
+def override_to_dict(item: HomeworkItem | None) -> Payload | None:
+    """The override of an item in the WebSocket form (``None`` when there is none)."""
+    override = item.override if item else None
+    if override is None:
+        return None
+    if override.mode == MODE_REPLACE and override.label is not None:
+        label = override.label
+        return {
+            "mode": MODE_REPLACE,
+            "label": {"id": label.id, "name": label.name, "kind": label.kind},
+        }
+    return {"mode": MODE_DISABLE}
 
 
 def appointment_to_dict(
@@ -672,12 +807,14 @@ def appointment_to_dict(
         "cancelled": appointment.status in CANCELLED_STATUSES,
         "info_type": magister_info_type(appointment),
         "manual_labels": manual_labels_to_list(item) if item else [],
+        "override": override_to_dict(item),
     }
 
 
 def item_to_dict(manager: HomeworkManager, item: HomeworkItem) -> Payload:
     """The WebSocket form of an item."""
     local = item.start.astimezone(LOCAL_TZ)
+    state = manager.effective(item)
     return {
         "uid": item.uid,
         "due": item.due_date.isoformat() if item.all_day else local.isoformat(),
@@ -688,12 +825,14 @@ def item_to_dict(manager: HomeworkManager, item: HomeworkItem) -> Payload:
         "info_type": item.info_type,
         "label": item.label,
         "manual_labels": manual_labels_to_list(item),
-        "is_test": item.is_test,
+        "override": override_to_dict(item),
+        "disabled": state.disabled,
+        "is_test": state.is_test,
         "text": item.text,
         "cancelled": item.cancelled,
         "has_attachments": item.has_attachments,
         "progress": manager.progress(item.uid),
-        "completed": manager.progress(item.uid) >= 100,
+        "completed": manager.is_completed(item),
         "last_partial": manager.last_partial(item.uid),
     }
 

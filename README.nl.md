@@ -223,6 +223,32 @@ data:
   note: "H3 + H4"
 ```
 
+- **Magister-label vervangen of uitschakelen** (sinds 1.4.0). Soms zet een docent *Proefwerk* op
+  een les die alleen op een toets voorbereidt. Je kunt het Magister-label van een les **vervangen**
+  door een van de labelopties van het kind, **uitschakelen**, en altijd **herstellen**; er wordt
+  niets naar Magister geschreven. Bij een vervanging telt het item met de soort en het gewicht van
+  de vervanging (toetsmarkering en `tests` volgen die) en toont de agendatitel
+  `[Proefwerk→Huiswerk]`. Een uitgeschakeld label telt als afgerond: het item staat bij de
+  afgeronde items, telt niet mee in het to-do-aantal, heeft gewicht 0 en wordt door de balken en
+  sensoren genegeerd; de voortgang blijft bewaard en komt terug bij herstellen. Heeft de les ook een
+  actief handmatig label, dan blijft het item actief en komt het gewicht van de actieve labels. Het
+  gewicht van een item is altijd het hoogste gewicht van zijn actieve labels maal het vakgewicht.
+  In de eigen to-do-weergave van Home Assistant staat een uitgeschakeld item als afgerond en kan
+  het niet worden aangevinkt (herstel het eerst). Een labeloptie die als vervanging op een les
+  staat kan niet worden verwijderd. Gebruik de kaart (zie hieronder) of de service
+  `magister.set_homework_override` (velden `appointment`, `mode`: `replace`, `disable` of `clear`,
+  en bij replace `label`, id of naam):
+
+```yaml
+action: magister.set_homework_override
+target:
+  entity_id: todo.kind_myschool_huiswerk
+data:
+  appointment: "myschool.magister.net:1001:100084"
+  mode: replace
+  label: Huiswerk
+```
+
 ## Huiswerkplanner-kaart
 
 De integratie levert een eigen Lovelace-kaart mee, **Magister Homework planner**, één per kind. De
@@ -297,6 +323,14 @@ show_progress_next_week: false
   hebben een **×**; die vraagt om bevestiging en verwijdert dan het label (labels van Magister
   kunnen niet worden verwijderd). Mislukt het opslaan, dan wordt de wijziging teruggedraaid en
   verschijnt een melding.
+- **Magister-label vervangen of uitschakelen.** De Magister-chip is een knop (als Magister beschikbaar
+  is) die een klein menu opent: *Vervangen door…* (de labelopties van het kind, behalve het eigen
+  label van de les), *Uitschakelen* en, na een wijziging, *Herstellen*. Het werkt met het toetsenbord
+  (pijltjestoetsen, Escape) en op een telefoon. Een gewijzigde chip staat doorgestreept, gevolgd
+  door de vervangende chip (zonder ×; herstellen gaat via het menu). Uitgeschakelde items staan bij
+  de afgeronde (schakelaar **Afgerond** aan), doorgestreept en met uitgeschakelde bediening; het menu
+  biedt *Herstellen*. Wijzigingen zijn direct zichtbaar en worden met een melding teruggedraaid als
+  opslaan mislukt.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
 

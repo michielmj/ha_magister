@@ -14,6 +14,7 @@ from homeassistant.exceptions import ServiceValidationError
 from pytest_homeassistant_custom_component.common import MockUser
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 
+from custom_components.magister.api.homework import effective_state
 from custom_components.magister.const import CONF_LABELS, CONF_WEIGHTS, DOMAIN
 from custom_components.magister.diagnostics import async_get_config_entry_diagnostics
 
@@ -106,7 +107,7 @@ async def test_store_migrates_from_v1(
     assert manager.stored_entries == 1
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 2)
+    assert (saved["version"], saved["minor_version"]) == (1, 3)
     assert saved["data"]["items"][uid(MONDAY_HOMEWORK)]["labels"] == []
 
 
@@ -307,6 +308,7 @@ async def test_appointments_command(
         "cancelled": False,
         "info_type": None,
         "manual_labels": [],
+        "override": None,
     }
     assert by_uid[uid(MONDAY_NO_LABEL)]["manual_labels"] == [{**TOETSWEEK, "note": "n"}]
     assert by_uid[uid(MONDAY_HOMEWORK)]["info_type"] == 1
@@ -455,12 +457,18 @@ async def test_manual_labels_count_in_the_sensors(
     await hass.async_block_till_done()
     weights = entry.runtime_data.homework.weights(CHILD_ID)
     items = {i.uid: i for i in entry.runtime_data.homework.items(CHILD_ID)}
-    assert weights.item_weight(items[uid(MONDAY_HOMEWORK)]) == 4.0  # max(2, 4)
-    assert weights.item_weight(items[uid(MONDAY_NO_LABEL)]) == 4.0
-    assert weights.item_weight(items[uid(100064)]) == 2.0  # homework type only
+    assert (
+        effective_state(items[uid(MONDAY_HOMEWORK)], weights).weight == 4.0
+    )  # max(2, 4)
+    assert effective_state(items[uid(MONDAY_NO_LABEL)], weights).weight == 4.0
+    assert (
+        effective_state(items[uid(100064)], weights).weight == 2.0
+    )  # homework type only
     await label_service(hass, "add_homework_label", MONDAY_HOMEWORK, "ex")
     items = {i.uid: i for i in entry.runtime_data.homework.items(CHILD_ID)}
-    assert weights.item_weight(items[uid(MONDAY_HOMEWORK)]) == 4.0  # max(2, 4, 0.5)
+    assert (
+        effective_state(items[uid(MONDAY_HOMEWORK)], weights).weight == 4.0
+    )  # max(2, 4, 0.5)
 
 
 async def test_label_option_changes_apply_without_reload(
@@ -699,9 +707,11 @@ async def test_default_labels_use_the_type_weights(
     weights = manager.weights(CHILD_ID)
     item = manager.find_item(CHILD_ID, uid(MONDAY_NO_LABEL))
     assert item is not None and item.info_type is None
-    assert weights.item_weight(item) == 3.0  # types["test"], not labels[...]
+    assert (
+        effective_state(item, weights).weight == 3.0
+    )  # types["test"], not labels[...]
     other = manager.find_item(CHILD_ID, uid(MONDAY_OTHER))
-    assert other is not None and weights.item_weight(other) == 1.0
+    assert other is not None and effective_state(other, weights).weight == 1.0
 
 
 async def test_orphan_references_are_dropped_with_the_label(
