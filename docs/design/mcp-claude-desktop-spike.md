@@ -71,7 +71,7 @@ Security of (b):
 
 ## Settings in HA (both options)
 1. A non-admin HA user per student.
-2. Integration "Model Context Protocol Server": LLM APIs = only "Magister huiswerkcoach", **require admin = off**.
+2. Integration "Model Context Protocol Server" (HA 2026.10.4): adding it exposes all LLM APIs with require admin on. Change it under **Configure**: turn **Expose all LLM APIs** off, select only "Magister huiswerkcoach" in the API picker (label "Control Home Assistant", nl "Beheer Home Assistant", shown only when "Expose all" is off), and turn **Require an administrator account** off. Leaving "Expose all LLM APIs" on gives students Assist (can control every entity exposed to Assist).
 3. Magister, Configure, AI-coach: enable per child and link the user.
 
 ## Open points for the PM test

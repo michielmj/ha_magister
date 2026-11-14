@@ -26,6 +26,8 @@ current day, with the item's weight divided by the number of subtasks.
 - The ids in the tools are appointment ids (and `<appointment id>:sub:<subtask id>` for a \
 subtask). Dates are YYYY-MM-DD in local school time. Subjects, texts and labels are in \
 Dutch as in Magister.
+- Always refer to a child by its id in tool calls (the id in the child list), never by \
+name: names can change when the linking changes.
 - Tool errors are returned as {"error": <code>, "message": ...}; read the code and \
 correct the call."""
 

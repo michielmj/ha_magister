@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import re
@@ -23,6 +24,7 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.magister.coach import (
     COACH_API_ID,
     COACH_API_NAME,
+    CoachError,
     async_accessible_children,
     coach_tools,
     pick_child,
@@ -763,6 +765,7 @@ async def test_prompt_contents(hass: HomeAssistant, student: Any) -> None:
     for rule in ("derived progress", "next_day", "item_has_subtasks"):
         assert rule in prompt, rule
     assert "moves forward day by day" in prompt
+    assert "Always refer to a child by its id" in prompt
     assert "Kind (id 1001)" in prompt
     assert DEFAULT_GUIDELINES in prompt
     assert DEFAULT_GUIDELINES.startswith(
@@ -901,6 +904,17 @@ async def test_colliding_child_ids_across_schools_get_distinct_ids(
         "child_not_found"
     )
     assert await fails(hass, parent.id, "get_progress") == "child_required"
+    # A name shared by two of the user's own children asks for the id instead.
+    twins = [dataclasses.replace(c, name="Twin") for c in children]
+    with pytest.raises(CoachError) as ambiguous:
+        pick_child(twins, "twin")
+    assert ambiguous.value.code == "child_required"
+    assert "use the id" in ambiguous.value.message
+    assert all(c.id in ambiguous.value.message for c in twins)
+    # A name that matches none of them stays unknown (no probing).
+    with pytest.raises(CoachError) as unknown:
+        pick_child(twins, "Other")
+    assert unknown.value.code == "child_not_found"
     data = await ok(hass, parent.id, "get_progress", child=ids[0])
     assert data["child"] == ids[0]
     api = await llm.async_get_api(hass, COACH_API_ID, llm_context(parent.id))

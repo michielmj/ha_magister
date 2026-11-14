@@ -256,6 +256,13 @@ def pick_child(children: list[CoachChild], reference: Any) -> CoachChild:
     by_name = [c for c in children if c.name.casefold() == wanted.casefold()]
     if len(by_name) == 1:
         return by_name[0]
+    if len(by_name) > 1:
+        # Only the user's own accessible children are compared: no probing.
+        raise CoachError(
+            ERR_CHILD_REQUIRED,
+            "Ambiguous name, use the id: "
+            + ", ".join(f"{c.id} ({c.name})" for c in by_name),
+        )
     # The same answer for a child that does not exist and one this user may not see.
     raise CoachError(
         ERR_CHILD_NOT_FOUND,

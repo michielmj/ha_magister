@@ -410,36 +410,49 @@ bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde Home Assist
 
 ### Instellen
 
-1. **Maak per leerling een Home Assistant-gebruiker** (Instellingen, Personen, Gebruikers). Houd die
-   **geen beheerder**. Gebruik per leerling een aparte gebruiker; een ouder kan één gebruiker hebben die aan
-   meerdere kinderen is gekoppeld.
+1. **Maak per leerling een Home Assistant-gebruiker:** Instellingen, Personen, **Persoon toevoegen**, zet
+   **Inloggen toestaan** aan en laat **Beheerder** uit. (Het tabblad **Gebruikers** zie je pas als de
+   geavanceerde modus in je profiel aanstaat.) Gebruik per leerling een aparte gebruiker; een ouder kan één
+   gebruiker hebben die aan meerdere kinderen is gekoppeld.
 2. **Koppel de gebruiker aan het kind:** Instellingen, Apparaten en diensten, Magister, **Configureren**,
    **AI-coach**. Kies het kind, zet **AI-coach ingeschakeld** aan, kies de gebruiker(s) en pas zo nodig de
    **coachrichtlijnen** aan (zie hieronder). Wijzigingen werken direct, zonder herladen.
 3. **Voeg de integratie "Model Context Protocol Server" toe** (Instellingen, Apparaten en diensten,
-   Integratie toevoegen). Kies bij **LLM-API's** **alleen "Magister huiswerkcoach"** en zet **beheerder
-   vereist uit**, zodat leerlingen zonder beheerdersrechten kunnen verbinden. (Kies je meer API's, zoals
-   Assist, dan krijgen de leerlingen die ook.)
+   Integratie toevoegen). Bij toevoegen worden alle LLM-API's blootgesteld en is een beheerder vereist; pas
+   dat aan onder **Configureren**:
+   1. Open de integratie en kies **Configureren**.
+   2. Zet **Expose all LLM APIs** uit (Home Assistant toont deze optie in het Engels). De API-lijst verschijnt.
+   3. Kies in de lijst (**Beheer Home Assistant**) **alleen "Magister huiswerkcoach"**.
+   4. Zet **Require an administrator account** uit (ook Engels), zodat leerlingen zonder beheerdersrechten
+      kunnen verbinden.
+   5. Verstuur.
+
+   > **Let op:** laat je **Expose all LLM APIs** aanstaan, dan krijgen de leerlingen ook Assist, dat elke
+   > entiteit kan bedienen die je aan Assist blootstelt.
 4. **Verbind de AI-app** als leerling, zie hieronder.
 
-Assist van Home Assistant blijft voor iedereen bereikbaar op `/api/mcp/assist`, maar alleen voor de entiteiten
-die je aan Assist blootstelt; de coach hoort daar niet bij. De coachtools werken ook met de eigen
+De MCP Server is één enkele invoer: door alleen de coach te kiezen verdwijnt Assist van `/api/mcp`.
+Beheerders kunnen Assist nog gebruiken op `/api/mcp/assist`. De coachtools werken ook met de eigen
 gespreksagenten van Home Assistant.
-
 ### De Claude desktop-app verbinden
 
 Maak een **langlevend toegangstoken** aan op het eigen Home Assistant-profiel van de leerling (profiel,
 Beveiliging, Langlevende toegangstokens). Welke methode werkt hangt af van hoe Home Assistant bereikbaar is.
 
 **A. Lokale brug (werkt op je thuisnetwerk; probeer dit eerst).** Claude desktop start lokale MCP-servers vanuit
-`claude_desktop_config.json` (in de app: Instellingen, Ontwikkelaar, Configuratie bewerken). Een kleine brug,
-[`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy), verbindt die met Home Assistant:
+`claude_desktop_config.json` (in de app: Instellingen [Settings], Ontwikkelaar [Developer], Configuratie
+bewerken [Edit config]; op macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, op Windows
+`%APPDATA%\Claude\claude_desktop_config.json`). Een kleine brug,
+[`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy), verbindt die met Home Assistant. Installeer die met
+`uv tool install mcp-proxy` (of `pipx install mcp-proxy`). Claude desktop erft het `PATH` van je shell niet,
+gebruik dus het **volledige pad** als `command`: voer `which mcp-proxy` (macOS/Linux) of
+`where.exe mcp-proxy` (Windows) uit en plak het resultaat.
 
 ```json
 {
   "mcpServers": {
     "magister": {
-      "command": "mcp-proxy",
+      "command": "/volledig/pad/naar/mcp-proxy",
       "args": [
         "--transport", "streamablehttp",
         "http://homeassistant.local:8123/api/mcp"
@@ -450,7 +463,20 @@ Beveiliging, Langlevende toegangstokens). Welke methode werkt hangt af van hoe H
 }
 ```
 
-Een alternatieve brug is `npx mcp-remote http://homeassistant.local:8123/api/mcp --header "Authorization: Bearer <token>" --allow-http`.
+Een alternatieve brug is `mcp-remote`, ook als invoer in `claude_desktop_config.json`:
+
+```json
+"magister": {
+  "command": "npx",
+  "args": ["mcp-remote", "http://homeassistant.local:8123/api/mcp",
+           "--header", "Authorization:${AUTH_HEADER}", "--allow-http"],
+  "env": { "AUTH_HEADER": "Bearer <langlevend token>" }
+}
+```
+
+Het token in `env` voorkomt de spatie in `Bearer <token>` binnen een argument, die Windows verkeerd verwerkt.
+Houd `--allow-http` alleen bij een gewoon `http://`-adres; laat het weg bij `https://`. (Ook `npx` heeft het
+volledige pad nodig als Claude desktop het niet vindt.)
 
 > **Niet end-to-end getest.** Dit is gecontroleerd tegen de server van Home Assistant (een gekoppelde
 > gebruiker zonder beheerdersrechten ziet de tools en wijzigt deelstappen via `/api/mcp`), maar niet met een echte
@@ -458,7 +484,7 @@ Een alternatieve brug is `npx mcp-remote http://homeassistant.local:8123/api/mcp
 > versie verschillen. Gebruik het hoofdadres `/api/mcp`, niet `/api/mcp/magister_coach`: dat vraagt een beheerder.
 
 **B. Externe connector (alleen als Home Assistant via HTTPS bereikbaar is).** Gebruik in Claude
-(Instellingen, Connectors, aangepaste connector toevoegen) `https://<jouw-home-assistant>/api/mcp`. Claude
+(Instellingen [Settings], Connectors, aangepaste connector toevoegen [Add custom connector]) `https://<jouw-home-assistant>/api/mcp`. Claude
 verbindt vanuit de cloud van Anthropic, dus het adres moet vanaf internet bereikbaar zijn op de standaard
 HTTPS-poort 443 (bijvoorbeeld Home Assistant Cloud of een reverse proxy); voor een Home Assistant die alleen thuis
 bereikbaar is werkt dit niet. Log in met het Home Assistant-account van de leerling, of geef de connector, als
@@ -492,13 +518,14 @@ inloggen mislukt, de aanvraagheader `Authorization: Bearer <langlevend token>`.
 De assistent krijgt richtlijnen mee met de tools. Zonder eigen tekst gelden deze standaardrichtlijnen:
 
 > Je bent een huiswerkcoach voor een middelbare scholier. Je helpt plannen, niet het werk overnemen.
-> Maak geen huiswerk, opdrachten of toetsen voor de leerling; leg uit, stel vragen en geef hints. Help
-> toetsen en grote opdrachten op te knippen in kleine deelstappen (15 tot 45 minuten), verspreid over de dagen
-> vóór de deadline. Plan realistisch: niet meer dan ongeveer 1,5 uur extra werk per schooldag, en laat de dag
-> vóór een toets ruimte voor herhalen. Vraag eerst wat de leerling al af heeft voordat je voortgang
-> aanpast. Wees positief en concreet, zonder druk of schuldgevoel. Spreek Nederlands, tenzij de leerling een
-> andere taal gebruikt. Leg kort uit wat je verandert en vraag toestemming voor het verwijderen van deelstappen
-> of labels.
+>
+> - Maak geen huiswerk, opdrachten of toetsen voor de leerling; leg uit, stel vragen en geef hints.
+> - Help toetsen en grote opdrachten op te knippen in kleine deelstappen (15–45 minuten), verspreid over de dagen vóór de deadline, en houd rekening met andere toetsen en huiswerk in dezelfde periode.
+> - Plan realistisch: niet meer dan ongeveer 1,5 uur extra werk per schooldag, en laat de dag vóór een toets ruimte voor herhalen.
+> - Vraag eerst wat de leerling al af heeft voordat je voortgang aanpast; pas voortgang alleen aan als de leerling dat bevestigt.
+> - Wees positief en concreet. Benoem wat goed gaat. Geen druk of schuldgevoel.
+> - Spreek Nederlands, tenzij de leerling een andere taal gebruikt.
+> - Leg kort uit wat je in de planner verandert, en vraag toestemming voor het verwijderen van deelstappen of labels.
 
 Je kunt de tekst **per kind** aanpassen onder Configureren, AI-coach (leeg betekent de standaardtekst, en er is
 een optie "terugzetten naar standaard").
