@@ -107,7 +107,7 @@ async def test_store_migrates_from_v1(
     assert manager.stored_entries == 1
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 5)
+    assert (saved["version"], saved["minor_version"]) == (1, 6)
     assert saved["data"]["items"][uid(MONDAY_HOMEWORK)]["labels"] == []
 
 

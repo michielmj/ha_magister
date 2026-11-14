@@ -174,6 +174,7 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
     assert set(tools) == {
         "list_children",
         "get_schedule",
+        "get_overview",
         "list_homework",
         "get_progress",
         "list_label_options",
@@ -188,7 +189,8 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
     for name in tools.values():
         assert name.description
         assert name.annotations.open_world is False
-    read = {"list_children", "get_schedule", "list_homework", "get_progress"}
+    read = {"list_children", "get_schedule", "get_overview", "list_homework"}
+    read.add("get_progress")
     read.add("list_label_options")
     for name, tool in tools.items():
         assert tool.annotations.read_only is (name in read)
@@ -249,7 +251,7 @@ async def test_disabled_coach_and_inactive_user_have_no_access(
     await hass.async_block_till_done()
     assert entry.runtime_data is runtime
     assert (await ok(hass, user.id, "list_children"))["children"] == [
-        {"id": "1001", "name": "Kind"}
+        {"id": "1001", "name": "Kind", "role": "student", "daily_max_minutes": 90}
     ]
     await hass.auth.async_update_user(user, is_active=False)
     assert (await ok(hass, user.id, "list_children"))["children"] == []
@@ -278,7 +280,9 @@ async def test_user_of_child_a_cannot_touch_child_b(
         two=True,
     )
     children = (await ok(hass, anna.id, "list_children"))["children"]
-    assert children == [{"id": "1001", "name": "Anna"}]
+    assert children == [
+        {"id": "1001", "name": "Anna", "role": "student", "daily_max_minutes": 90}
+    ]
     # The only child is implied; Bram's id (or name) is refused like an unknown one.
     for wrong in ("1002", "Bram", "9999", 1002):
         for tool, args in (
@@ -302,7 +306,7 @@ async def test_user_of_child_a_cannot_touch_child_b(
     )
     # Bram's own user sees Bram.
     assert (await ok(hass, bram.id, "list_children"))["children"] == [
-        {"id": "1002", "name": "Bram"}
+        {"id": "1002", "name": "Bram", "role": "student", "daily_max_minutes": 90}
     ]
 
 
@@ -773,7 +777,7 @@ async def test_prompt_contents(hass: HomeAssistant, student: Any) -> None:
     )
     assert "15\u201345 minuten" in prompt
     assert "Always pass `child`" not in prompt
-    assert len(api.tools) == 12
+    assert len(api.tools) == 13
 
 
 async def test_prompt_for_unlinked_user(hass: HomeAssistant, student: Any) -> None:
@@ -1219,7 +1223,9 @@ async def test_short_name_equal_to_a_single_word_full_name_is_not_used(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     children = (await ok(hass, user.id, "list_children"))["children"]
-    assert children == [{"id": "1001", "name": "Kind 1"}]
+    assert children == [
+        {"id": "1001", "name": "Kind 1", "role": "student", "daily_max_minutes": 90}
+    ]
 
 
 async def test_kind_number_counts_within_the_users_children(
@@ -1258,7 +1264,7 @@ async def test_kind_number_counts_within_the_users_children(
     ]
     assert names == ["Kind 1", "Kind 2"]
     assert (await ok(hass, only_second.id, "list_children"))["children"] == [
-        {"id": "1002", "name": "Kind 1"}
+        {"id": "1002", "name": "Kind 1", "role": "student", "daily_max_minutes": 90}
     ]
 
 

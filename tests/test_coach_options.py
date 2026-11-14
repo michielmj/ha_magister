@@ -9,11 +9,15 @@ from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.auth.const import GROUP_ID_ADMIN, GROUP_ID_USER
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
 
-from custom_components.magister.coach_text import DEFAULT_GUIDELINES
+from custom_components.magister.coach_text import (
+    DEFAULT_GUIDELINES,
+    DEFAULT_PARENT_GUIDELINES,
+)
 from custom_components.magister.const import (
     CONF_COACH,
+    CONF_PARENT_GUIDELINES,
     CONF_WEIGHTS,
     DOMAIN,
     GUIDELINES_MAX,
@@ -25,6 +29,7 @@ from .test_coach import coach_options, make_user, setup_coach
 from .test_homework import TODO_ID, uid
 
 PROEFWERK = 100084
+NORMAL = {key: 1.0 for key in ("homework", "test", "exam", "written_quiz", "oral_quiz")}
 
 
 @pytest.fixture(autouse=True)
@@ -43,8 +48,12 @@ async def open_coach(hass: HomeAssistant, entry: Any, child: str | None = None) 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "coach"}
     )
+    assert result["menu_options"] == ["coach_child", "coach_parent"]
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "coach_child"}
+    )
     if child is not None:
-        assert result["step_id"] == "coach"
+        assert result["step_id"] == "coach_child"
         result = await hass.config_entries.options.async_configure(
             result["flow_id"], {"child": child}
         )
@@ -70,7 +79,7 @@ async def test_enable_link_users_and_edit_guidelines(
     assert keys["guidelines"].description["suggested_value"] == DEFAULT_GUIDELINES
     offered = {
         o["label"]
-        for o in result["data_schema"].schema[keys["users"]].config["options"]
+        for o in result["data_schema"].schema[keys["students"]].config["options"]
     }
     assert "Leerling" in offered
     assert "Systeem" not in offered
@@ -80,7 +89,7 @@ async def test_enable_link_users_and_edit_guidelines(
     result = await _save(
         hass,
         result,
-        {"enabled": True, "users": [student.id], "guidelines": "  Wees kort.  "},
+        {"enabled": True, "students": [student.id], "guidelines": "  Wees kort.  "},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
@@ -88,7 +97,8 @@ async def test_enable_link_users_and_edit_guidelines(
     assert entry.options[CONF_COACH] == {
         "1001": {
             "enabled": True,
-            "users": [student.id],
+            "students": [student.id],
+            "parents": [],
             "guidelines": "Wees kort.",
         }
     }
@@ -98,11 +108,11 @@ async def test_enable_link_users_and_edit_guidelines(
     result = await open_coach(hass, entry)
     keys = {str(k): k for k in result["data_schema"].schema}
     assert keys["guidelines"].description["suggested_value"] == "Wees kort."
-    assert keys["users"].description["suggested_value"] == [student.id]
+    assert keys["students"].description["suggested_value"] == [student.id]
     await _save(
         hass,
         result,
-        {"enabled": True, "users": [student.id], "guidelines": DEFAULT_GUIDELINES},
+        {"enabled": True, "students": [student.id], "guidelines": DEFAULT_GUIDELINES},
     )
     assert "guidelines" not in entry.options[CONF_COACH]["1001"]
 
@@ -120,7 +130,13 @@ async def test_reset_and_empty_guidelines_and_turn_off(
         hass,
         mocked,
         coach_options(
-            **{"1001": {"enabled": True, "users": [student.id], "guidelines": "Eigen."}}
+            **{
+                "1001": {
+                    "enabled": True,
+                    "students": [student.id],
+                    "guidelines": "Eigen.",
+                }
+            }
         ),
     )
     result = await open_coach(hass, entry)
@@ -129,14 +145,18 @@ async def test_reset_and_empty_guidelines_and_turn_off(
         result,
         {
             "enabled": True,
-            "users": [student.id],
+            "students": [student.id],
             "guidelines": "Eigen.",
             "reset_guidelines": True,
         },
     )
-    assert entry.options[CONF_COACH]["1001"] == {"enabled": True, "users": [student.id]}
+    assert entry.options[CONF_COACH]["1001"] == {
+        "enabled": True,
+        "students": [student.id],
+        "parents": [],
+    }
     result = await open_coach(hass, entry)
-    await _save(hass, result, {"enabled": False, "users": [], "guidelines": ""})
+    await _save(hass, result, {"enabled": False, "students": [], "guidelines": ""})
     assert CONF_COACH not in entry.options
 
 
@@ -152,17 +172,19 @@ async def test_guidelines_too_long_and_unknown_users(
         result,
         {
             "enabled": True,
-            "users": [student.id],
+            "students": [student.id],
             "guidelines": "x" * (GUIDELINES_MAX + 1),
         },
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"guidelines": "guidelines_too_long"}
     result = await _save(
-        hass, result, {"enabled": True, "users": [student.id], "guidelines": "x" * 50}
+        hass,
+        result,
+        {"enabled": True, "students": [student.id], "guidelines": "x" * 50},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options[CONF_COACH]["1001"]["users"] == [student.id]
+    assert entry.options[CONF_COACH]["1001"]["students"] == [student.id]
 
 
 async def test_two_children_choose_one(
@@ -173,11 +195,11 @@ async def test_two_children_choose_one(
     entry = await setup_coach(hass, mocked, {}, two=True)
     result = await open_coach(hass, entry, child="1002")
     assert result["description_placeholders"]["child"] == "Bram B"
-    await _save(hass, result, {"enabled": True, "users": [student.id]})
+    await _save(hass, result, {"enabled": True, "students": [student.id]})
     assert list(entry.options[CONF_COACH]) == ["1002"]
     result = await open_coach(hass, entry, child="1001")
     assert result["description_placeholders"]["child"] == "Anna A"
-    await _save(hass, result, {"enabled": True, "users": [student.id]})
+    await _save(hass, result, {"enabled": True, "students": [student.id]})
     assert set(entry.options[CONF_COACH]) == {"1001", "1002"}
 
 
@@ -202,7 +224,12 @@ async def test_diagnostics_count_only(
         two=True,
     )
     data = await async_get_config_entry_diagnostics(hass, entry)
-    assert data["coach"] == {"enabled_children": 2, "linked_users": 2}
+    assert data["coach"] == {
+        "enabled_children": 2,
+        "student_users": 2,
+        "parent_users": 0,
+        "linked_users": 2,
+    }
     text = str(data)
     assert "Geheim" not in text
     assert a.id not in text
@@ -280,7 +307,7 @@ async def test_created_by_in_payload_and_store(
     )
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 5)
+    assert (saved["version"], saved["minor_version"]) == (1, 6)
     stored = {
         s["title"]: s["created_by"]
         for s in saved["data"]["items"][uid(PROEFWERK)]["subtasks"]
@@ -296,4 +323,289 @@ async def test_diagnostics_users_none(
         hass, mocked, coach_options(**{"1001": {"enabled": True, "users": None}})
     )
     data = await async_get_config_entry_diagnostics(hass, entry)
-    assert data["coach"] == {"enabled_children": 1, "linked_users": 0}
+    assert data["coach"] == {
+        "enabled_children": 1,
+        "student_users": 0,
+        "parent_users": 0,
+        "linked_users": 0,
+    }
+
+
+# -- M11: roles, parent guidelines, daily maximum ----------------------------------
+
+
+async def test_roles_are_saved_per_child_and_refused_when_in_both(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Students and parents are two lists; the same user in both is refused."""
+    student, parent = await make_user(hass, "Leerling"), await make_user(hass, "Ouder")
+    entry = await setup_coach(hass, mocked, {})
+    result = await open_coach(hass, entry)
+    schema = result["data_schema"].schema
+    keys = {str(k): k for k in schema}
+    assert {"enabled", "students", "parents", "guidelines", "reset_guidelines"} == set(
+        keys
+    )
+    assert "users" not in keys
+    labels = {o["label"] for o in schema[keys["parents"]].config["options"]}
+    assert {"Leerling", "Ouder"} <= labels
+    result = await _save(
+        hass,
+        result,
+        {"enabled": True, "students": [student.id], "parents": [student.id]},
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"parents": "user_in_both_roles"}
+    assert CONF_COACH not in entry.options
+    # The form keeps what was typed.
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["parents"].description["suggested_value"] == [student.id]
+    result = await _save(
+        hass,
+        result,
+        {"enabled": True, "students": [student.id], "parents": [parent.id]},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_COACH]["1001"] == {
+        "enabled": True,
+        "students": [student.id],
+        "parents": [parent.id],
+    }
+    # Only parents is enough to keep the setting.
+    result = await open_coach(hass, entry)
+    await _save(
+        hass, result, {"enabled": False, "students": [], "parents": [parent.id]}
+    )
+    assert entry.options[CONF_COACH]["1001"]["parents"] == [parent.id]
+    result = await open_coach(hass, entry)
+    await _save(hass, result, {"enabled": False, "students": [], "parents": []})
+    assert CONF_COACH not in entry.options
+
+
+async def test_old_users_key_shows_as_students_and_is_replaced_on_save(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A 1.6.0 setting opens with its users as students; saving writes the new keys."""
+    student = await make_user(hass)
+    entry = await setup_coach(
+        hass,
+        mocked,
+        coach_options(**{"1001": {"enabled": True, "users": [student.id]}}),
+    )
+    result = await open_coach(hass, entry)
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["students"].description["suggested_value"] == [student.id]
+    assert keys["parents"].description["suggested_value"] == []
+    await _save(hass, result, {"enabled": True, "students": [student.id]})
+    assert entry.options[CONF_COACH]["1001"] == {
+        "enabled": True,
+        "students": [student.id],
+        "parents": [],
+    }
+
+
+async def _open_parent(hass: HomeAssistant, entry: Any) -> Any:
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "coach"}
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "coach_parent"}
+    )
+    assert result["step_id"] == "coach_parent"
+    return result
+
+
+async def test_parent_guidelines_flow(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """One text per entry: default suggested; empty, default and reset clear it."""
+    entry = await setup_coach(hass, mocked, {}, two=True)
+    runtime = entry.runtime_data
+    result = await _open_parent(hass, entry)
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["parent_guidelines"].description["suggested_value"] == (
+        DEFAULT_PARENT_GUIDELINES
+    )
+    assert result["description_placeholders"] == {"max": "4000"}
+    result = await _save(hass, result, {"parent_guidelines": "  Kort en bondig.  "})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options[CONF_PARENT_GUIDELINES] == "Kort en bondig."
+    assert entry.runtime_data is runtime  # no reload
+    # Edit again: the stored text is suggested.
+    result = await _open_parent(hass, entry)
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["parent_guidelines"].description["suggested_value"] == (
+        "Kort en bondig."
+    )
+    # Too long.
+    result = await _save(
+        hass, result, {"parent_guidelines": "x" * (GUIDELINES_MAX + 1)}
+    )
+    assert result["errors"] == {"parent_guidelines": "guidelines_too_long"}
+    assert entry.options[CONF_PARENT_GUIDELINES] == "Kort en bondig."
+    # Exactly the limit is fine.
+    result = await _save(hass, result, {"parent_guidelines": "x" * GUIDELINES_MAX})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    # The default text, empty text and the reset all remove the stored text.
+    for submitted in (
+        {"parent_guidelines": DEFAULT_PARENT_GUIDELINES},
+        {"parent_guidelines": "   "},
+        {"parent_guidelines": "Eigen.", "reset_guidelines": True},
+        {},
+    ):
+        result = await _open_parent(hass, entry)
+        await _save(hass, result, {"parent_guidelines": "Eerst."})
+        assert entry.options[CONF_PARENT_GUIDELINES] == "Eerst."
+        result = await _open_parent(hass, entry)
+        await _save(hass, result, submitted)
+        assert CONF_PARENT_GUIDELINES not in entry.options
+    assert entry.runtime_data is runtime
+
+
+async def test_diagnostics_count_roles_and_leave_parent_text_out(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Counts per role only; the parent guidelines text is not in the options shown."""
+    a, p = await make_user(hass, "Anna"), await make_user(hass, "Ouder Geheim")
+    entry = await setup_coach(
+        hass,
+        mocked,
+        {
+            **coach_options(
+                **{"1001": {"enabled": True, "students": [a.id], "parents": [p.id]}}
+            ),
+            CONF_PARENT_GUIDELINES: "Heel persoonlijke tekst.",
+            CONF_WEIGHTS: {"1001": {"daily_max_minutes": 120}},
+        },
+    )
+    data = await async_get_config_entry_diagnostics(hass, entry)
+    assert data["coach"] == {
+        "enabled_children": 1,
+        "student_users": 1,
+        "parent_users": 1,
+        "linked_users": 2,
+    }
+    text = str(data)
+    for secret in (a.id, p.id, "Geheim", "persoonlijke"):
+        assert secret not in text
+    assert CONF_PARENT_GUIDELINES not in data["entry"]["options"]
+    (child,) = data["children"]
+    assert child["homework"]["daily_max_minutes"] == 120
+
+
+# -- daily maximum --------------------------------------------------------------------
+
+
+async def _open_daily_max(hass: HomeAssistant, entry: Any, child: str | None) -> Any:
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "daily_max"}
+    )
+    if child is not None:
+        assert result["step_id"] == "daily_max"
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"child": child}
+        )
+    assert result["step_id"] == "daily_max_settings"
+    return result
+
+
+async def test_daily_max_flow(hass: HomeAssistant, mocked: aioresponses) -> None:
+    """Own menu item: default 90, steps of 15, stored with the weights, no reload."""
+    entry = await setup_coach(
+        hass,
+        mocked,
+        {CONF_WEIGHTS: {"1002": {"types": {"test": 2.0}}}},
+        two=True,
+    )
+    runtime = entry.runtime_data
+    result = await _open_daily_max(hass, entry, "1001")
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["daily_max_minutes"].description["suggested_value"] == 90
+    config = result["data_schema"].schema[keys["daily_max_minutes"]].config
+    assert (config["min"], config["max"], config["step"]) == (15, 480, 15)
+    assert result["description_placeholders"] == {"child": "Anna A", "default": "90"}
+    # Outside the range or not a step of 15: an error, nothing stored.
+    for bad in (0, 14, 481, 495):  # the selector refuses these
+        with pytest.raises(InvalidData):
+            await _save(hass, result, {"daily_max_minutes": bad})
+    for bad in (16, 100, 479, 100.5):  # in range but not a step of 15
+        result = await _save(hass, result, {"daily_max_minutes": bad})
+        assert result["type"] is FlowResultType.FORM, bad
+        assert result["errors"] == {"daily_max_minutes": "invalid_daily_max"}, bad
+    assert entry.options[CONF_WEIGHTS] == {"1002": {"types": {"test": 2.0}}}
+    result = await _save(hass, result, {"daily_max_minutes": 135.0})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.runtime_data is runtime  # no reload
+    assert entry.options[CONF_WEIGHTS] == {
+        "1001": {"daily_max_minutes": 135},
+        "1002": {"types": {"test": 2.0}},
+    }
+    manager = runtime.homework
+    assert (manager.daily_max(1001), manager.daily_max(1002)) == (135, 90)
+    # The second child keeps its other weights when its maximum is set and reset.
+    result = await _open_daily_max(hass, entry, "1002")
+    await _save(hass, result, {"daily_max_minutes": 15})
+    assert entry.options[CONF_WEIGHTS]["1002"] == {
+        "types": {"test": 2.0},
+        "daily_max_minutes": 15,
+    }
+    result = await _open_daily_max(hass, entry, "1002")
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["daily_max_minutes"].description["suggested_value"] == 15
+    await _save(hass, result, {"daily_max_minutes": 90})
+    assert entry.options[CONF_WEIGHTS]["1002"] == {"types": {"test": 2.0}}
+    # Back to the default for the only setting removes the entry (and the option).
+    result = await _open_daily_max(hass, entry, "1001")
+    await _save(hass, result, {"daily_max_minutes": 90})
+    assert "1001" not in entry.options[CONF_WEIGHTS]
+    assert entry.runtime_data is runtime
+
+
+async def test_daily_max_single_child_and_removal_of_empty_weights(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """One child skips the choice; the weights option disappears when empty."""
+    entry = await setup_coach(hass, mocked, {})
+    result = await _open_daily_max(hass, entry, None)
+    await _save(hass, result, {"daily_max_minutes": 480})
+    assert entry.options[CONF_WEIGHTS] == {"1001": {"daily_max_minutes": 480}}
+    result = await _open_daily_max(hass, entry, None)
+    await _save(hass, result, {"daily_max_minutes": 90})
+    assert CONF_WEIGHTS not in entry.options
+
+
+async def test_weights_flow_keeps_the_daily_max(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Saving the weights keeps the child's daily maximum, even at all-default."""
+    entry = await setup_coach(
+        hass, mocked, {CONF_WEIGHTS: {"1001": {"daily_max_minutes": 150}}}
+    )
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "weights"}
+    )
+    assert result["step_id"] == "weights_types"
+    result = await _save(hass, result, {**NORMAL, "test": 3.0})
+    while result["type"] is FlowResultType.FORM:
+        normal = {str(k): 1.0 for k in result["data_schema"].schema}
+        result = await _save(hass, result, normal)
+    stored = entry.options[CONF_WEIGHTS]["1001"]
+    assert stored["daily_max_minutes"] == 150
+    assert stored["types"] == {"test": 3.0}
+    # All weights back to normal: only the daily maximum is left.
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "weights"}
+    )
+    result = await _save(hass, result, NORMAL)
+    while result["type"] is FlowResultType.FORM:
+        normal = {str(k): 1.0 for k in result["data_schema"].schema}
+        result = await _save(hass, result, normal)
+    assert entry.options[CONF_WEIGHTS] == {
+        "1001": {"types": {}, "subjects": {}, "daily_max_minutes": 150}
+    }

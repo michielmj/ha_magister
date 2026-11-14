@@ -34,9 +34,15 @@ are not repeated. After an entry reload the new entity pushes its list once to e
     "next_day":  {"value": 100.0, "items": 0, "completed": 0},
     "week":      {"value": 25.0,  "items": 18, "completed": 4},
     "next_week": null
-  }
+  },
+  "daily_max_minutes": 90
 }}
 ```
+
+`daily_max_minutes` (since 1.7.0) is the child's daily maximum of study minutes per school day: an integer 15–480 in
+steps of 15, default 90. It is set in the options (Configure > Daily study maximum), stored with the child's homework
+settings, and applies without a reload (a new event is pushed when it changes). It is also present in the final
+`available: false` event. Clients that predate the field ignore it.
 
 `progress` holds exactly the values of the three progress sensors. Since 1.5.0 an item with n subtasks is
 replaced by its n subtasks, each with weight item weight / n, counted in the period of the subtask's current `date`;
@@ -96,7 +102,8 @@ Subtask (since 1.5.0):
 | `progress` | int | 0–100 |
 | `completed` | bool | `progress >= 100` |
 | `last_partial` | int | 0–99 |
-| `created_by` | string | `"user"` or `"ai"` (since 1.6.0). `"ai"` when created through the AI coach (LLM API); subtasks stored before 1.6.0 read as `"user"` |
+| `created_by` | string | `"user"`, `"ai"` (since 1.6.0) or `"parent"` (since 1.7.0). `"ai"` when created through the AI coach by a user with the Leerling role for that child, `"parent"` by a user with the Ouder role; subtasks stored before 1.6.0 read as `"user"`. A client that does not know a value reads it as `"user"` |
+| `minutes` | int \| null | Since 1.7.0: the estimated time in minutes, 5–240 in steps of 5; `null` when unknown (also for every subtask stored earlier). Only subtasks have an estimated time, items do not |
 
 Errors: `not_found` (unknown entity, or not a Magister homework list), `invalid_format` (not a todo entity),
 `unauthorized` (no read permission).
@@ -199,8 +206,9 @@ Control permission. The result is the updated parent item, and a subscribe event
  "item": "school.magister.net:1001:100070", "title": "H4 woordjes", "date": "2026-11-15"}
 ```
 `date` is optional (default today). Rules: `today ≤ date ≤ item date`, or exactly the item date when that is not in the future.
+`minutes` (since 1.7.0) is optional: an integer 5–240 in steps of 5, or `null` (unknown, the default).
 
-`magister/homework/update_subtask`: `{"entity_id", "subtask": <subtask uid>, "title"?: str, "date"?: "YYYY-MM-DD"}`. At least one of `title` or `date` must be present; if both are missing the result is `invalid_format`.
+`magister/homework/update_subtask`: `{"entity_id", "subtask": <subtask uid>, "title"?: str, "date"?: "YYYY-MM-DD", "minutes"?: int | null}`. At least one of `title`, `date` or `minutes` must be present; if all are missing the result is `invalid_format`. Since 1.7.0 `minutes` changes the estimate; `null` clears it; leaving it out keeps it. Clearing an estimate that is not set succeeds.
 
 `magister/homework/delete_subtask`: `{"entity_id", "subtask": <subtask uid>}`.
 
@@ -209,6 +217,7 @@ Errors:
 - `item_not_found` (the parent item is not, or no longer, in the list), `subtask_not_found` (an unknown subtask id, or a uid
   without `:sub:`);
 - `invalid_date` (outside the allowed range);
+- `invalid_minutes` (since 1.7.0: `minutes` is not an integer 5–240 in steps of 5, or `null`; booleans, text and fractions are refused too; nothing is stored);
 - `item_disabled`;
 - `too_many_subtasks` (at most 20 per item);
 - `unauthorized`.
@@ -219,5 +228,25 @@ These target the homework to-do entity and behave the same as the WebSocket comm
 - `magister.add_homework_label` (fields `appointment`, `label` (id **or** name, case-insensitive), `note`), since 1.3.0
 - `magister.remove_homework_label` (fields `appointment`, `label` (id or name)), since 1.3.0
 - `magister.set_homework_override` (fields `appointment`, `mode` (`replace`|`disable`|`clear`), `label` (id or name, for replace)), since 1.4.0
-- `magister.add_homework_subtask` (fields `item`, `title`, `date`?), `magister.update_homework_subtask` (fields `subtask`, `title`?, `date`?),
-  `magister.delete_homework_subtask` (field `subtask`), since 1.5.0
+- `magister.add_homework_subtask` (fields `item`, `title`, `date`?, `minutes`?), `magister.update_homework_subtask` (fields `subtask`, `title`?, `date`?, `minutes`? (null clears)),
+  `magister.delete_homework_subtask` (field `subtask`), since 1.5.0; `minutes` since 1.7.0. A wrong `minutes` is a `ServiceValidationError` with translation key `homework_invalid_minutes`.
+
+## AI coach (since 1.6.0, roles since 1.7.0)
+The LLM API `magister_coach` (for HA's MCP Server) uses the same subtask rules and errors as the commands above; its
+tool errors are `{"error": <code>, "message": ...}`. Changes in 1.7.0:
+- Every child is linked to users in one of two roles: **Leerling** (`student`, option `students`) and **Ouder**
+  (`parent`, option `parents`). A 1.6.0 `users` list is read as `students` while `students` is missing. One user
+  cannot be in both lists of a child (the options flow refuses it; a stored overlap is treated as `parent`).
+- `list_children` returns `{"id", "name", "role", "daily_max_minutes"}` per child.
+- New read tool `get_overview(start, end)` (at most 31 days, inclusive; errors `invalid_format`, `not_linked`): for every
+  accessible child `{"child", "name", "role", "daily_max_minutes", "days": [...]}`; a day is `{"date", "weekday", "tests",
+  "assignments", "open_items", "planned_minutes", "daily_max_minutes", "over_daily_max"}`. `tests` and `assignments` are the
+  non-disabled items due that day (`{"id", "subject", "label", "manual_labels", "progress", "completed", "subtasks"}`, ids
+  without the host, no text, no teacher data); `open_items` the number of those not completed; `planned_minutes` the sum
+  of `minutes` of the subtasks whose current `date` is that day, done or not.
+- `list_homework`, `get_progress` and the write tools return subtasks with `minutes` and `created_by`. `add_subtask` and
+  `update_subtask` accept `minutes` (error `invalid_minutes`; `null` clears on update). Subtasks made through the coach get
+  `created_by` `"parent"` for the Ouder role and `"ai"` for the Leerling role.
+- `set_progress` fails with `not_allowed_for_role` for a child where the caller has the Ouder role: nothing is written or
+  logged. Parents read progress only; ticking in the card stays possible for any Home Assistant user.
+- Logbook: writes by a parent read "Ouder via AI: …", by a student "AI-coach: …".

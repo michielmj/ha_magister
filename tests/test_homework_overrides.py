@@ -119,7 +119,7 @@ async def test_store_1_3_format_loads_and_is_saved_as_minor_3(
     await override_service(hass, HOMEWORK, "disable")
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 5)
+    assert (saved["version"], saved["minor_version"]) == (1, 6)
     items = saved["data"]["items"]
     assert items[uid(PROEFWERK)]["override"] == {
         "mode": "replace",

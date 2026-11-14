@@ -100,6 +100,10 @@ async def test_student_uses_the_tools_without_admin(
     assert tools["list_homework"]["annotations"]["readOnlyHint"] is True
     assert tools["delete_subtask"]["annotations"]["destructiveHint"] is True
     assert "child" in tools["list_homework"]["inputSchema"]["properties"]
+    minutes = tools["update_subtask"]["inputSchema"]["properties"]["minutes"]
+    assert "null" in json.dumps(minutes)
+    assert "get_overview" in tools
+    assert tools["get_overview"]["annotations"]["readOnlyHint"] is True
 
     called = await mcp(
         client,
