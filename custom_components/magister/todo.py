@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 import probatio
 from homeassistant.components.todo.const import (
@@ -40,6 +41,7 @@ from .const import (
     ATTR_DATE,
     ATTR_ITEM,
     ATTR_LABEL,
+    ATTR_MINUTES,
     ATTR_MODE,
     ATTR_NOTE,
     ATTR_PROGRESS,
@@ -63,9 +65,11 @@ from .entity import MagisterMidnightEntity
 from .homework import (
     ERR_LABEL_NOT_FOUND,
     ERR_LABEL_REQUIRED,
+    UNSET,
     HomeworkManager,
     LabelError,
     Payload,
+    any_value,
     appointment_to_dict,
     async_publish,
     build_payload,
@@ -166,6 +170,7 @@ def async_register_homework_services(hass: HomeAssistant) -> None:
             probatio.Required(ATTR_ITEM): cv.string,
             probatio.Required(ATTR_TITLE): subtask_title,
             probatio.Optional(ATTR_DATE): cv.date,
+            probatio.Optional(ATTR_MINUTES): any_value,
         },
     )
     async_register_platform_entity_service(
@@ -178,6 +183,7 @@ def async_register_homework_services(hass: HomeAssistant) -> None:
             probatio.Required(ATTR_SUBTASK): cv.string,
             probatio.Optional(ATTR_TITLE): subtask_title,
             probatio.Optional(ATTR_DATE): cv.date,
+            probatio.Optional(ATTR_MINUTES): any_value,
         },
     )
     async_register_platform_entity_service(
@@ -360,6 +366,7 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
                 "items": items,
                 "labels": labels,
                 "progress": {"next_day": None, "week": None, "next_week": None},
+                "daily_max_minutes": self._manager.daily_max(self._child_id),
             },
         )
         await super().async_will_remove_from_hass()
@@ -410,19 +417,26 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         title: str,
         planned: Day | None,
         created_by: str = CREATED_BY_USER,
+        minutes: Any = None,
     ) -> Payload:
         """Add a subtask; returns the updated item (``LabelError`` on failure)."""
         parent = self._manager.add_subtask(
-            self._child_id, item, title, planned, created_by
+            self._child_id, item, title, planned, created_by, minutes
         )
         return item_dict(self._manager, parent)
 
     @callback
     def update_subtask(
-        self, subtask: str, title: str | None, planned: Day | None
+        self,
+        subtask: str,
+        title: str | None,
+        planned: Day | None,
+        minutes: Any = UNSET,
     ) -> Payload:
-        """Change a subtask's title and/or date; returns the updated item."""
-        parent = self._manager.update_subtask(self._child_id, subtask, title, planned)
+        """Change a subtask's title, date and/or time; returns the updated item."""
+        parent = self._manager.update_subtask(
+            self._child_id, subtask, title, planned, minutes
+        )
         return item_dict(self._manager, parent)
 
     @callback
@@ -518,20 +532,28 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
             raise _label_exception(err) from None
 
     async def async_add_homework_subtask(
-        self, item: str, title: str, date: Day | None = None
+        self,
+        item: str,
+        title: str,
+        date: Day | None = None,
+        minutes: Any = None,
     ) -> None:
         """Service ``magister.add_homework_subtask``."""
         try:
-            self.add_subtask(item, title, date)
+            self.add_subtask(item, title, date, minutes=minutes)
         except LabelError as err:
             raise _label_exception(err) from None
 
     async def async_update_homework_subtask(
-        self, subtask: str, title: str | None = None, date: Day | None = None
+        self,
+        subtask: str,
+        title: str | None = None,
+        date: Day | None = None,
+        minutes: Any = UNSET,
     ) -> None:
         """Service ``magister.update_homework_subtask``."""
         try:
-            self.update_subtask(subtask, title, date)
+            self.update_subtask(subtask, title, date, minutes)
         except LabelError as err:
             raise _label_exception(err) from None
 

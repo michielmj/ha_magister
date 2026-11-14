@@ -62,6 +62,7 @@ from .api.homework import (
     subtask_uid,
     summarize_entries,
     uid_child_id,
+    valid_minutes,
 )
 from .api.mapping import CANCELLED_STATUSES, LOCAL_TZ
 from .api.models import Appointment
@@ -72,7 +73,7 @@ if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
 
 STORE_VERSION: Final = 1
-STORE_MINOR_VERSION: Final = 5
+STORE_MINOR_VERSION: Final = 6
 SAVE_DELAY: Final = 5.0
 PRUNE_AFTER: Final = timedelta(days=14)
 
@@ -99,6 +100,8 @@ ERR_SUBTASK_NOT_FOUND: Final = "subtask_not_found"
 ERR_TOO_MANY_SUBTASKS: Final = "too_many_subtasks"
 ERR_NOTHING_TO_UPDATE: Final = "nothing_to_update"
 ERR_NO_MAGISTER_LABEL: Final = "no_magister_label"
+# The estimated time of a subtask is not an integer of 5 to 240 in steps of 5.
+ERR_INVALID_MINUTES: Final = "invalid_minutes"
 # Invalid input: the WebSocket API reports both as ``invalid_format``.
 ERR_LABEL_REQUIRED: Final = "label_required"
 ERR_LABEL_IS_ORIGINAL: Final = "label_is_original"
@@ -122,8 +125,16 @@ class PeriodData:
         return effective_weights(self.items, self.weights)
 
 
+# "Not given" for the optional ``minutes`` of an update (``None`` clears the value).
+UNSET: Final[Any] = object()
+
 type Payload = dict[str, Any]
 type Subscriber = Callable[[Payload], None]
+
+
+def any_value(value: Any) -> Any:
+    """Let any value through: ``minutes`` is checked (and reported) by the manager."""
+    return value
 
 
 def strict_progress(value: Any) -> int:
@@ -193,8 +204,9 @@ class _HomeworkStore(Store[dict[str, Any]]):
         """1.1 (progress only) to 1.2 (adds ``labels`` to every item).
 
         1.2 to 1.3 adds the optional ``override`` per item, 1.3 to 1.4 the optional
-        ``subtasks`` list and 1.4 to 1.5 the optional ``created_by`` of a subtask
-        (a missing value reads as ``"user"``): none of these needs a migration.
+        ``subtasks`` list, 1.4 to 1.5 the optional ``created_by`` of a subtask (a
+        missing value reads as ``"user"``) and 1.5 to 1.6 the optional ``minutes`` of
+        a subtask (missing reads as unknown): none of these needs a migration.
         The major version stays 1 so that an older release can still read the file.
         """
         if old_major_version == 1:
@@ -765,8 +777,10 @@ class HomeworkManager:
         title: str,
         planned: date | None,
         created_by: str = CREATED_BY_USER,
+        minutes: Any = None,
     ) -> HomeworkItem:
         """Add a subtask (planned today by default) to an item; returns the item."""
+        estimate = _check_minutes(minutes)
         item = self._subtask_item(child_id, item_uid_)
         if len(item.subtasks) >= MAX_SUBTASKS:
             raise LabelError(ERR_TOO_MANY_SUBTASKS)
@@ -784,6 +798,7 @@ class HomeworkManager:
                 "last_partial": 0,
                 "completed_on": None,
                 "created_by": created_by,
+                "minutes": estimate,
             }
         )
         return self._subtasks_changed(child_id, item_uid_)
@@ -795,16 +810,23 @@ class HomeworkManager:
         uid: str,
         title: str | None,
         planned: date | None,
+        minutes: Any = UNSET,
     ) -> HomeworkItem:
-        """Change the title and/or planned date of a subtask; returns the item."""
-        if title is None and planned is None:
+        """Change title, planned date and/or estimated time; returns the item.
+
+        ``minutes`` ``None`` clears the estimate; ``UNSET`` leaves it as it is.
+        """
+        if title is None and planned is None and minutes is UNSET:
             raise LabelError(ERR_NOTHING_TO_UPDATE)
+        estimate = None if minutes is UNSET else _check_minutes(minutes)
         item, stored = self._find_stored_subtask(child_id, uid)
         if planned is not None:
             self._check_planned(item, planned)
             stored["planned"] = planned.isoformat()
         if title is not None:
             stored["title"] = title
+        if minutes is not UNSET:
+            stored["minutes"] = estimate
         return self._subtasks_changed(child_id, item.uid)
 
     @callback
@@ -867,8 +889,12 @@ class HomeworkManager:
 
     # -- weights ------------------------------------------------------------
 
+    def daily_max(self, child_id: int) -> int:
+        """The daily maximum of study minutes of a child (default 90)."""
+        return self.weights(child_id).daily_max_minutes
+
     def weights(self, child_id: int) -> Weights:
-        """The weights of a child from the entry options."""
+        """The weights of a child from the entry options (and the daily maximum)."""
         stored = self._entry.options.get(CONF_WEIGHTS)
         if not isinstance(stored, Mapping):
             return Weights()
@@ -970,6 +996,7 @@ class HomeworkManager:
                 "labels_set": len(weights.labels),
                 "subjects_set": len(weights.subjects),
             },
+            "daily_max_minutes": weights.daily_max_minutes,
         }
 
     def _subtask_statistics(self, items: list[HomeworkItem]) -> dict[str, int]:
@@ -980,6 +1007,7 @@ class HomeworkManager:
                 1 for item in items if self.has_subtasks(item.uid)
             ),
             "total": len(subtasks),
+            "with_minutes": sum(1 for _, sub in subtasks if sub.minutes is not None),
             "done": sum(1 for _, sub in subtasks if sub.done),
             "overdue": sum(
                 1
@@ -1013,6 +1041,7 @@ def _subtask_from_stored(stored: dict[str, Any]) -> Subtask:
         stored["last_partial"],
         date.fromisoformat(stored["completed_on"]) if stored["completed_on"] else None,
         stored.get("created_by") or CREATED_BY_USER,
+        valid_minutes(stored.get("minutes")),
     )
 
 
@@ -1049,11 +1078,21 @@ def _clean_subtasks(raw: Any) -> list[dict[str, Any]]:
                 "created_by": created_by
                 if (created_by := stored.get("created_by")) in CREATED_BY
                 else CREATED_BY_USER,
+                "minutes": valid_minutes(stored.get("minutes")),
             }
         )
         if len(subtasks) >= MAX_SUBTASKS:
             break
     return subtasks
+
+
+def _check_minutes(value: Any) -> int | None:
+    """The estimated time to store: ``None`` (unknown) or 5-240 in steps of 5."""
+    if value is None:
+        return None
+    if (minutes := valid_minutes(value)) is None:
+        raise LabelError(ERR_INVALID_MINUTES)
+    return minutes
 
 
 def _blank_entry() -> dict[str, Any]:
@@ -1151,6 +1190,7 @@ def subtask_to_dict(item: HomeworkItem, sub: Subtask, today: date) -> Payload:
         "completed": sub.done,
         "last_partial": sub.last_partial,
         "created_by": sub.created_by,
+        "minutes": sub.minutes,
     }
 
 
@@ -1215,6 +1255,7 @@ def build_payload(
             for o in manager.label_options(child_id)
         ],
         "progress": progress_payload(manager, child_id, available=available),
+        "daily_max_minutes": manager.daily_max(child_id),
     }
 
 

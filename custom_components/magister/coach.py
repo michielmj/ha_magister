@@ -40,6 +40,7 @@ from homeassistant.util import dt as dt_util
 
 from .api.homework import (
     CREATED_BY_AI,
+    CREATED_BY_PARENT,
     MAX_SUBTASKS,
     MODE_CLEAR,
     MODE_DISABLE,
@@ -47,25 +48,30 @@ from .api.homework import (
     NOTE_MAX,
     SUBTASK_TITLE_MAX,
     magister_label_option,
+    subtask_current_date,
 )
 from .api.mapping import CANCELLED_STATUSES, LOCAL_TZ
-from .coach_text import DEFAULT_GUIDELINES, PLANNER_RULES
+from .coach_text import DEFAULT_GUIDELINES, DEFAULT_PARENT_GUIDELINES, PLANNER_RULES
 from .const import (
     CHILD_ID,
     CHILD_NAME,
     CHILD_SHORT_NAME,
     COACH_ENABLED,
     COACH_GUIDELINES,
+    COACH_PARENTS,
+    COACH_STUDENTS,
     COACH_USERS,
     CONF_CHILDREN,
     CONF_COACH,
     CONF_HOST,
+    CONF_PARENT_GUIDELINES,
     DOMAIN,
 )
 from .coordinator import MagisterConfigEntry
 from .homework import (
     ERR_ITEM_DISABLED,
     ERR_ITEM_NOT_FOUND,
+    UNSET,
     HomeworkManager,
     LabelError,
     Payload,
@@ -94,6 +100,11 @@ ERR_NOT_LINKED: Final = "not_linked"
 ERR_CHILD_REQUIRED: Final = "child_required"
 ERR_CHILD_NOT_FOUND: Final = "child_not_found"
 ERR_INTERNAL: Final = "internal_error"
+ERR_NOT_ALLOWED_FOR_ROLE: Final = "not_allowed_for_role"
+
+# The role of a user for a child: Leerling (student) or Ouder (parent).
+ROLE_STUDENT: Final = "student"
+ROLE_PARENT: Final = "parent"
 
 MAX_SCHEDULE_DAYS: Final = 31
 LOG_NAME: Final = "Magister"
@@ -115,6 +126,8 @@ class CoachChild:
     name: str
     guidelines: str
     suffix: str = ""
+    role: str = ROLE_STUDENT
+    daily_max: int = 90
 
     @property
     def id(self) -> str:
@@ -126,6 +139,11 @@ class CoachChild:
         """The homework manager of the entry."""
         manager: HomeworkManager = self.entry.runtime_data.homework
         return manager
+
+    @property
+    def is_parent(self) -> bool:
+        """Whether the user has the Ouder role for this child."""
+        return self.role == ROLE_PARENT
 
     @property
     def host(self) -> str:
@@ -166,6 +184,51 @@ def guidelines_of(settings: dict[str, Any]) -> str:
     )
 
 
+def _users(settings: dict[str, Any], key: str) -> list[str]:
+    raw = settings.get(key)
+    return [u for u in raw if isinstance(u, str)] if isinstance(raw, list) else []
+
+
+def student_users(settings: dict[str, Any]) -> list[str]:
+    """The linked student (Leerling) users; the 1.6.0 ``users`` key counts as such."""
+    key = (
+        COACH_STUDENTS
+        if isinstance(settings.get(COACH_STUDENTS), list)
+        else COACH_USERS
+    )
+    return _users(settings, key)
+
+
+def parent_users(settings: dict[str, Any]) -> list[str]:
+    """The linked parent (Ouder) users."""
+    return _users(settings, COACH_PARENTS)
+
+
+def role_of(settings: dict[str, Any], user_id: str | None) -> str | None:
+    """The role of a user for a child; ``None`` when not linked.
+
+    A user in both lists (the options flow refuses that) gets the parent role, the
+    one with fewer rights.
+    """
+    if not user_id:
+        return None
+    if user_id in parent_users(settings):
+        return ROLE_PARENT
+    if user_id in student_users(settings):
+        return ROLE_STUDENT
+    return None
+
+
+def parent_guidelines_of(entry: MagisterConfigEntry) -> str:
+    """The parent guidelines of an entry: the stored text, or the default when empty."""
+    text = entry.options.get(CONF_PARENT_GUIDELINES)
+    return (
+        text.strip()
+        if isinstance(text, str) and text.strip()
+        else DEFAULT_PARENT_GUIDELINES
+    )
+
+
 def coach_name(child: dict[str, Any], position: int) -> str:
     """The name the coach uses: never a full name (``Kind 1`` when only that is known).
 
@@ -188,7 +251,7 @@ def async_accessible_children(
     hass: HomeAssistant, user_id: str | None
 ) -> list[CoachChild]:
     """The children whose coach is enabled and linked to the (active) user."""
-    found: list[tuple[MagisterConfigEntry, dict[str, Any], dict[str, Any]]] = []
+    found: list[tuple[MagisterConfigEntry, dict[str, Any], str]] = []
     seen: set[tuple[str, int]] = set()
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.state is not ConfigEntryState.LOADED:
@@ -198,23 +261,23 @@ def async_accessible_children(
             if (str(entry.data[CONF_HOST]), child_id) in seen:
                 continue  # the same child under two entries (legacy): the first wins
             settings = coach_settings(entry, child_id)
-            users = settings.get(COACH_USERS)
-            if (
-                settings.get(COACH_ENABLED) is True
-                and isinstance(users, list)
-                and user_id in users
-            ):
+            role = role_of(settings, user_id)
+            if settings.get(COACH_ENABLED) is True and role is not None:
                 seen.add((str(entry.data[CONF_HOST]), child_id))
-                found.append((entry, child, settings))
+                found.append((entry, child, role))
     # ``Kind N`` counts within what this user may access, not within the entry.
     children = [
         CoachChild(
             entry,
             int(child[CHILD_ID]),
             coach_name(child, position),
-            guidelines_of(settings),
+            parent_guidelines_of(entry)
+            if role == ROLE_PARENT
+            else guidelines_of(coach_settings(entry, int(child[CHILD_ID]))),
+            role=role,
+            daily_max=entry.runtime_data.homework.daily_max(int(child[CHILD_ID])),
         )
-        for position, (entry, child, settings) in enumerate(found)
+        for position, (entry, child, role) in enumerate(found)
     ]
     # Children of different schools can share an id: tell those apart by a short tag of
     # their entry, so that a reference never means two children.
@@ -332,6 +395,61 @@ def _appointment_view(
     }
 
 
+def _overview_item(manager: HomeworkManager, item: Any) -> Payload:
+    """One item of the overview: ids and subject, no text, no teacher data."""
+    view = item_to_dict(manager, item)
+    return {
+        "id": public_id(view["uid"]),
+        "subject": view["subject"],
+        "label": view["label"],
+        "manual_labels": [label["name"] for label in view["manual_labels"]],
+        "progress": view["progress"],
+        "completed": view["completed"],
+        "subtasks": len(view["subtasks"]),
+    }
+
+
+def _overview_of(child: CoachChild, days: list[date]) -> Payload:
+    """The days of one child: what is due, how much is open, the planned minutes."""
+    manager = child.manager
+    today = manager.today()
+    items = [
+        item
+        for item in manager.items(child.child_id)
+        if not manager.effective(item).disabled
+    ]
+    planned: Counter[date] = Counter()
+    for item in items:
+        for sub in manager.active_subtasks(item):
+            planned[subtask_current_date(sub, item.due_date, today)] += sub.minutes or 0
+    result = []
+    for day in days:
+        due = [item for item in items if item.due_date == day]
+        tests = [i for i in due if manager.effective(i).is_test]
+        test_uids = {i.uid for i in tests}
+        result.append(
+            {
+                "date": day.isoformat(),
+                "weekday": day.strftime("%A"),
+                "tests": [_overview_item(manager, i) for i in tests],
+                "assignments": [
+                    _overview_item(manager, i) for i in due if i.uid not in test_uids
+                ],
+                "open_items": sum(1 for i in due if not manager.is_completed(i)),
+                "planned_minutes": planned[day],
+                "daily_max_minutes": child.daily_max,
+                "over_daily_max": planned[day] > child.daily_max,
+            }
+        )
+    return {
+        "child": child.id,
+        "name": child.name,
+        "role": child.role,
+        "daily_max_minutes": child.daily_max,
+        "days": result,
+    }
+
+
 # -- tool plumbing ------------------------------------------------------------------
 
 
@@ -402,12 +520,18 @@ class CoachCall:
         """The full uid of the item or subtask id in argument ``key``."""
         return _full_uid(self.child, self.args[key], subtask_ok=subtask_ok)
 
+    @property
+    def created_by(self) -> str:
+        """The ``created_by`` of subtasks made in this call (by role)."""
+        return CREATED_BY_PARENT if self.child.is_parent else CREATED_BY_AI
+
     def log(self, message: str) -> None:
         """Write a logbook entry for a change made by the coach."""
+        prefix = "Ouder via AI" if self.child.is_parent else "AI-coach"
         async_log_entry(
             self.hass,
             LOG_NAME,
-            f"AI-coach: {message}",
+            f"{prefix}: {message}",
             DOMAIN,
             self.entity.entity_id,
             self.context,
@@ -429,6 +553,9 @@ def _child_field() -> dict[Any, Any]:
 def _schema(fields: dict[Any, Any]) -> probatio.Schema:
     return probatio.Schema({**_child_field(), **fields})
 
+
+_MINUTES: Final = probatio.Any(int, None)
+_MINUTES_HELP: Final = "Estimated time in minutes: 5 to 240 in steps of 5."
 
 READ_ONLY = llm.ToolAnnotations(
     read_only=True, destructive=False, idempotent=True, open_world=False
@@ -465,7 +592,7 @@ class CoachTool(llm.Tool):
         try:
             children = await async_user_children(hass, llm_context.context)
             if not self.needs_child:
-                return llm.ToolResult(data=self.run_children(children))
+                return llm.ToolResult(data=self.run_children(children, args))
             child = pick_child(children, args.get("child"))
             return llm.ToolResult(
                 data=self.run(CoachCall(hass, child, args, llm_context.context))
@@ -497,7 +624,7 @@ class CoachTool(llm.Tool):
         """Do the work for an accessible child."""
         raise NotImplementedError  # pragma: no cover
 
-    def run_children(self, children: list[CoachChild]) -> Payload:
+    def run_children(self, children: list[CoachChild], args: dict[str, Any]) -> Payload:
         """Do the work for tools that need no child."""
         raise NotImplementedError  # pragma: no cover
 
@@ -510,18 +637,29 @@ class ListChildrenTool(CoachTool):
 
     name = "list_children"
     description = (
-        "List the children you may coach (id and first name). Use the id as `child` "
-        "in the other tools."
+        "List the children you may coach: id, first name, your role for the child "
+        "(`student` or `parent`) and the child's daily maximum of study minutes. Use "
+        "the id as `child` in the other tools."
     )
     parameters = probatio.Schema({})
     annotations = READ_ONLY
     needs_child = False
 
-    def run_children(self, children: list[CoachChild]) -> Payload:
+    def run_children(self, children: list[CoachChild], args: dict[str, Any]) -> Payload:
         """The accessible children, or the explanation how to get linked."""
         if not children:
             return {"children": [], "message": NOT_LINKED_HELP}
-        return {"children": [{"id": c.id, "name": c.name} for c in children]}
+        return {
+            "children": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "role": c.role,
+                    "daily_max_minutes": c.daily_max,
+                }
+                for c in children
+            ]
+        }
 
 
 class GetScheduleTool(CoachTool):
@@ -568,6 +706,43 @@ class GetScheduleTool(CoachTool):
         }
 
 
+class GetOverviewTool(CoachTool):
+    """``get_overview``: every accessible child, every day."""
+
+    name = "get_overview"
+    description = (
+        "An overview of all children you may coach between two dates (inclusive, at "
+        f"most {MAX_SCHEDULE_DAYS} days). Per child and per day: the tests and the "
+        "assignments due, the number of open items due, the planned subtask minutes "
+        "(subtasks on that day, done or not), and the child's daily maximum. Use it "
+        "to find busy days and to keep each day within the maximum."
+    )
+    parameters = probatio.Schema(
+        {
+            probatio.Required("start", description="First day, YYYY-MM-DD"): str,
+            probatio.Required("end", description="Last day, YYYY-MM-DD"): str,
+        }
+    )
+    annotations = READ_ONLY
+    needs_child = False
+
+    def run_children(self, children: list[CoachChild], args: dict[str, Any]) -> Payload:
+        """The days of every accessible child (never another child)."""
+        if not children:
+            raise CoachError(ERR_NOT_LINKED, NOT_LINKED_HELP)
+        start, end = _date_arg(args["start"]), _date_arg(args["end"])
+        if end < start or (end - start).days >= MAX_SCHEDULE_DAYS:
+            raise CoachError(
+                ERR_INVALID_FORMAT,
+                f"`end` must not be before `start`, at most {MAX_SCHEDULE_DAYS} days",
+            )
+        days = [start + timedelta(days=n) for n in range((end - start).days + 1)]
+        return {
+            "today": HomeworkManager.today().isoformat(),
+            "children": [_overview_of(child, days) for child in children],
+        }
+
+
 class ListHomeworkTool(CoachTool):
     """``list_homework``."""
 
@@ -575,9 +750,9 @@ class ListHomeworkTool(CoachTool):
     description = (
         "The homework and tests of a child in the planner, sorted by date, with their "
         "labels, text, due date, progress, whether the progress is derived from "
-        "subtasks, and the subtasks (current date, overdue, created_by). By default "
-        "from today on and without completed items, plus the open items that are "
-        "overdue (due before today; see include_overdue)."
+        "subtasks, and the subtasks (current date, overdue, minutes, created_by). By "
+        "default from today on and without completed items, plus the open items that "
+        "are overdue (due before today; see include_overdue)."
     )
     parameters = _schema(
         {
@@ -686,13 +861,16 @@ class AddSubtaskTool(CoachTool):
         "Add a subtask (deelstap) to a homework item, planned on a day (default "
         "today). "
         f"The title has 1 to {SUBTASK_TITLE_MAX} characters; at most {MAX_SUBTASKS} "
-        "subtasks per item. The subtask is marked as created by the AI."
+        "subtasks per item. Optionally give the estimated time in `minutes` (5 to "
+        "240 in steps of 5). The subtask is marked as created by the AI (by a parent "
+        "when you are the parent)."
     )
     parameters = _schema(
         {
             probatio.Required("item", description="Id of the item"): str,
             probatio.Required("title", description="Title of the subtask"): str,
             probatio.Optional("date", description="Planned day, YYYY-MM-DD"): str,
+            probatio.Optional("minutes", description=_MINUTES_HELP): _MINUTES,
         }
     )
     annotations = _write(idempotent=False)
@@ -703,7 +881,13 @@ class AddSubtaskTool(CoachTool):
         title = _check(subtask_title, call.args["title"])
         planned = _date_arg(call.args["date"]) if "date" in call.args else None
         parent = _title_of(call.child, uid)
-        item = call.entity.add_subtask(uid, title, planned, CREATED_BY_AI)
+        item = call.entity.add_subtask(
+            uid,
+            title,
+            planned,
+            call.created_by,
+            call.args.get("minutes"),
+        )
         call.log(f"deelstap '{title}' toegevoegd aan {parent}")
         return {"item": _public_item(item)}
 
@@ -713,8 +897,9 @@ class UpdateSubtaskTool(CoachTool):
 
     name = "update_subtask"
     description = (
-        "Change the title and/or the planned day of a subtask. Give at least one of "
-        "`title` and `date`."
+        "Change the title, the planned day and/or the estimated time of a subtask. "
+        "Give at least one of `title`, `date` and `minutes` (null removes the "
+        "estimate)."
     )
     parameters = _schema(
         {
@@ -723,6 +908,9 @@ class UpdateSubtaskTool(CoachTool):
             ): str,
             probatio.Optional("title", description="New title"): str,
             probatio.Optional("date", description="New planned day, YYYY-MM-DD"): str,
+            probatio.Optional(
+                "minutes", description=_MINUTES_HELP + " null removes it."
+            ): _MINUTES,
         }
     )
     annotations = _write()
@@ -735,11 +923,12 @@ class UpdateSubtaskTool(CoachTool):
         )
         planned = _date_arg(call.args["date"]) if "date" in call.args else None
         before = call.manager.find_subtask(uid)
-        was = (before.title, before.planned) if before else None
+        minutes = call.args.get("minutes", UNSET)
+        was = (before.title, before.planned, before.minutes) if before else None
         parent = _title_of(call.child, uid.split(":sub:")[0])
-        item = call.entity.update_subtask(uid, title, planned)
+        item = call.entity.update_subtask(uid, title, planned, minutes)
         after = call.manager.find_subtask(uid)
-        if after is not None and (after.title, after.planned) != was:
+        if after is not None and (after.title, after.planned, after.minutes) != was:
             call.log(f"deelstap '{after.title}' gewijzigd bij {parent}")
         return {"item": _public_item(item)}
 
@@ -777,7 +966,9 @@ class SetProgressTool(CoachTool):
     name = "set_progress"
     description = (
         "Set the progress (0 to 100; use 0, 25, 50, 75 or 100) of an item without "
-        "subtasks, or of a subtask. Only do this when the student confirms."
+        "subtasks, or of a subtask. Only do this when the student confirms. Not "
+        "allowed for parents (`not_allowed_for_role`): only the student reports "
+        "progress; parents read it with get_progress or list_homework."
     )
     parameters = _schema(
         {
@@ -790,7 +981,12 @@ class SetProgressTool(CoachTool):
     annotations = _write()
 
     def run(self, call: CoachCall) -> Payload:
-        """Set the progress through the entity."""
+        """Set the progress through the entity (refused for the parent role)."""
+        if call.child.is_parent:
+            raise CoachError(
+                ERR_NOT_ALLOWED_FOR_ROLE,
+                "Only the student reports progress; as a parent you can read it.",
+            )
         uid = call.uid("id", subtask_ok=True)
         progress = _check(strict_progress, call.args["progress"])
         entity = call.entity
@@ -919,6 +1115,7 @@ def coach_tools() -> list[llm.Tool]:
     return [
         ListChildrenTool(),
         GetScheduleTool(),
+        GetOverviewTool(),
         ListHomeworkTool(),
         GetProgressTool(),
         ListLabelOptionsTool(),
@@ -952,10 +1149,25 @@ def build_prompt(today: date, children: list[CoachChild], time_zone: str) -> str
     )
     if len(children) > 1:
         lines.append("Always pass `child` in the tools.")
+    lines.append(
+        "Keep the planned minutes of each day within the child's daily maximum: check "
+        "the days with get_overview before and after you add or change subtasks."
+    )
     for child in children:
+        if child.is_parent:
+            who = (
+                f"You are the parent (role Ouder) of {child.name} (id {child.id}). "
+                "You plan with the parent; you cannot set progress, the child reports "
+                "it."
+            )
+            title = f"Parent guidelines for {child.name} (id {child.id}):"
+        else:
+            who = f"You coach the student (role Leerling) {child.name} (id {child.id})."
+            title = f"Coaching guidelines for {child.name} (id {child.id}):"
         lines += [
             "",
-            f"Coaching guidelines for {child.name} (id {child.id}):",
+            f"{who} Daily maximum: {child.daily_max} study minutes per school day.",
+            title,
             child.guidelines,
         ]
     return "\n".join(lines)

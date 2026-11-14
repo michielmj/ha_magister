@@ -147,7 +147,10 @@
       "message": "De datum moet vandaag of later zijn en niet na de datum van het huiswerk (of precies de datum van het huiswerk als die vandaag is of in het verleden ligt)."
     },
     "homework_nothing_to_update": {
-      "message": "Geef een nieuwe titel, een nieuwe datum, of beide."
+      "message": "Geef een nieuwe titel, een nieuwe datum, een nieuwe geschatte tijd, of een combinatie."
+    },
+    "homework_invalid_minutes": {
+      "message": "De geschatte tijd moet een geheel aantal minuten zijn van 5 tot 240 in stappen van 5, of leeg."
     }
   },
   "options": {
@@ -158,6 +161,7 @@
         "menu_options": {
           "general": "Algemene instellingen",
           "weights": "Huiswerkgewichten",
+          "daily_max": "Dagmaximum studietijd",
           "labels": "Labels",
           "coach": "AI-coach"
         }
@@ -202,6 +206,20 @@
       "weights_subjects": {
         "title": "Gewichten per vak",
         "description": "Hoe zwaar elk vak meetelt. 1 is normaal, 0 laat het buiten het gemiddelde. Vakken die nu niet in de gegevens staan, behouden hun opgeslagen gewicht."
+      },
+      "daily_max": {
+        "title": "Dagmaximum studietijd",
+        "description": "Kies het kind. Het dagmaximum is het aantal studieminuten per schooldag waarbinnen de AI plant en waartegen de kaart de geplande tijd vergelijkt.",
+        "data": {
+          "child": "Kind"
+        }
+      },
+      "daily_max_settings": {
+        "title": "Dagmaximum van {child}",
+        "description": "Studieminuten per schooldag, van 15 tot 480 in stappen van 15 (standaard {default}). Wijzigingen gelden direct.",
+        "data": {
+          "daily_max_minutes": "Minuten per schooldag"
+        }
       },
       "labels": {
         "title": "Labels",
@@ -251,23 +269,44 @@
       },
       "coach": {
         "title": "AI-coach",
-        "description": "Kies het kind. Met de AI-coach kan een leerling via de MCP-server van Home Assistant een AI-assistent gebruiken om huiswerk in deze planner te plannen.",
+        "description": "Stel de AI-coach in voor een kind, of pas de Ouder-richtlijnen aan.",
+        "menu_options": {
+          "coach_child": "Instellingen per kind",
+          "coach_parent": "Ouder-richtlijnen"
+        }
+      },
+      "coach_child": {
+        "title": "AI-coach",
+        "description": "Kies het kind. Met de AI-coach kan een leerling of een ouder via de MCP-server van Home Assistant een AI-assistent gebruiken om huiswerk in deze planner te plannen.",
         "data": {
           "child": "Kind"
         }
       },
       "coach_settings": {
         "title": "AI-coach van {child}",
-        "description": "Zet de coach aan, kies welke Home Assistant-gebruikers de coach voor dit kind mogen gebruiken en pas de coachrichtlijnen aan. Laat de richtlijnen leeg (of zet ze terug) voor de standaardtekst. Maximaal {max} tekens. Wijzigingen gelden direct.",
+        "description": "Zet de coach aan, koppel Home Assistant-gebruikers aan dit kind als leerling of als ouder en pas de coachrichtlijnen voor de leerling aan. Een gebruiker kan niet beide rollen hebben voor hetzelfde kind. Laat de richtlijnen leeg (of zet ze terug) voor de standaardtekst. Maximaal {max} tekens. Wijzigingen gelden direct.",
         "data": {
           "enabled": "AI-coach ingeschakeld",
-          "users": "Gekoppelde Home Assistant-gebruikers",
+          "students": "Leerlingen",
+          "parents": "Ouders",
           "guidelines": "Coachrichtlijnen",
           "reset_guidelines": "Richtlijnen terugzetten naar de standaard"
         },
         "data_description": {
-          "users": "Alleen deze gebruikers kunnen via de AI-coach het rooster en huiswerk van dit kind zien en deelstappen, voortgang en labels wijzigen. Gebruik voor elke leerling een eigen gebruiker zonder beheerdersrechten.",
+          "students": "Deze gebruikers kunnen via de AI-coach het rooster en huiswerk van dit kind zien en deelstappen, voortgang en labels wijzigen. Deelstappen die zij toevoegen krijgen de markering \"AI\". Gebruik voor elke leerling een eigen gebruiker zonder beheerdersrechten. Gebruikers die in versie 1.6.0 zijn gekoppeld, zijn leerlingen.",
+          "parents": "Deze gebruikers kunnen via de AI-coach het rooster en huiswerk van dit kind zien en deelstappen met een geschatte tijd plannen, maar de voortgang niet wijzigen (die geeft de leerling zelf aan). Deelstappen die zij toevoegen krijgen de markering \"Ouder\".",
           "guidelines": "Instructies voor de AI. Huiswerkteksten worden gedeeld met de AI-aanbieder; namen en codes van docenten worden nooit gedeeld."
+        }
+      },
+      "coach_parent": {
+        "title": "Ouder-richtlijnen",
+        "description": "Instructies voor de AI van een ouder. Eén tekst voor alle kinderen van deze login. Laat leeg (of zet terug) voor de standaardtekst. Maximaal {max} tekens. Wijzigingen gelden direct.",
+        "data": {
+          "parent_guidelines": "Ouder-richtlijnen",
+          "reset_guidelines": "Zet de richtlijnen terug naar de standaardtekst"
+        },
+        "data_description": {
+          "parent_guidelines": "Huiswerkteksten worden gedeeld met de AI-aanbieder; namen en afkortingen van docenten worden nooit gedeeld."
         }
       }
     },
@@ -279,7 +318,9 @@
       "name_too_long": "De naam mag maximaal 40 tekens zijn.",
       "name_exists": "Dit kind heeft al een label met deze naam.",
       "name_invalid_chars": "De naam mag geen [ of ] bevatten.",
-      "guidelines_too_long": "De richtlijnen zijn te lang (maximaal 4000 tekens)."
+      "guidelines_too_long": "De richtlijnen zijn te lang (maximaal 4000 tekens).",
+      "user_in_both_roles": "Een gebruiker kan niet tegelijk leerling en ouder van hetzelfde kind zijn. Haal de gebruiker uit een van de lijsten.",
+      "invalid_daily_max": "Vul een getal in van 15 tot 480 in stappen van 15."
     },
     "abort": {
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",
@@ -431,12 +472,16 @@
         "date": {
           "name": "Datum",
           "description": "De geplande dag: vandaag of later, niet na de datum van het item. Standaard vandaag."
+        },
+        "minutes": {
+          "name": "Geschatte tijd",
+          "description": "De geschatte tijd in minuten: 5 tot 240 in stappen van 5. Laat weg als die onbekend is."
         }
       }
     },
     "update_homework_subtask": {
       "name": "Deelstap wijzigen",
-      "description": "Wijzigt de titel en/of de geplande datum van een deelstap.",
+      "description": "Wijzigt de titel, de geplande datum en/of de geschatte tijd van een deelstap.",
       "fields": {
         "subtask": {
           "name": "Deelstap",
@@ -449,6 +494,10 @@
         "date": {
           "name": "Datum",
           "description": "De nieuwe geplande dag: vandaag of later, niet na de datum van het item."
+        },
+        "minutes": {
+          "name": "Geschatte tijd",
+          "description": "De nieuwe geschatte tijd in minuten: 5 tot 240 in stappen van 5. Laat weg om de tijd te houden; leeg (null) verwijdert hem."
         }
       }
     },
