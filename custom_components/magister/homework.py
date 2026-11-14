@@ -41,6 +41,7 @@ from .api.homework import (
     item_uid,
     items_in_period,
     magister_info_type,
+    magister_label_option,
     magister_label_text,
     next_week_fits,
     parse_label_options,
@@ -77,6 +78,9 @@ ERR_LABEL_EXISTS: Final = "label_exists"
 ERR_LABEL_NOT_ON_APPOINTMENT: Final = "label_not_on_appointment"
 ERR_INVALID_DATE: Final = "invalid_date"
 ERR_NO_MAGISTER_LABEL: Final = "no_magister_label"
+# Invalid input: the WebSocket API reports both as ``invalid_format``.
+ERR_LABEL_REQUIRED: Final = "label_required"
+ERR_LABEL_IS_ORIGINAL: Final = "label_is_original"
 
 _SUBSCRIBERS: Final = f"{DOMAIN}_homework_subscribers"
 
@@ -378,9 +382,18 @@ class HomeworkManager:
     def label_in_use(self, child_id: int, label_id: str) -> bool:
         """Whether a present appointment has this manual label or replacement."""
         present = {self.uid_of(child_id, a.id) for a in self._appointments(child_id)}
+        # An override only counts while its appointment has a Magister label.
+        with_label = {
+            self.uid_of(child_id, a.id)
+            for a in self._appointments(child_id)
+            if magister_info_type(a) is not None
+        }
         return any(
             any(stored["id"] == label_id for stored in entry[LABELS])
-            or (entry.get(OVERRIDE) or {}).get("label") == label_id
+            or (
+                uid in with_label
+                and (entry.get(OVERRIDE) or {}).get("label") == label_id
+            )
             for uid, entry in self._progress.items()
             if uid in present
         )
@@ -413,17 +426,25 @@ class HomeworkManager:
     @callback
     def set_override(
         self, child_id: int, uid: str, override: Override | None
-    ) -> HomeworkItem:
-        """Replace, disable (or with ``None`` restore) the Magister label of an item."""
+    ) -> HomeworkItem | None:
+        """Replace, disable (or with ``None`` restore) the Magister label of an item.
+
+        Restoring also removes a stored override of an appointment that lost its
+        Magister label; the result is ``None`` when the appointment is then not in the
+        planner. Replacing or disabling needs a Magister label.
+        """
         appointment = self.find_appointment(child_id, uid)
         if appointment is None:
             raise LabelError(ERR_APPOINTMENT_NOT_FOUND)
-        if magister_info_type(appointment) is None:
-            raise LabelError(ERR_NO_MAGISTER_LABEL)
+        info_type = magister_info_type(appointment)
         stored: dict[str, str] | None = None
         if override is not None:
+            if info_type is None:
+                raise LabelError(ERR_NO_MAGISTER_LABEL)
             stored = {"mode": override.mode}
             if override.label is not None:
+                if override.label.id == magister_label_option(info_type).id:
+                    raise LabelError(ERR_LABEL_IS_ORIGINAL)
                 stored["label"] = override.label.id
         entry = self._progress.get(uid)
         if (entry.get(OVERRIDE) if entry else None) != stored:
@@ -436,9 +457,7 @@ class HomeworkManager:
                     entry = self._progress[uid] = _blank_entry()
                 entry[OVERRIDE] = stored
             self._labels_changed()
-        item = self.find_item(child_id, uid)
-        assert item is not None
-        return item
+        return self.find_item(child_id, uid)
 
     @callback
     def add_label(

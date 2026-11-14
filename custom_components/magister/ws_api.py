@@ -34,6 +34,8 @@ from homeassistant.helpers import config_validation as cv
 from .api.homework import MODE_CLEAR, MODE_DISABLE, MODE_REPLACE
 from .homework import (
     ERR_INVALID_DATE,
+    ERR_LABEL_IS_ORIGINAL,
+    ERR_LABEL_REQUIRED,
     LabelError,
     async_subscribe,
     note_text,
@@ -52,6 +54,7 @@ ERR_NOT_FOUND = "not_found"
 ERR_ITEM_NOT_FOUND = "item_not_found"
 ERR_ITEM_DISABLED = "item_disabled"
 ERR_INVALID_FORMAT = "invalid_format"
+INVALID_INPUT = frozenset({ERR_LABEL_REQUIRED, ERR_LABEL_IS_ORIGINAL})
 
 
 @callback
@@ -239,17 +242,11 @@ def websocket_set_override(
     entity = _controlled_entity(hass, connection, msg)
     if entity is None:
         return
-    if msg["mode"] == MODE_REPLACE and "label" not in msg:
-        connection.send_error(
-            msg["id"], ERR_INVALID_FORMAT, "mode replace needs a label"
-        )
-        return
     try:
         item = entity.set_override(msg["appointment"], msg["mode"], msg.get("label"))
     except LabelError as err:
-        connection.send_error(
-            msg["id"], err.code, f"Cannot set the override: {err.code}"
-        )
+        code = ERR_INVALID_FORMAT if err.code in INVALID_INPUT else err.code
+        connection.send_error(msg["id"], code, f"Cannot set the override: {err.code}")
         return
     connection.send_result(msg["id"], {"item": item})
 

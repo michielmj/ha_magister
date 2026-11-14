@@ -286,12 +286,14 @@ async def test_set_override_errors(
     assert (
         await code(await override(client, NO_LABEL, "disable")) == "no_magister_label"
     )
-    assert await code(await override(client, NO_LABEL, "clear")) == "no_magister_label"
     assert (
         await code(await override(client, HOMEWORK, "replace", label="nope"))
         == "label_not_found"
     )
     assert await code(await override(client, HOMEWORK, "replace")) == "invalid_format"
+    # replacing with the original's own default label
+    own = await override(client, PROEFWERK, "replace", label="default_test")
+    assert await code(own) == "invalid_format"
     assert await code(await override(client, HOMEWORK, "bogus")) == "invalid_format"
     await client.send_json_auto_id(
         {
@@ -440,7 +442,8 @@ async def test_service_errors(hass: HomeAssistant, mocked: aioresponses) -> None
         (1, "disable", None, "homework_appointment_not_found"),
         (NO_LABEL, "disable", None, "homework_no_magister_label"),
         (HOMEWORK, "replace", "nope", "homework_label_not_found"),
-        (HOMEWORK, "replace", None, "homework_label_not_found"),
+        (HOMEWORK, "replace", None, "homework_label_required"),
+        (PROEFWERK, "replace", "default_test", "homework_label_is_original"),
     ):
         with pytest.raises(ServiceValidationError) as err:
             await override_service(hass, appointment, mode, label)
@@ -580,3 +583,61 @@ async def test_diagnostics_count_overrides_per_mode(
     stats = diagnostics["children"][0]["homework"]
     assert stats["overrides"] == {"replace": 1, "disable": 2}
     assert "Toetsweek" not in str(diagnostics)
+
+
+async def test_clear_is_not_blocked_by_a_lost_magister_label(
+    hass: HomeAssistant,
+    mocked: aioresponses,
+    hass_ws_client: WebSocketGenerator,
+) -> None:
+    """A stored override of an appointment without a Magister label is not stuck."""
+    fake, entry = await setup_homework(hass, mocked, options=OPTIONS)
+    manager = entry.runtime_data.homework
+    client = await hass_ws_client(hass)
+    # clear without any override, on an appointment without a Magister label
+    response = await override(client, NO_LABEL, "clear")
+    assert response["success"] and response["result"] == {"item": None}
+    await override_service(hass, HOMEWORK, "replace", "ex")
+    assert manager.label_in_use(CHILD_ID, "ex")
+    for appointment in fake.appointments[CHILD_ID]:
+        if appointment["Id"] == HOMEWORK:
+            appointment["InfoType"] = 0  # Magister dropped the label
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    assert manager.find_item(CHILD_ID, uid(HOMEWORK)) is None
+    # the ignored override no longer blocks deleting its option
+    assert not manager.label_in_use(CHILD_ID, "ex")
+    result = await _labels_action(hass, await _open_labels(hass, entry), "label_delete")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"label": "ex"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    # replacing needs a Magister label; clearing does not
+    assert (await override(client, HOMEWORK, "replace", label="tw"))["error"][
+        "code"
+    ] == ("no_magister_label")
+    manager.set_override(CHILD_ID, uid(HOMEWORK), None)
+    assert manager.stored_entries == 0
+
+
+async def test_clear_removes_a_stuck_override_and_returns_the_item(
+    hass: HomeAssistant,
+    mocked: aioresponses,
+    hass_ws_client: WebSocketGenerator,
+) -> None:
+    """clear deletes a stored override without a Magister label; the item may remain."""
+    fake, entry = await setup_homework(hass, mocked, options=OPTIONS)
+    manager = entry.runtime_data.homework
+    client = await hass_ws_client(hass)
+    await label_service(hass, "add_homework_label", HOMEWORK, "ex")
+    await override_service(hass, HOMEWORK, "disable")
+    for appointment in fake.appointments[CHILD_ID]:
+        if appointment["Id"] == HOMEWORK:
+            appointment["InfoType"] = 0
+    await entry.runtime_data.coordinator.async_refresh()
+    await hass.async_block_till_done()
+    response = await override(client, HOMEWORK, "clear")
+    item = response["result"]["item"]
+    assert item["override"] is None and item["info_type"] is None
+    assert [label["id"] for label in item["manual_labels"]] == ["ex"]
+    assert manager.stored_entries == 1  # the manual label stays

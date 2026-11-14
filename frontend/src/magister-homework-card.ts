@@ -522,11 +522,12 @@ export class MagisterHomeworkCard extends LitElement {
       });
       if (this._overrideTokens.get(uid) !== token) return;
       this._overrideTokens.delete(uid);
-      const confirmed = overrideFieldsOf(result.item);
-      const current = this._payload.items.find((candidate) => candidate.uid === uid);
       const next = new Map(this._overrideOverlay);
+      const current = this._payload.items.find((candidate) => candidate.uid === uid);
       // The push usually arrives first; otherwise keep the confirmed state until it does.
-      if (current && hasOverrideFields(current, confirmed)) next.delete(uid);
+      // No item in the answer: nothing to keep.
+      const confirmed = result.item ? overrideFieldsOf(result.item) : undefined;
+      if (!confirmed || (current && hasOverrideFields(current, confirmed))) next.delete(uid);
       else next.set(uid, confirmed);
       this._overrideOverlay = next;
     } catch (error) {

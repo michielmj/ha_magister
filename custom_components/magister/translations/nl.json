@@ -127,6 +127,12 @@
     },
     "homework_no_magister_label": {
       "message": "Deze afspraak heeft geen Magister-label (Huiswerk, Proefwerk, Tentamen, SO of MO) om te vervangen of uit te schakelen."
+    },
+    "homework_label_required": {
+      "message": "Kies een label om het Magister-label mee te vervangen."
+    },
+    "homework_label_is_original": {
+      "message": "Het Magister-label kan niet door zichzelf worden vervangen. Kies een ander label, of herstel het origineel."
     }
   },
   "options": {

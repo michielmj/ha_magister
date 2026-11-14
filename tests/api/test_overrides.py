@@ -31,7 +31,7 @@ TEST = LabelOption("default_test", "Proefwerk", "test")
 EXTRA = LabelOption("ex", "Extra", "homework")
 TOETS = LabelOption("tw", "Toetsweek", "test")
 WEIGHTS = Weights(
-    types={"homework": 1.0, "test": 3.0},
+    types={"homework": 1.5, "test": 3.0},
     labels={"ex": 2.0, "tw": 5.0},
     subjects={"wiskunde": 2.0},
 )
@@ -66,7 +66,7 @@ def item(
     ("info_type", "override", "labels", "active", "disabled", "is_test", "weight"),
     [
         # no override: the original label
-        (1, None, (), ["default_homework"], False, False, 1.0),
+        (1, None, (), ["default_homework"], False, False, 1.5),
         (2, None, (), ["default_test"], False, True, 3.0),
         # replaced: weights, kind and test highlight follow the replacement
         (
@@ -76,7 +76,7 @@ def item(
             ["default_homework"],
             False,
             False,
-            1.0,
+            1.5,
         ),
         (1, Override(MODE_REPLACE, TOETS), (), ["tw"], False, True, 5.0),
         # replacement plus manual labels: the maximum

@@ -127,6 +127,12 @@
     },
     "homework_no_magister_label": {
       "message": "This appointment has no Magister label (Huiswerk, Proefwerk, Tentamen, SO or MO) to replace or disable."
+    },
+    "homework_label_required": {
+      "message": "Choose a label to replace the Magister label with."
+    },
+    "homework_label_is_original": {
+      "message": "The Magister label cannot be replaced by itself. Choose another label, or restore the original."
     }
   },
   "options": {

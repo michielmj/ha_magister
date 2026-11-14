@@ -51,6 +51,7 @@ from .coordinator import MagisterConfigEntry, MagisterCoordinator
 from .entity import MagisterMidnightEntity
 from .homework import (
     ERR_LABEL_NOT_FOUND,
+    ERR_LABEL_REQUIRED,
     HomeworkManager,
     LabelError,
     Payload,
@@ -339,17 +340,17 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
     @callback
     def set_override(
         self, appointment: str, mode: str, label: str | None, *, by_name: bool = False
-    ) -> Payload:
-        """Replace, disable or restore the Magister label; returns the item."""
+    ) -> Payload | None:
+        """Replace, disable or restore the label; returns the item or ``None``."""
         override: Override | None = None
         if mode == MODE_REPLACE:
             if label is None:
-                raise LabelError(ERR_LABEL_NOT_FOUND)
+                raise LabelError(ERR_LABEL_REQUIRED)
             override = Override(MODE_REPLACE, self.label_option(label, by_name=by_name))
         elif mode == MODE_DISABLE:
             override = Override(MODE_DISABLE)
         item = self._manager.set_override(self._child_id, appointment, override)
-        return item_dict(self._manager, item)
+        return item_dict(self._manager, item) if item else None
 
     @callback
     def appointments(self, day: date) -> list[Payload]:

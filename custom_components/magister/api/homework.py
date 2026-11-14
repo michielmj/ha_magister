@@ -84,14 +84,17 @@ class ManualLabel:
     added: str
 
 
+def magister_label_option(info_type: int) -> LabelOption:
+    """The Magister label of an InfoType 1-5 as a (default) label option."""
+    key, name = HOMEWORK_TYPES[info_type]
+    return LabelOption(
+        f"default_{key}", name, KIND_HOMEWORK if info_type == 1 else KIND_TEST
+    )
+
+
 def default_label_options() -> list[LabelOption]:
     """The five Magister names with their kinds (the default label options)."""
-    return [
-        LabelOption(
-            f"default_{key}", label, KIND_HOMEWORK if info_type == 1 else KIND_TEST
-        )
-        for info_type, (key, label) in HOMEWORK_TYPES.items()
-    ]
+    return [magister_label_option(info_type) for info_type in HOMEWORK_TYPES]
 
 
 def default_label_type_key(label_id: str) -> str | None:
@@ -173,14 +176,6 @@ class EffectiveState:
     disabled: bool
     is_test: bool
     weight: float
-
-
-def magister_label_option(info_type: int) -> LabelOption:
-    """The Magister label of an InfoType 1-5 as a (default) label option."""
-    key, name = HOMEWORK_TYPES[info_type]
-    return LabelOption(
-        f"default_{key}", name, KIND_HOMEWORK if info_type == 1 else KIND_TEST
-    )
 
 
 def magister_label_text(item: HomeworkItem) -> str | None:

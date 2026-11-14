@@ -291,6 +291,14 @@ describe("replacing a label", () => {
     expect(root(card).querySelector("li.test")).not.toBeNull();
   });
 
+  it("drops the optimistic state when the answer has no item", async () => {
+    const callWS = vi.fn().mockResolvedValue({ item: null });
+    const { card } = await setup([proefwerk()], { callWS });
+    await choose(card, "Huiswerk");
+    expect(root(card).querySelector(".chip.manual")).toBeNull();
+    expect(root(card).querySelector(".toast")).toBeNull();
+  });
+
   it("ignores the answer of an older request after a newer one", async () => {
     const resolvers: ((value: unknown) => void)[] = [];
     const callWS = vi.fn().mockImplementation(

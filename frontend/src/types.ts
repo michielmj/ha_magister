@@ -91,7 +91,8 @@ export interface SetProgressResult {
 }
 
 export interface SetOverrideResult {
-  item: HomeworkItem;
+  /** Null when the appointment is not in the planner any more. */
+  item: HomeworkItem | null;
 }
 
 export type CardLanguage = "auto" | "nl" | "en";
