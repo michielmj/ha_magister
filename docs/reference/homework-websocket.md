@@ -246,7 +246,8 @@ tool errors are `{"error": <code>, "message": ...}`. Changes in 1.7.0:
   the effective label (the replacement when the label is overridden). Items of a cancelled lesson are listed only
   under `cancelled` (their `cancelled` is `true`) and are not counted in `tests`, `assignments` or `open_items`;
   `open_items` is the number of the items in `tests` and `assignments` not completed; `planned_minutes` the sum
-  of `minutes` of the subtasks whose current `date` is that day, done or not.
+  of `minutes` of the subtasks whose current `date` is that day, done or not; this includes the subtasks of cancelled
+  items.
 - `list_homework`, `get_progress` and the write tools return subtasks with `minutes` and `created_by`. `add_subtask` and
   `update_subtask` accept `minutes` (error `invalid_minutes`; `null` clears on update). Subtasks made through the coach get
   `created_by` `"parent"` for the Ouder role and `"ai"` for the Leerling role.

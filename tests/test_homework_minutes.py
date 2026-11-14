@@ -61,6 +61,8 @@ def test_daily_max_is_read_leniently() -> None:
     assert all(
         clean_daily_max(v) == 90 for v in (True, "120", 100.5, [], {}, float("inf"))
     )
+    assert clean_daily_max(10**400) == 480
+    assert clean_daily_max(-(10**400)) == 15
     assert Weights.from_options({"daily_max_minutes": 135}).daily_max_minutes == 135
     assert Weights.from_options({"types": {}}).daily_max_minutes == 90
     assert Weights.from_options(None).daily_max_minutes == 90

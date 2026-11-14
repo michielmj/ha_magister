@@ -21,7 +21,8 @@ Parent study planner (backend, M11 phase A). The card and the README follow in p
   `created_by: "parent"`; the parent's AI cannot set progress (`not_allowed_for_role`, nothing written or logged).
   Parent writes show as "Ouder via AI: …" in the logbook.
 - Downgrading to 1.6.0 drops the estimated times and shows parent subtasks as added by the user. 1.6.0 keeps the
-  student links; parents have no access in 1.6.0, and saving a child's coach settings in 1.6.0 removes its parents.
+  student links; parents have no access in 1.6.0, and saving a child's coach settings in 1.6.0 removes its parents. Saving a child's weights in 1.6.0 drops its daily
+  maximum, so the default of 90 applies after upgrading again.
 
 ## 1.6.0
 

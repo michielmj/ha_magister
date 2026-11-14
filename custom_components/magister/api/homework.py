@@ -98,7 +98,8 @@ def clean_daily_max(value: Any) -> int:
         return DAILY_MAX_DEFAULT
     if isinstance(value, float) and not value.is_integer():
         return DAILY_MAX_DEFAULT
-    stepped = round(int(value) / DAILY_MAX_STEP) * DAILY_MAX_STEP
+    # Integer arithmetic: a huge value must not overflow (no float division).
+    stepped = (int(value) + DAILY_MAX_STEP // 2) // DAILY_MAX_STEP * DAILY_MAX_STEP
     return min(max(stepped, DAILY_MAX_MIN), DAILY_MAX_MAX)
 
 

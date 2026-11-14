@@ -9,6 +9,7 @@ import re
 from types import MappingProxyType
 from typing import Any
 
+import probatio
 import pytest
 from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
@@ -200,6 +201,18 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
     assert tools["remove_label"].annotations.destructive
     assert not tools["add_subtask"].annotations.idempotent
     assert tools["set_progress"].annotations.idempotent
+
+
+async def test_minutes_schema_is_integer_or_null(hass: HomeAssistant) -> None:
+    """MCP shows ``minutes`` as integer or null; the shared check decides at runtime."""
+    tools = {t.name: t for t in coach_tools()}
+    for name in ("add_subtask", "update_subtask"):
+        # As the MCP server of Home Assistant converts it.
+        schema = probatio.to_openapi(tools[name].parameters, openapi_version="3.1.0")
+        minutes = dict(schema["properties"]["minutes"])
+        minutes.pop("description")
+        assert minutes == {"anyOf": [{"type": "integer"}, {"type": "null"}]}, name
+        assert "minutes" not in schema.get("required", [])
 
 
 # -- access -----------------------------------------------------------------------
@@ -760,6 +773,35 @@ async def test_children_of_other_users_are_not_in_the_prompt(
     assert DEFAULT_GUIDELINES not in api.api_prompt
 
 
+async def test_shared_default_guidelines_do_not_name_other_users_children(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Two users, both children on the default text: each prompt names only its own."""
+    anna, bram = await make_user(hass, "Anna"), await make_user(hass, "Bram")
+    both = await make_user(hass, "Beide")
+    await setup_coach(
+        hass,
+        mocked,
+        coach_options(
+            **{
+                "1001": {"enabled": True, "users": [anna.id, both.id]},
+                "1002": {"enabled": True, "users": [bram.id, both.id]},
+            }
+        ),
+        two=True,
+    )
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(anna.id))
+    assert f"Coaching guidelines (for Anna (id 1001)):\n{DEFAULT_GUIDELINES}" in (
+        api.api_prompt
+    )
+    assert "Bram" not in api.api_prompt
+    assert "1002" not in api.api_prompt
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(both.id))
+    title = "Coaching guidelines (for Anna (id 1001), Bram (id 1002)):"
+    assert f"{title}\n{DEFAULT_GUIDELINES}" in api.api_prompt
+    assert api.api_prompt.count(DEFAULT_GUIDELINES) == 1
+
+
 # -- prompt -----------------------------------------------------------------------
 
 
@@ -809,8 +851,11 @@ async def test_custom_guidelines_and_two_children(
         two=True,
     )
     api = await llm.async_get_api(hass, COACH_API_ID, llm_context(parent.id))
-    assert "Coaching guidelines (for Anna):\nKort." in api.api_prompt
-    assert f"Coaching guidelines (for Bram):\n{DEFAULT_GUIDELINES}" in api.api_prompt
+    assert "Coaching guidelines (for Anna (id 1001)):\nKort." in api.api_prompt
+    assert (
+        f"Coaching guidelines (for Bram (id 1002)):\n{DEFAULT_GUIDELINES}"
+        in api.api_prompt
+    )
     assert "Always pass `child`" in api.api_prompt
 
 

@@ -808,7 +808,10 @@ async def test_prompt_per_role(hass: HomeAssistant, family: Family) -> None:
     assert "Daily maximum: 90 study minutes per school day." in prompt
     assert "Daily maximum: 150 study minutes per school day." in prompt
     # One text for both children: emitted once.
-    assert "Parent guidelines (for Anna, Bram):\nKort en bondig." in prompt
+    assert (
+        "Parent guidelines (for Anna (id 1001), Bram (id 1002)):\nKort en bondig."
+        in prompt
+    )
     assert prompt.count("Kort en bondig.") == 1
     assert "get_overview" in prompt
     assert "within the child's daily maximum" in prompt
@@ -820,7 +823,7 @@ async def test_prompt_per_role(hass: HomeAssistant, family: Family) -> None:
     prompt = api.api_prompt
     assert "You coach the student (role Leerling) Anna (id 1001)." in prompt
     assert "Daily maximum: 90 study minutes per school day." in prompt
-    assert "Coaching guidelines (for Anna):\n" + DEFAULT_GUIDELINES in prompt
+    assert "Coaching guidelines (for Anna (id 1001)):\n" + DEFAULT_GUIDELINES in prompt
     assert "Kort en bondig." not in prompt
     assert "Parent guidelines" not in prompt
     assert "get_overview" in prompt

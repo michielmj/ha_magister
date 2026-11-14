@@ -571,10 +571,16 @@ def _schema(fields: dict[Any, Any]) -> probatio.Schema:
     return probatio.Schema({**_child_field(), **fields})
 
 
-# int/None is the hint for MCP; ``object`` lets any value through to the shared minutes
-# check, so the answer is the same as in the WebSocket API (30.0 is fine, "x" is
-# ``invalid_minutes``).
-_MINUTES: Final = probatio.Any(int, None, object)
+def _minutes(value: int | None) -> Any:
+    """Pass any value through to the shared minutes check.
+
+    The hint ``int | None`` is what MCP shows; the answer is the same as in the
+    WebSocket API (30.0 is fine, "x" is ``invalid_minutes``).
+    """
+    return value
+
+
+_MINUTES: Final = _minutes
 _MINUTES_HELP: Final = "Estimated time in minutes: 5 to 240 in steps of 5."
 
 READ_ONLY = llm.ToolAnnotations(
@@ -1191,7 +1197,9 @@ def build_prompt(today: date, children: list[CoachChild], time_zone: str) -> str
         texts: dict[str, list[str]] = {}
         for child in children:
             if child.is_parent is kind:
-                texts.setdefault(child.guidelines, []).append(child.name)
+                texts.setdefault(child.guidelines, []).append(
+                    f"{child.name} (id {child.id})"
+                )
         for text, names in texts.items():
             lines += ["", f"{title} (for {', '.join(names)}):", text]
     return "\n".join(lines)
