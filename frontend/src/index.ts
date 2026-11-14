@@ -1,4 +1,5 @@
 import { MagisterHomeworkCardEditor } from "./editor";
+import { MagisterLabelDialog } from "./label-dialog";
 import { MagisterHomeworkCard } from "./magister-homework-card";
 
 declare global {
@@ -15,6 +16,9 @@ declare global {
 
 if (!customElements.get("magister-homework-card")) {
   customElements.define("magister-homework-card", MagisterHomeworkCard);
+}
+if (!customElements.get("magister-label-dialog")) {
+  customElements.define("magister-label-dialog", MagisterLabelDialog);
 }
 if (!customElements.get("magister-homework-card-editor")) {
   customElements.define("magister-homework-card-editor", MagisterHomeworkCardEditor);

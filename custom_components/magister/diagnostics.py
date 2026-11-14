@@ -15,6 +15,7 @@ from .const import (
     CONF_CHILDREN,
     CONF_EXCLUDED,
     CONF_HOST,
+    CONF_LABELS,
     CONF_OFFSET,
     CONF_TOTP_SECRET,
     CONF_WEIGHTS,
@@ -77,8 +78,13 @@ async def async_get_config_entry_diagnostics(
         "entry": {
             "account_type": _account_type(entry),
             "number_of_children": len(entry.data[CONF_CHILDREN]),
-            # Weights are keyed by child id and subject: only their counts are shown.
-            "options": {k: v for k, v in entry.options.items() if k != CONF_WEIGHTS},
+            # Weights and labels are keyed by child id and carry subjects and names:
+            # only their counts are shown (see the homework statistics).
+            "options": {
+                k: v
+                for k, v in entry.options.items()
+                if k not in (CONF_WEIGHTS, CONF_LABELS)
+            },
         },
         "children": children,
         "homework_store": {"stored_entries": runtime.homework.stored_entries},

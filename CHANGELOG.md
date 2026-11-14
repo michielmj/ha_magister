@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 1.3.0
+
+Next school day, manual labels and card switches.
+
+- **Periods.** School days are Monday to Friday. The "tomorrow" sensor is now **next school day**:
+  all of today's items plus the next school day's (on Friday, Saturday and Sunday that is Monday).
+  **This week** is Saturday to Friday (on a Saturday it is the coming school week) and **next
+  week** the following Saturday to Friday. Existing unique ids are kept, so entity ids and history
+  stay; only the display name changed. The WebSocket `progress` key `tomorrow` is now `next_day`.
+- **Manual labels.** Per child, under *Configure > Labels*, you manage label options (name and kind
+  homework or test; the list starts with the five Magister names; a label in use cannot be
+  deleted). Labels can be put on any lesson in the fetched window with an optional note and
+  removed again (only manual labels). They count in the progress (weights per label, the highest
+  label weight of an item is used), make a test-kind item a test, and appear in calendar titles
+  after the Magister label. New services `magister.add_homework_label` and
+  `magister.remove_homework_label`; new WebSocket commands `appointments`, `add_label` and
+  `remove_label` (`docs/reference/homework-websocket.md`).
+- **Homework planner card.** Header switches for *Done* and *Earlier* (remembered per browser), a
+  `language` option (`auto`, `nl`, `en`), a **+** button with a dialog to add a label to a lesson,
+  manual label chips with a note and a confirmed **×** to remove them, and the editor label
+  "Show next school day progress" (the `show_progress_tomorrow` key is unchanged).
+- **Store migration.** The progress store moves to schema v2 (manual labels). Upgrading migrates it
+  automatically. Downgrading to 1.2.0 keeps the progress but loses the manual labels.
+
 ## 1.2.0
 
 Progress bars on the card and a to-do count that ignores past homework.

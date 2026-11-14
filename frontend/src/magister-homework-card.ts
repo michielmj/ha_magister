@@ -1,28 +1,43 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import {
   STEPS,
+  applyLabelRemovals,
   applyOverlay,
+  dateBounds,
   filterItems,
   formatDay,
   groupByDay,
+  labelKey,
+  loadSwitches,
   PROGRESS_PERIODS,
   barPercent,
   normalizeConfig,
   optimisticOverlay,
+  saveSwitches,
   snapToStep,
+  storageKey,
   todayIso,
   toggleTarget,
   type DayGroup,
   type NormalizedConfig,
   type Overlay,
 } from "./logic";
-import { format, languageOf, textsFor, typeLabel, type Texts } from "./translations";
+import "./label-dialog";
+import {
+  TRANSLATIONS,
+  effectiveLanguage,
+  format,
+  typeLabel,
+  type Language,
+  type Texts,
+} from "./translations";
 import type {
   CardConfig,
   Hass,
   HassConnection,
   HomeworkItem,
   HomeworkPayload,
+  ManualLabel,
   SetProgressResult,
   Unsubscribe,
   WsError,
@@ -30,6 +45,7 @@ import type {
 
 const SUBSCRIBE = "magister/homework/subscribe";
 const SET_PROGRESS = "magister/homework/set_progress";
+const REMOVE_LABEL = "magister/homework/remove_label";
 const TOAST_MS = 6000;
 /** Retry of a failed subscribe: 30 s, doubling, at most 10 minutes. */
 const RETRY_START_MS = 30_000;
@@ -57,6 +73,11 @@ export class MagisterHomeworkCard extends LitElement {
     _overlay: { state: true },
     _expanded: { state: true },
     _toast: { state: true },
+    _showCompleted: { state: true },
+    _showPast: { state: true },
+    _hiddenLabels: { state: true },
+    _confirm: { state: true },
+    _dialogOpen: { state: true },
   };
 
   declare _payload: HomeworkPayload | undefined;
@@ -65,6 +86,16 @@ export class MagisterHomeworkCard extends LitElement {
   declare _overlay: ReadonlyMap<string, Overlay>;
   declare _expanded: ReadonlySet<string>;
   declare _toast: string;
+  declare _showCompleted: boolean;
+  declare _showPast: boolean;
+  /** Manual labels being removed (hidden at once; shown again if the removal fails). */
+  declare _hiddenLabels: ReadonlySet<string>;
+  /** The manual label waiting for its remove confirmation. */
+  declare _confirm: { uid: string; label: ManualLabel } | undefined;
+  declare _dialogOpen: boolean;
+
+  private _storageKey = "";
+  private readonly _removing = new Set<string>();
 
   private _config: NormalizedConfig | undefined;
   private _hass: Hass | undefined;
@@ -99,6 +130,11 @@ export class MagisterHomeworkCard extends LitElement {
     this._overlay = new Map();
     this._expanded = new Set();
     this._toast = "";
+    this._showCompleted = false;
+    this._showPast = false;
+    this._hiddenLabels = new Set();
+    this._confirm = undefined;
+    this._dialogOpen = false;
   }
 
   // -- Home Assistant card API --
@@ -126,9 +162,18 @@ export class MagisterHomeworkCard extends LitElement {
       this._expanded = new Set();
       this._tokens.clear();
       this._touched.clear();
+      this._hiddenLabels = new Set();
+      this._removing.clear();
+      this._confirm = undefined;
+      this._dialogOpen = false;
       this._retryDelay = RETRY_START_MS;
     }
     this._config = next;
+    // The remembered switches of this card; a changed config has another key and so starts over.
+    this._storageKey = storageKey(next);
+    const remembered = loadSwitches(this._storageKey);
+    this._showCompleted = remembered?.show_completed ?? next.show_completed;
+    this._showPast = remembered?.show_past ?? next.show_past;
     this.requestUpdate();
     this._ensureSubscription();
   }
@@ -264,6 +309,8 @@ export class MagisterHomeworkCard extends LitElement {
       if (this._tokens.has(uid)) kept.set(uid, overlay);
     }
     this._overlay = kept;
+    // Removals that were confirmed are in the pushed state; those in flight stay hidden.
+    this._hiddenLabels = new Set([...this._hiddenLabels].filter((key) => this._removing.has(key)));
   }
 
   // -- progress --
@@ -323,14 +370,98 @@ export class MagisterHomeworkCard extends LitElement {
     this._expanded = next;
   }
 
+  // -- manual labels --
+
+  private _askRemove(uid: string, label: ManualLabel): void {
+    this._confirm = { uid, label };
+    void this.updateComplete.then(() => {
+      this.shadowRoot?.querySelector<HTMLElement>(".confirm .cancel")?.focus();
+    });
+  }
+
+  private _cancelRemove(): void {
+    const confirm = this._confirm;
+    this._confirm = undefined;
+    if (!confirm) return;
+    void this.updateComplete.then(() => {
+      this.shadowRoot
+        ?.querySelector<HTMLElement>(`[data-key="${CSS.escape(labelKey(confirm.uid, confirm.label.id))}"]`)
+        ?.focus();
+    });
+  }
+
+  private async _removeLabel(uid: string, label: ManualLabel): Promise<void> {
+    const hass = this._hass;
+    const entity = this._config?.entity;
+    this._confirm = undefined;
+    if (!hass || !entity) return;
+    const key = labelKey(uid, label.id);
+    this._removing.add(key);
+    this._hiddenLabels = new Set(this._hiddenLabels).add(key);
+    // The focused × or confirm button is gone now: the next chip, else the item's
+    // checkbox, else the + button.
+    void this.updateComplete.then(() => {
+      const row = this.shadowRoot?.querySelector(`li[data-uid="${CSS.escape(uid)}"]`);
+      const target =
+        row?.querySelector<HTMLElement>(".chip-remove:not(:disabled)") ??
+        row?.querySelector<HTMLElement>('input[type="checkbox"]') ??
+        this.shadowRoot?.querySelector<HTMLElement>(".add");
+      target?.focus();
+    });
+    try {
+      await hass.callWS({ type: REMOVE_LABEL, entity_id: entity, appointment: uid, label: label.id });
+      this._removing.delete(key);
+    } catch (error) {
+      this._removing.delete(key);
+      const code = (error as WsError | undefined)?.code;
+      // The label is already gone from the lesson: that is what was asked for.
+      if (code === "label_not_on_appointment") return;
+      const next = new Set(this._hiddenLabels);
+      next.delete(key);
+      this._hiddenLabels = next;
+      const texts = this._texts();
+      this._showToast(
+        (code ? texts.label_errors[code] : undefined) ?? texts.save_failed,
+      );
+    }
+  }
+
+  private _closeDialog = (): void => {
+    this._dialogOpen = false;
+    void this.updateComplete.then(() => {
+      this.shadowRoot?.querySelector<HTMLElement>(".add")?.focus();
+    });
+  };
+
   // -- view model --
 
-  private _language(): string {
-    return this._hass?.locale?.language ?? this._hass?.language ?? "en";
+  /** The card's language: the `language` option, or the Home Assistant language. */
+  private _language(): Language {
+    return effectiveLanguage(
+      this._config?.language,
+      this._hass?.locale?.language ?? this._hass?.language,
+    );
   }
 
   private _texts(): Texts {
-    return textsFor(this._language());
+    return TRANSLATIONS[this._language()];
+  }
+
+  private _items(): HomeworkItem[] {
+    if (!this._payload) return [];
+    return applyLabelRemovals(
+      applyOverlay(this._payload.items, this._overlay),
+      this._hiddenLabels,
+    );
+  }
+
+  private _setSwitch(name: "show_completed" | "show_past", value: boolean): void {
+    if (name === "show_completed") this._showCompleted = value;
+    else this._showPast = value;
+    saveSwitches(this._storageKey, {
+      show_completed: this._showCompleted,
+      show_past: this._showPast,
+    });
   }
 
   /** Today in the Home Assistant time zone; no side effects. */
@@ -347,9 +478,9 @@ export class MagisterHomeworkCard extends LitElement {
   private _visibleItems(): HomeworkItem[] {
     const config = this._config;
     if (!config || !this._payload) return [];
-    return filterItems(applyOverlay(this._payload.items, this._overlay), {
-      showCompleted: config.show_completed,
-      showPast: config.show_past,
+    return filterItems(this._items(), {
+      showCompleted: this._showCompleted,
+      showPast: this._showPast,
       daysAhead: config.days_ahead,
       today: this._today(),
       keep: this._touched,
@@ -359,10 +490,17 @@ export class MagisterHomeworkCard extends LitElement {
   private _dayTitle(group: DayGroup, texts: Texts): string {
     if (group.kind === "today") return texts.today;
     if (group.kind === "tomorrow") return texts.tomorrow;
-    return formatDay(group.date, languageOf(this._language()) === "nl" ? "nl" : "en-GB");
+    return formatDay(group.date, this._language() === "nl" ? "nl" : "en-GB");
   }
 
   // -- rendering --
+
+  protected override willUpdate(): void {
+    // A removal can no longer be confirmed while the card is read-only.
+    if (this._confirm && (this._offline || this._payload?.available !== true)) {
+      this._confirm = undefined;
+    }
+  }
 
   protected override render(): TemplateResult {
     const config = this._config;
@@ -377,6 +515,7 @@ export class MagisterHomeworkCard extends LitElement {
             }}>${texts.dismiss}</button>
           </div>`
         : nothing}
+      ${this._renderDialog(texts)}
     </ha-card>`;
   }
 
@@ -388,7 +527,7 @@ export class MagisterHomeworkCard extends LitElement {
     const enabled = available && !this._offline;
     const groups = groupByDay(this._visibleItems(), this._today());
     const bars = this._renderBars(texts, this._offline);
-    const banners = html`${bars}${!available
+    const banners = html`${this._renderToolbar(texts, enabled)}${bars}${!available
       ? html`<p class="banner" role="status">${texts.unavailable}</p>`
       : nothing}${this._offline
       ? html`<p class="banner" role="status">${texts.offline}</p>`
@@ -414,6 +553,61 @@ export class MagisterHomeworkCard extends LitElement {
           `,
         )}
       </div>`;
+  }
+
+  private _renderToolbar(texts: Texts, enabled: boolean): TemplateResult {
+    const labels = this._payload?.labels ?? [];
+    const canAdd = enabled && labels.length > 0;
+    const toggle = (
+      name: "show_completed" | "show_past",
+      pressed: boolean,
+      text: string,
+      tip: string,
+    ): TemplateResult => html`<button
+      type="button"
+      class="switch ${pressed ? "on" : ""}"
+      aria-pressed=${pressed ? "true" : "false"}
+      title=${tip}
+      aria-label=${tip}
+      @click=${() => {
+        this._setSwitch(name, !pressed);
+      }}
+    ><span aria-hidden="true" class="tick">${pressed ? "✓" : ""}</span>${text}</button>`;
+    return html`<div class="toolbar" role="toolbar" aria-label=${texts.switches_label}>
+      ${toggle("show_completed", this._showCompleted, texts.show_completed_switch, texts.show_completed_tip)}
+      ${toggle("show_past", this._showPast, texts.show_past_switch, texts.show_past_tip)}
+      ${canAdd
+        ? html`<button
+            type="button"
+            class="add"
+            title=${texts.add_label}
+            aria-label=${texts.add_label}
+            aria-haspopup="dialog"
+            @click=${() => {
+              this._dialogOpen = true;
+            }}
+          >+</button>`
+        : nothing}
+    </div>`;
+  }
+
+  private _renderDialog(texts: Texts): TemplateResult | typeof nothing {
+    const payload = this._payload;
+    const config = this._config;
+    if (!this._dialogOpen || !payload || !config) return nothing;
+    const today = this._currentDay();
+    const bounds = dateBounds(payload.items, today, config.days_ahead);
+    return html`<magister-label-dialog
+      .hass=${this._hass}
+      .entity=${config.entity}
+      .labels=${payload.labels ?? []}
+      .texts=${texts}
+      .language=${this._language()}
+      .today=${today}
+      .min=${bounds.min}
+      .max=${bounds.max}
+      @dialog-closed=${this._closeDialog}
+    ></magister-label-dialog>`;
   }
 
   /** The progress bars of the enabled periods (the values come from the progress sensors). */
@@ -467,7 +661,9 @@ export class MagisterHomeworkCard extends LitElement {
 
   private _renderItem(item: HomeworkItem, texts: Texts, enabled: boolean): TemplateResult {
     const expanded = this._expanded.has(item.uid);
-    const label = typeLabel(texts, item.info_type, item.label);
+    const notes = item.manual_labels.filter((label) => label.note !== "");
+    const confirm = this._confirm?.uid === item.uid ? this._confirm.label : undefined;
+    const itemUid = item.uid;
     const classes = [
       "item",
       item.is_test ? "test" : "",
@@ -476,7 +672,7 @@ export class MagisterHomeworkCard extends LitElement {
     ]
       .filter(Boolean)
       .join(" ");
-    return html`<li class=${classes}>
+    return html`<li class=${classes} data-uid=${itemUid}>
       <input
         type="checkbox"
         .checked=${item.completed}
@@ -488,7 +684,12 @@ export class MagisterHomeworkCard extends LitElement {
       />
       <div class="main">
         <div class="head">
-          <span class="chip ${item.is_test ? "test" : ""}">${label}</span>
+          ${item.info_type !== null
+            ? html`<span class="chip ${item.info_type >= 2 ? "test" : ""}"
+                >${typeLabel(texts, item.info_type, item.label ?? "")}</span
+              >`
+            : nothing}
+          ${item.manual_labels.map((label) => this._renderManualChip(item.uid, label, texts, enabled))}
           <span class="subject">${item.subject}</span>
           ${item.lesson_hour !== null
             ? html`<span class="meta">${format(texts.lesson_hour, { n: item.lesson_hour })}</span>`
@@ -512,9 +713,55 @@ export class MagisterHomeworkCard extends LitElement {
               }}
             >${item.text}</button>`
           : nothing}
+        ${notes.map(
+          (label) =>
+            html`<p class="note"><span class="note-label">${label.name}</span> ${label.note}</p>`,
+        )}
+        ${confirm
+          ? html`<div
+              class="confirm"
+              role="group"
+              aria-label=${format(texts.confirm_remove, { name: confirm.name })}
+              @keydown=${(event: KeyboardEvent) => {
+                if (event.key === "Escape") {
+                  event.stopPropagation();
+                  this._cancelRemove();
+                }
+              }}
+            >
+              <span>${format(texts.confirm_remove, { name: confirm.name })}</span>
+              <button type="button" class="cancel" @click=${() => {
+                this._cancelRemove();
+              }}>${texts.confirm_no}</button>
+              <button type="button" class="danger" ?disabled=${!enabled} @click=${() => {
+                void this._removeLabel(item.uid, confirm);
+              }}>${texts.confirm_yes}</button>
+            </div>`
+          : nothing}
         ${this._renderProgress(item, texts, enabled)}
       </div>
     </li>`;
+  }
+
+  private _renderManualChip(
+    uid: string,
+    label: ManualLabel,
+    texts: Texts,
+    enabled: boolean,
+  ): TemplateResult {
+    return html`<span class="chip manual ${label.kind === "test" ? "test" : ""}"
+      >${label.name}<button
+        type="button"
+        class="chip-remove"
+        data-key=${labelKey(uid, label.id)}
+        aria-label=${format(texts.remove_label, { name: label.name })}
+        title=${format(texts.remove_label, { name: label.name })}
+        ?disabled=${!enabled}
+        @click=${() => {
+          this._askRemove(uid, label);
+        }}
+      >×</button></span
+    >`;
   }
 
   private _renderProgress(item: HomeworkItem, texts: Texts, enabled: boolean): TemplateResult {
@@ -750,6 +997,103 @@ export class MagisterHomeworkCard extends LitElement {
       background: var(--warning-color, #ffa600);
       border-color: var(--warning-color, #ffa600);
     }
+    .chip.manual {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding-right: 2px;
+      background: transparent;
+      color: var(--primary-color);
+      border: 1.5px solid var(--primary-color);
+    }
+    .chip.manual.test {
+      color: var(--warning-color, #ffa600);
+      border-color: var(--warning-color, #ffa600);
+      background: transparent;
+    }
+    .chip-remove {
+      min-width: 24px;
+      min-height: 24px;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: none;
+      color: inherit;
+      font: inherit;
+      font-size: 1.2em;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .chip-remove:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+    .note {
+      margin: 4px 0 0;
+      font-size: 0.9em;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      color: var(--secondary-text-color);
+    }
+    .note-label {
+      font-weight: 500;
+      color: var(--primary-text-color);
+    }
+    .confirm {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--error-color) 12%, transparent);
+      font-size: 0.9em;
+    }
+    .confirm button,
+    .switch,
+    .add {
+      min-height: 36px;
+      padding: 0 12px;
+      border-radius: 18px;
+      border: 1px solid var(--divider-color);
+      background: transparent;
+      color: var(--primary-text-color);
+      font: inherit;
+      font-size: 0.85em;
+      cursor: pointer;
+    }
+    .confirm .danger {
+      border-color: var(--error-color);
+      background: var(--error-color);
+      color: var(--text-primary-color, #fff);
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+    .switch.on {
+      border-color: var(--primary-color);
+      background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+      color: var(--primary-color);
+      font-weight: 500;
+    }
+    .switch .tick {
+      display: inline-block;
+      min-width: 1em;
+    }
+    .add {
+      margin-left: auto;
+      min-width: 36px;
+      padding: 0;
+      font-size: 1.4em;
+      line-height: 1;
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
     .meta {
       font-size: 0.8em;
       color: var(--secondary-text-color);
@@ -848,7 +1192,11 @@ export class MagisterHomeworkCard extends LitElement {
     .segment:focus-visible,
     .text:focus-visible,
     input[type="checkbox"]:focus-visible,
-    .toast button:focus-visible {
+    .toast button:focus-visible,
+    .confirm button:focus-visible,
+    .chip-remove:focus-visible,
+    .switch:focus-visible,
+    .add:focus-visible {
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
     }

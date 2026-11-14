@@ -25,7 +25,8 @@ a day (handy for a wake-up alarm).
 | `[Huiswerk] wiskunde` | lesson with homework |
 | `[Proefwerk]`, `[Tentamen]`, `[SO]`, `[MO]`, `[Informatie]` | test, exam, written/oral quiz, information |
 
-Labels combine, for example `[Vervallen] [Huiswerk] scheikunde`. When Magister gives no subject, the first part of the appointment's description is used as the
+Labels combine, for example `[Vervallen] [Huiswerk] scheikunde`. Labels you add yourself in the
+homework planner (see below) follow the Magister label: `[Proefwerk] [Toetsweek] wisB`. When Magister gives no subject, the first part of the appointment's description is used as the
 title (and `Afspraak` if that is empty). The event description shows the lesson hour, a note
 for moved or cancelled lessons, the teachers and the homework text.
 
@@ -74,7 +75,7 @@ login of the same school. The same account cannot be added twice.
 **Configure** on the integration page opens a menu: **General settings** changes the children, the weeks back (0 to 8), the
 weeks ahead (1 to 12) and the refresh interval (15 to 360 minutes). Saving reloads the
 integration without a new password login, as long as the session is still valid. Adding a child
-adds a calendar, a homework list and progress sensors (first-appointment sensors you add yourself); removing a child removes all of them. **Homework weights** is described under the homework planner.
+adds a calendar, a homework list and progress sensors (first-appointment sensors you add yourself); removing a child removes all of them. **Homework weights** and **Labels** are described under the homework planner.
 
 ## First-appointment sensors
 
@@ -132,8 +133,9 @@ lesson you must not miss, also add a fixed-time alarm as a fallback.
 
 Each child also gets a **Homework** to-do list (`todo.kind_myschool_homework`) and three
 progress sensors. The items are the homework and test items of the agenda in the fetched window
-(Magister's *Huiswerk*, *Proefwerk*, *Tentamen*, *SO* and *MO*; information items are left out).
-Homework on a cancelled lesson is shown, marked `Les vervallen`.
+(Magister's *Huiswerk*, *Proefwerk*, *Tentamen*, *SO* and *MO*; information items are left out),
+plus every appointment that has at least one **manual label** (see below). Homework on a
+cancelled lesson is shown, marked `Les vervallen`.
 
 - **To-do list.** The title is `[Huiswerk] wiskunde`, the due date is the lesson, the description
   holds the homework text. Tick an item (in the to-do view, the mobile app, by voice or in an
@@ -157,21 +159,56 @@ data:
   progress: 50
 ```
 
-- **Progress sensors** (`Homework tomorrow`, `Homework this week`, `Homework next week`, unit %):
-  the weighted average progress of the items due in that period. This week is Monday to Sunday
-  including the days already past; tomorrow is the next calendar day. **With nothing due the
+- **Progress sensors** (`Homework next school day`, `Homework this week`, `Homework next week`,
+  unit %): the weighted average progress of the items due in that period. School days are Monday
+  to Friday. **Next school day** covers all of today's items plus those of the next school day
+  (on Friday, Saturday and Sunday that is Monday). **This week** is Saturday to Friday, including
+  the days already past (on a Saturday it is the coming school week); **next week** is the
+  following Saturday to Friday. Since 1.3.0 the first sensor was renamed from "Homework tomorrow":
+  its entity id and history are kept, only the name changed. **With nothing due the
   value is 100 %**; the attribute `items: 0` tells that apart from "all done". Attributes:
   `items`, `completed`, `open`, `tests` (tests and quizzes), `period_start`, `period_end` and
-  `weights` (the weights in use). The sensors update on every change, each refresh and at
+  `weights` (the weights in use). For the next-school-day sensor `period_start` and
+  `period_end` span the whole range, including the free weekend days, which are not counted. With 0
+  weeks back the weekend before this Monday lies outside the fetched window (no practical effect).
+  The sensors update on every change, each refresh and at
   midnight, without extra requests to Magister, and follow the 24 hour availability rule.
   "Next week" needs at least 2 weeks ahead; with 1 week ahead that sensor is unavailable and a
   repair notice explains it.
 - **Weights.** In **Configure > Homework weights** choose a child and set a weight (0 to 10, steps
-  of 0.5, default 1) per type and per subject. An item counts with
-  `type weight x subject weight`; a weight of 0 leaves the item out of the average (it stays in the
+  of 0.5, default 1) per type, per manual label and per subject. An item counts with
+  `label weight x subject weight`, where an item with several labels (its Magister type and any
+  manual labels) uses the highest label weight; a weight of 0 leaves the item out of the average (it stays in the
   list). Only values other than 1 are saved. Subjects are matched on the whole name, ignoring upper
   and lower case; weights of subjects that are not in the data right now are kept. Changing
   weights does not reload the integration.
+- **Manual labels.** Besides Magister's labels you can put your own labels on any lesson of the
+  fetched window, for example *Toetsweek* or *Inhalen*. A labelled lesson becomes a homework item
+  even when Magister has no homework or test for it, and it can carry an optional short note
+  (at most 200 characters). A lesson may have a Magister label and manual labels; **only manual
+  labels can be removed**. A label of the kind *test* makes the item count as a test. Manual labels
+  are stored in Home Assistant only, are kept while the appointment exists and are removed 14 days
+  after it has gone. They also appear in the calendar title after the Magister label.
+  - **Configure > Labels:** choose a child, then add a label (name and kind: homework or test),
+    rename it or change its kind, or delete it. The list starts with the five Magister names
+    (Huiswerk is *homework*, the others *test*). A label that is still on a lesson cannot be
+    deleted. Changing labels does not reload the integration. Set the weight of a custom label
+    under **Homework weights**; the five Magister names use the type weights (also when
+    renamed). Label names cannot contain `[` or `]`.
+  - **Services** `magister.add_homework_label` (fields `appointment`, `label`, `note`) and
+    `magister.remove_homework_label` (fields `appointment`, `label`) target the to-do entity.
+    `appointment` is the item uid (`host:childId:appointmentId`), `label` the label's id or its
+    name (not case-sensitive):
+
+```yaml
+action: magister.add_homework_label
+target:
+  entity_id: todo.kind_myschool_homework
+data:
+  appointment: "myschool.magister.net:1001:100070"
+  label: Toetsweek
+  note: "H3 + H4"
+```
 
 ## Homework planner card
 
@@ -191,11 +228,13 @@ and tests of the child's Homework to-do list, grouped per day, with a progress c
 |---|---|---|
 | `entity` | (required) | The child's Homework to-do list (a `todo.` entity of Magister) |
 | `title` | none | Card title |
-| `show_completed` | `false` | Also show completed items (they can be unticked) |
-| `show_past` | `false` | Also show days before today, in an "Earlier" section |
+| `language` | `auto` | Card language: `auto` (the Home Assistant language), `nl` or `en`. All texts and dates follow it |
+| `show_completed` | `false` | Start position of the "Done" switch: also show completed items (they can be unticked) |
+| `show_past` | `false` | Start position of the "Earlier" switch: also show days before today, in an "Earlier" section |
+| `card_id` | generated | Made once by the visual editor; keeps the remembered switches of this card apart (see below) |
 | `days_ahead` | `7` | Show items up to this many days after today (that day included) |
-| `show_progress_tomorrow` | `false` | Bar with the progress for tomorrow above the homework |
-| `show_progress_week` | `false` | Bar with the progress for this week (Monday to Sunday) |
+| `show_progress_tomorrow` | `false` | Bar with the progress for the next school day above the homework (the key keeps its old name) |
+| `show_progress_week` | `false` | Bar with the progress for this week (Saturday to Friday) |
 | `show_progress_next_week` | `false` | Bar with the progress for next week |
 
 ```yaml
@@ -222,7 +261,24 @@ show_progress_next_week: false
 - The card updates by itself. When Magister has been unreachable for more than 24 hours the last
   items are greyed out and cannot be changed. If saving fails, the change is rolled back and a
   message appears.
-- Texts follow your Home Assistant language (Dutch or English), colours follow your theme.
+- Texts follow your Home Assistant language (Dutch or English) unless you set `language`; colours
+  follow your theme.
+- **Switches.** The header has two toggle buttons, **Done** and **Earlier**, that show or hide
+  completed items and earlier days. The config sets where they start; what you choose on the card is
+  remembered **per browser** (localStorage, per card). Saving a changed card configuration resets
+  them to the configured values. Without browser storage (a private window, for example) the
+  switches still work but are not remembered. A card you duplicate (or paste as YAML) shares the
+  `card_id` and so the remembered switches of the original; remove `card_id` from the copy's YAML
+  to give it its own.
+- **Adding a label.** The **+** button in the header (shown when the child has label options and
+  Magister is available) opens a dialog: pick a day, pick one of its lessons, pick a label (set
+  under *Configure > Labels*, with its kind shown) and optionally type a note, then *Save*. The
+  dialog works with the keyboard (Escape closes it) and on a phone. Days outside the fetched window
+  are refused with a message.
+- **Manual labels on the card.** Next to Magister's label an item shows its manual labels as
+  outlined chips, with the note as text under the homework text. Only manual chips have an **×**;
+  it asks for confirmation and then removes the label (Magister's labels cannot be removed). If
+  saving fails, the change is rolled back and a message appears.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
 
 ## How it behaves

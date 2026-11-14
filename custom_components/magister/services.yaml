@@ -19,3 +19,42 @@ set_homework_progress:
           step: 25
           unit_of_measurement: "%"
           mode: slider
+
+add_homework_label:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    appointment:
+      required: true
+      example: "myschool.magister.net:1001:100070"
+      selector:
+        text:
+    label:
+      required: true
+      example: "Toetsweek"
+      selector:
+        text:
+    note:
+      required: false
+      example: "H3 + H4"
+      selector:
+        text:
+
+remove_homework_label:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    appointment:
+      required: true
+      example: "myschool.magister.net:1001:100070"
+      selector:
+        text:
+    label:
+      required: true
+      example: "Toetsweek"
+      selector:
+        text:

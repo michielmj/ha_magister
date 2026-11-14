@@ -25,7 +25,9 @@ agenda per kind, plus optionele sensoren met de starttijd van de eerste afspraak
 | `[Huiswerk] wiskunde` | les met huiswerk |
 | `[Proefwerk]`, `[Tentamen]`, `[SO]`, `[MO]`, `[Informatie]` | proefwerk, tentamen, schriftelijke/mondelinge overhoring, informatie |
 
-Labels worden gecombineerd, bijvoorbeeld `[Vervallen] [Huiswerk] scheikunde`. Geeft Magister geen
+Labels worden gecombineerd, bijvoorbeeld `[Vervallen] [Huiswerk] scheikunde`. Labels die je zelf in
+de huiswerkplanner toevoegt (zie verderop) staan achter het label van Magister:
+`[Proefwerk] [Toetsweek] wisB`. Geeft Magister geen
 vak, dan wordt het eerste deel van de omschrijving als titel gebruikt (en `Afspraak` als die leeg
 is). De beschrijving van een afspraak toont het lesuur, een opmerking bij verplaatste of vervallen
 lessen, de docenten en de huiswerktekst.
@@ -80,8 +82,8 @@ dezelfde school zijn toegevoegd. Hetzelfde account kan niet twee keer worden toe
 vooruit (1 tot 12) en het verversingsinterval (15 tot 360 minuten). Opslaan laadt de integratie
 opnieuw, zonder nieuwe wachtwoordlogin zolang de sessie nog geldig is. Een kind toevoegen voegt
 een agenda, een huiswerklijst en voortgangssensoren toe (sensoren voor de eerste afspraak voeg je
-zelf toe); een kind verwijderen verwijdert ze allemaal. **Huiswerkgewichten** staat beschreven bij
-de huiswerkplanner.
+zelf toe); een kind verwijderen verwijdert ze allemaal. **Huiswerkgewichten** en **Labels** staan beschreven
+bij de huiswerkplanner.
 
 ## Sensoren voor de eerste afspraak
 
@@ -141,8 +143,8 @@ eerste les die je niet mag missen: zet er ook een wekker op een vaste tijd naast
 Elk kind krijgt ook een takenlijst **Huiswerk** (`todo.kind_myschool_huiswerk`) en drie
 voortgangssensoren. De items zijn de huiswerk- en toetsitems uit de agenda in het opgehaalde
 venster (Magister: *Huiswerk*, *Proefwerk*, *Tentamen*, *SO* en *MO*; informatie-items blijven
-buiten beschouwing). Huiswerk bij een vervallen les wordt getoond, met de markering
-`Les vervallen`.
+buiten beschouwing), plus elke afspraak met minstens één **handmatig label** (zie verderop).
+Huiswerk bij een vervallen les wordt getoond, met de markering `Les vervallen`.
 
 - **Takenlijst.** De titel is `[Huiswerk] wiskunde`, de einddatum is de les, de beschrijving bevat
   de huiswerktekst. Vink een item af (in de takenweergave, de mobiele app, met spraak of in een
@@ -168,22 +170,58 @@ data:
   progress: 50
 ```
 
-- **Voortgangssensoren** (`Huiswerk morgen`, `Huiswerk deze week`, `Huiswerk volgende week`,
-  eenheid %): de gewogen gemiddelde voortgang van de items die in die periode verschijnen. Deze
-  week is maandag tot en met zondag, inclusief de dagen die al voorbij zijn; morgen is de
-  volgende kalenderdag. **Zonder items is de waarde 100 %**; het attribuut `items: 0` maakt het
+- **Voortgangssensoren** (`Huiswerk volgende schooldag`, `Huiswerk deze week`,
+  `Huiswerk volgende week`, eenheid %): de gewogen gemiddelde voortgang van de items die in die
+  periode verschijnen. Schooldagen zijn maandag tot en met vrijdag. **Volgende schooldag** omvat
+  alle items van vandaag plus die van de volgende schooldag (op vrijdag, zaterdag en zondag is dat
+  maandag). **Deze week** is zaterdag tot en met vrijdag, inclusief de dagen die al voorbij zijn
+  (op zaterdag is dat de komende schoolweek); **volgende week** is de week daarna, zaterdag tot en
+  met vrijdag. Sinds 1.3.0 heet de eerste sensor niet meer "Huiswerk morgen": de entiteits-id en
+  de historie blijven behouden, alleen de naam is veranderd. **Zonder items is de waarde 100 %**; het attribuut `items: 0` maakt het
   verschil met "alles klaar". Attributen: `items`, `completed`, `open`, `tests` (toetsen en
-  overhoringen), `period_start`, `period_end` en `weights` (de gebruikte gewichten). De sensoren
+  overhoringen), `period_start`, `period_end` en `weights` (de gebruikte gewichten). Bij de sensor voor de volgende schooldag omvatten
+  `period_start` en `period_end` het hele bereik, ook de vrije weekenddagen, die niet meetellen. Bij
+  0 weken terug valt het weekend vóór deze maandag buiten het opgehaalde venster (geen praktisch
+  effect). De sensoren
   worden bijgewerkt bij elke wijziging, elke verversing en om middernacht, zonder extra verzoeken
   aan Magister, en volgen de beschikbaarheidsregel van 24 uur. "Volgende week" heeft minstens
   2 weken vooruit nodig; bij 1 week vooruit is die sensor niet beschikbaar en legt een
   reparatiemelding het uit.
-- **Gewichten.** Kies in **Configureren > Huiswerkgewichten** een kind en stel per soort en per
-  vak een gewicht in (0 tot 10, stappen van 0,5, standaard 1). Een item telt mee met
-  `gewicht soort x gewicht vak`; een gewicht van 0 laat het item buiten het gemiddelde (het blijft
+- **Gewichten.** Kies in **Configureren > Huiswerkgewichten** een kind en stel per soort, per
+  handmatig label en per vak een gewicht in (0 tot 10, stappen van 0,5, standaard 1). Een item
+  telt mee met `gewicht label x gewicht vak`; een item met meerdere labels (zijn Magister-soort en
+  eventuele handmatige labels) gebruikt het hoogste labelgewicht; een gewicht van 0 laat het item buiten het gemiddelde (het blijft
   in de lijst). Alleen waarden anders dan 1 worden bewaard. Vakken worden op de hele naam
   vergeleken, zonder onderscheid tussen hoofd- en kleine letters; gewichten van vakken die nu niet
   in de gegevens staan blijven bewaard. Gewichten wijzigen laadt de integratie niet opnieuw.
+- **Handmatige labels.** Naast de labels van Magister kun je eigen labels op elke les in het
+  opgehaalde venster zetten, bijvoorbeeld *Toetsweek* of *Inhalen*. Een les met een label wordt een
+  huiswerkitem, ook als Magister er geen huiswerk of toets voor heeft, en kan een korte notitie
+  hebben (maximaal 200 tekens). Een les kan een Magister-label en handmatige labels hebben;
+  **alleen handmatige labels kunnen worden verwijderd**. Een label van de soort *toets* laat het
+  item als toets meetellen. Handmatige labels worden alleen in Home Assistant bewaard, blijven
+  bestaan zolang de afspraak bestaat en worden 14 dagen nadat die verdwenen is verwijderd. Ze staan
+  ook in de agendatitel, achter het label van Magister.
+  - **Configureren > Labels:** kies een kind en voeg een label toe (naam en soort: huiswerk of
+    toets), hernoem het of wijzig de soort, of verwijder het. De lijst begint met de vijf namen van
+    Magister (Huiswerk is *huiswerk*, de rest *toets*). Een label dat nog op een les staat kan niet
+    worden verwijderd. Labels wijzigen laadt de integratie niet opnieuw. Het gewicht van een eigen label
+    stel je in onder **Huiswerkgewichten**; de vijf Magister-namen gebruiken de soortgewichten (ook
+    na hernoemen). Labelnamen mogen geen `[` of `]` bevatten.
+  - **Services** `magister.add_homework_label` (velden `appointment`, `label`, `note`) en
+    `magister.remove_homework_label` (velden `appointment`, `label`) richten zich op de
+    to-do-entiteit. `appointment` is de uid van het item (`host:kindId:afspraakId`), `label` de id
+    of de naam van het label (hoofdletterongevoelig):
+
+```yaml
+action: magister.add_homework_label
+target:
+  entity_id: todo.kind_myschool_huiswerk
+data:
+  appointment: "myschool.magister.net:1001:100070"
+  label: Toetsweek
+  note: "H3 + H4"
+```
 
 ## Huiswerkplanner-kaart
 
@@ -205,11 +243,13 @@ het kind.
 |---|---|---|
 | `entity` | (verplicht) | De Huiswerklijst van het kind (een `todo.`-entiteit van Magister) |
 | `title` | geen | Titel van de kaart |
-| `show_completed` | `false` | Toon ook afgerond huiswerk (je kunt het weer openzetten) |
-| `show_past` | `false` | Toon ook dagen vóór vandaag, onder "Eerder" |
+| `language` | `auto` | Taal van de kaart: `auto` (de taal van Home Assistant), `nl` of `en`. Alle teksten en datums volgen deze taal |
+| `show_completed` | `false` | Beginstand van de schakelaar "Afgerond": toon ook afgerond huiswerk (je kunt het weer openzetten) |
+| `show_past` | `false` | Beginstand van de schakelaar "Eerder": toon ook dagen vóór vandaag, onder "Eerder" |
+| `card_id` | gegenereerd | Wordt één keer door de visuele editor gemaakt; houdt de onthouden schakelaars van deze kaart apart (zie hieronder) |
 | `days_ahead` | `7` | Toon items tot zoveel dagen na vandaag (die dag inbegrepen) |
-| `show_progress_tomorrow` | `false` | Balk met de voortgang van morgen boven het huiswerk |
-| `show_progress_week` | `false` | Balk met de voortgang van deze week (maandag tot zondag) |
+| `show_progress_tomorrow` | `false` | Balk met de voortgang van de volgende schooldag boven het huiswerk (de sleutel houdt zijn oude naam) |
+| `show_progress_week` | `false` | Balk met de voortgang van deze week (zaterdag tot vrijdag) |
 | `show_progress_next_week` | `false` | Balk met de voortgang van volgende week |
 
 ```yaml
@@ -238,7 +278,25 @@ show_progress_next_week: false
 - De kaart werkt zichzelf bij. Is Magister langer dan 24 uur onbereikbaar, dan worden de laatste
   items grijs en zijn ze niet te wijzigen. Mislukt het opslaan, dan wordt de wijziging teruggedraaid
   en verschijnt een melding.
-- De teksten volgen de taal van Home Assistant (Nederlands of Engels), de kleuren je thema.
+- De teksten volgen de taal van Home Assistant (Nederlands of Engels), tenzij je `language` instelt;
+  de kleuren volgen je thema.
+- **Schakelaars.** In de kop staan twee knoppen, **Afgerond** en **Eerder**, die afgerond huiswerk
+  en eerdere dagen tonen of verbergen. De configuratie bepaalt de beginstand; wat je op de kaart
+  kiest wordt **per browser** onthouden (localStorage, per kaart). Sla je een gewijzigde
+  kaartconfiguratie op, dan gaan ze terug naar de ingestelde waarden. Zonder browseropslag (bijvoorbeeld
+  in een privévenster) werken de schakelaars wel, maar worden ze niet onthouden. Een gedupliceerde
+  kaart (of YAML die je plakt) deelt de `card_id` en dus de onthouden schakelaars van het origineel;
+  haal `card_id` uit de YAML van de kopie om aparte schakelaars te krijgen.
+- **Label toevoegen.** De **+**-knop in de kop (zichtbaar als het kind labelopties heeft en Magister
+  beschikbaar is) opent een venster: kies een dag, een les van die dag, een label (in te stellen
+  onder *Configureren > Labels*, met de soort erbij) en typ eventueel een notitie; kies dan
+  *Opslaan*. Het venster werkt met het toetsenbord (Escape sluit het) en op een telefoon. Dagen
+  buiten het opgehaalde venster worden met een melding geweigerd.
+- **Handmatige labels op de kaart.** Naast het label van Magister toont een item zijn handmatige
+  labels als omrande chips, met de notitie als tekst onder de huiswerktekst. Alleen handmatige chips
+  hebben een **×**; die vraagt om bevestiging en verwijdert dan het label (labels van Magister
+  kunnen niet worden verwijderd). Mislukt het opslaan, dan wordt de wijziging teruggedraaid en
+  verschijnt een melding.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
 

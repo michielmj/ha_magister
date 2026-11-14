@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
 
-from .api.homework import PeriodSummary, next_week_fits
+from .api.homework import PERIOD_NEXT_DAY, PeriodSummary, next_week_fits
 from .api.mapping import LOCAL_TZ
 from .const import DOMAIN
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
@@ -50,7 +50,7 @@ def async_sync_next_week_issue(hass: HomeAssistant, entry: MagisterConfigEntry) 
 
 
 class MagisterHomeworkSensor(MagisterMidnightEntity, SensorEntity):
-    """Weighted homework progress of a child for tomorrow, this week or next week."""
+    """Weighted homework progress of a child: next school day, this week, next week."""
 
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -69,7 +69,9 @@ class MagisterHomeworkSensor(MagisterMidnightEntity, SensorEntity):
         super().__init__(coordinator, host, child_id, short_name)
         self._manager = manager
         self._period = period
-        self._attr_unique_id = f"{host}:{child_id}:homework:{period}"
+        # The next-day sensor keeps the unique id of the former "tomorrow" sensor.
+        suffix = "tomorrow" if period == PERIOD_NEXT_DAY else period
+        self._attr_unique_id = f"{host}:{child_id}:homework:{suffix}"
         self._attr_translation_key = f"homework_{period}"
         self._summary = PeriodSummary(100.0, 0, 0, 0, 0)
         self._attributes: dict[str, Any] = {}

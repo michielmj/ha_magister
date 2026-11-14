@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import probatio
 from homeassistant.components.todo.const import (
     DOMAIN as TODO_DOMAIN,
@@ -17,26 +19,38 @@ from homeassistant.helpers.entity_platform import (
 from homeassistant.helpers.service import async_register_platform_entity_service
 from homeassistant.util import dt as dt_util
 
-from .api.homework import HomeworkItem
+from .api.homework import HomeworkItem, LabelOption, find_label_option
 from .api.mapping import ATTACHMENTS_LINE, LOCAL_TZ
 from .const import (
+    ATTR_APPOINTMENT,
     ATTR_ITEM,
+    ATTR_LABEL,
+    ATTR_NOTE,
     ATTR_PROGRESS,
     CHILD_ID,
     CHILD_SHORT_NAME,
     CONF_CHILDREN,
     CONF_HOST,
     DOMAIN,
+    SERVICE_ADD_HOMEWORK_LABEL,
+    SERVICE_REMOVE_HOMEWORK_LABEL,
     SERVICE_SET_HOMEWORK_PROGRESS,
 )
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
 from .entity import MagisterMidnightEntity
 from .homework import (
+    ERR_LABEL_NOT_FOUND,
     HomeworkManager,
+    LabelError,
     Payload,
+    appointment_to_dict,
     async_publish,
     build_payload,
+    note_text,
     service_progress,
+)
+from .homework import (
+    item_to_dict as item_dict,
 )
 
 PARALLEL_UPDATES = 0
@@ -65,8 +79,31 @@ async def async_setup_entry(
 
 
 @callback
-def async_register_homework_service(hass: HomeAssistant) -> None:
-    """Register ``magister.set_homework_progress`` (at integration setup)."""
+def async_register_homework_services(hass: HomeAssistant) -> None:
+    """Register the homework services (at integration setup)."""
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_ADD_HOMEWORK_LABEL,
+        entity_domain=TODO_DOMAIN,
+        func="async_add_homework_label",
+        schema={
+            probatio.Required(ATTR_APPOINTMENT): cv.string,
+            probatio.Required(ATTR_LABEL): cv.string,
+            probatio.Optional(ATTR_NOTE, default=""): note_text,
+        },
+    )
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_REMOVE_HOMEWORK_LABEL,
+        entity_domain=TODO_DOMAIN,
+        func="async_remove_homework_label",
+        schema={
+            probatio.Required(ATTR_APPOINTMENT): cv.string,
+            probatio.Required(ATTR_LABEL): cv.string,
+        },
+    )
     async_register_platform_entity_service(
         hass,
         DOMAIN,
@@ -80,10 +117,19 @@ def async_register_homework_service(hass: HomeAssistant) -> None:
     )
 
 
+def item_summary(item: HomeworkItem) -> str:
+    """``[Magister label] [manual label] subject``."""
+    names = ([item.label] if item.label else []) + [
+        label.name for label in item.manual_labels
+    ]
+    return " ".join([*(f"[{name}]" for name in names), item.subject]).rstrip()
+
+
 def to_todo_item(manager: HomeworkManager, item: HomeworkItem) -> TodoItem:
     """The to-do item of a homework item (see the milestone spec)."""
     progress = manager.progress(item.uid)
     lines = [item.text] if item.text else []
+    lines.extend(label.note for label in item.manual_labels if label.note)
     if item.cancelled:
         lines.append(CANCELLED_NOTE)
     if item.has_attachments:
@@ -91,7 +137,7 @@ def to_todo_item(manager: HomeworkManager, item: HomeworkItem) -> TodoItem:
     if 0 < progress < 100:
         lines.append(f"({progress} %)")
     return TodoItem(
-        summary=f"[{item.label}] {item.subject}".rstrip(),
+        summary=item_summary(item),
         uid=item.uid,
         status=(
             TodoItemStatus.COMPLETED if progress >= 100 else TodoItemStatus.NEEDS_ACTION
@@ -99,6 +145,12 @@ def to_todo_item(manager: HomeworkManager, item: HomeworkItem) -> TodoItem:
         due=item.due_date if item.all_day else item.start.astimezone(LOCAL_TZ),
         description="\n".join(lines) or None,
         completed=manager.completed_at(item.uid),
+    )
+
+
+def _label_exception(err: LabelError) -> ServiceValidationError:
+    return ServiceValidationError(
+        translation_domain=DOMAIN, translation_key=f"homework_{err.code}"
     )
 
 
@@ -169,13 +221,15 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
     async def async_will_remove_from_hass(self) -> None:
         """Tell the card that the list is gone (the last items stay in the payload)."""
         items = self._last_payload["items"] if self._last_payload else []
+        labels = self._last_payload["labels"] if self._last_payload else []
         async_publish(
             self.hass,
             self.entity_id,
             {
                 "available": False,
                 "items": items,
-                "progress": {"tomorrow": None, "week": None, "next_week": None},
+                "labels": labels,
+                "progress": {"next_day": None, "week": None, "next_week": None},
             },
         )
         await super().async_will_remove_from_hass()
@@ -203,6 +257,63 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
     def stored_progress(self, uid: str) -> int:
         """The stored progress of an item."""
         return self._manager.progress(uid)
+
+    def label_option(self, reference: str, *, by_name: bool = False) -> LabelOption:
+        """The label option of this child by id (or name), else ``label_not_found``."""
+        option = find_label_option(
+            self._manager.label_options(self._child_id), reference, by_name=by_name
+        )
+        if option is None:
+            raise LabelError(ERR_LABEL_NOT_FOUND)
+        return option
+
+    @callback
+    def add_label(
+        self, appointment: str, label: str, note: str, *, by_name: bool = False
+    ) -> Payload:
+        """Add a manual label; returns the updated item (``LabelError`` on failure)."""
+        option = self.label_option(label, by_name=by_name)
+        item = self._manager.add_label(self._child_id, appointment, option, note)
+        return item_dict(self._manager, item)
+
+    @callback
+    def remove_label(
+        self, appointment: str, label: str, *, by_name: bool = False
+    ) -> Payload | None:
+        """Remove a manual label; ``None`` when the item left the planner."""
+        option = self.label_option(label, by_name=by_name)
+        item = self._manager.remove_label(self._child_id, appointment, option)
+        return item_dict(self._manager, item) if item else None
+
+    @callback
+    def appointments(self, day: date) -> list[Payload]:
+        """The appointments of a day, with their labels."""
+        return [
+            appointment_to_dict(self._manager, self._child_id, appointment)
+            for appointment in self._manager.appointments_on(self._child_id, day)
+        ]
+
+    @callback
+    def in_window(self, day: date) -> bool:
+        """Whether ``day`` lies within the fetch window."""
+        first, end = self._manager.window_dates()
+        return first <= day < end
+
+    async def async_add_homework_label(
+        self, appointment: str, label: str, note: str = ""
+    ) -> None:
+        """Service ``magister.add_homework_label``."""
+        try:
+            self.add_label(appointment, label, note, by_name=True)
+        except LabelError as err:
+            raise _label_exception(err) from None
+
+    async def async_remove_homework_label(self, appointment: str, label: str) -> None:
+        """Service ``magister.remove_homework_label``."""
+        try:
+            self.remove_label(appointment, label, by_name=True)
+        except LabelError as err:
+            raise _label_exception(err) from None
 
     async def async_set_homework_progress(self, item: str, progress: int) -> None:
         """Service ``magister.set_homework_progress``."""

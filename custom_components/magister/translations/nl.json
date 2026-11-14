@@ -80,8 +80,8 @@
       }
     },
     "sensor": {
-      "homework_tomorrow": {
-        "name": "Huiswerk morgen"
+      "homework_next_day": {
+        "name": "Huiswerk volgende schooldag"
       },
       "homework_week": {
         "name": "Huiswerk deze week"
@@ -109,6 +109,18 @@
     },
     "homework_status_only": {
       "message": "Alleen de status van een huiswerkitem kan worden gewijzigd; de items komen uit Magister."
+    },
+    "homework_appointment_not_found": {
+      "message": "Deze afspraak bestaat niet (meer) in de opgehaalde agenda."
+    },
+    "homework_label_not_found": {
+      "message": "Dit label is geen van de labels die voor dit kind zijn ingesteld."
+    },
+    "homework_label_exists": {
+      "message": "Deze afspraak heeft dit label al."
+    },
+    "homework_label_not_on_appointment": {
+      "message": "Deze afspraak heeft dit handmatige label niet. Labels uit Magister kunnen niet worden verwijderd."
     }
   },
   "options": {
@@ -118,7 +130,8 @@
         "description": "Wat wil je wijzigen?",
         "menu_options": {
           "general": "Algemene instellingen",
-          "weights": "Huiswerkgewichten"
+          "weights": "Huiswerkgewichten",
+          "labels": "Labels"
         }
       },
       "general": {
@@ -154,19 +167,75 @@
           "oral_quiz": "MO (mondelinge overhoring)"
         }
       },
+      "weights_labels": {
+        "title": "Gewichten per label",
+        "description": "Hoeveel elk eigen label meetelt voor {child}. 1 is normaal, 0 laat het buiten het gemiddelde. De Magister-namen (Huiswerk, Proefwerk, ...) gebruiken de soortgewichten, ook als ze zijn hernoemd. Een item met meerdere labels telt mee met het hoogste labelgewicht. Stappen van 0,5."
+      },
       "weights_subjects": {
         "title": "Gewichten per vak",
         "description": "Hoe zwaar elk vak meetelt. 1 is normaal, 0 laat het buiten het gemiddelde. Vakken die nu niet in de gegevens staan, behouden hun opgeslagen gewicht."
+      },
+      "labels": {
+        "title": "Labels",
+        "description": "Kies het kind. Dit zijn de labels die je in de huiswerkkaart aan een les kunt toevoegen.",
+        "data": {
+          "child": "Kind"
+        }
+      },
+      "labels_menu": {
+        "title": "Labels van {child}",
+        "description": "Wat wil je doen?",
+        "menu_options": {
+          "label_add": "Een label toevoegen",
+          "label_edit": "Een label hernoemen of van soort veranderen",
+          "label_delete": "Een label verwijderen"
+        }
+      },
+      "label_add": {
+        "title": "Label toevoegen",
+        "description": "Een label heeft een naam en een soort: huiswerk of toets (een toets telt als toets mee in de voortgang). Het gewicht stel je in onder Huiswerkgewichten.",
+        "data": {
+          "name": "Naam",
+          "kind": "Soort"
+        }
+      },
+      "label_edit": {
+        "title": "Kies een label",
+        "description": "Welk label van {child} wil je wijzigen?",
+        "data": {
+          "label": "Label"
+        }
+      },
+      "label_edit_details": {
+        "title": "Label wijzigen",
+        "description": "Wijzig de naam of de soort van \"{label}\".",
+        "data": {
+          "name": "Naam",
+          "kind": "Soort"
+        }
+      },
+      "label_delete": {
+        "title": "Label verwijderen",
+        "description": "Welk label van {child} wil je verwijderen? Een label dat nog op een les staat kan niet worden verwijderd.",
+        "data": {
+          "label": "Label"
+        }
       }
     },
     "error": {
       "no_children_selected": "Kies minstens één kind.",
-      "child_already_configured": "Dit kind is al toegevoegd bij een andere login van deze school. Voeg elk kind bij één login toe."
+      "child_already_configured": "Dit kind is al toegevoegd bij een andere login van deze school. Voeg elk kind bij één login toe.",
+      "label_in_use": "Dit label staat nog op een of meer lessen. Verwijder het eerst van die lessen.",
+      "name_required": "Vul een naam in.",
+      "name_too_long": "De naam mag maximaal 40 tekens zijn.",
+      "name_exists": "Dit kind heeft al een label met deze naam.",
+      "name_invalid_chars": "De naam mag geen [ of ] bevatten."
     },
     "abort": {
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",
       "cannot_connect": "De kinderen konden niet bij Magister worden opgehaald. Probeer het later opnieuw.",
-      "not_loaded": "De integratie is niet geladen. Wacht tot die draait en probeer het opnieuw."
+      "not_loaded": "De integratie is niet geladen. Wacht tot die draait en probeer het opnieuw.",
+      "label_gone": "Dit label bestaat niet meer."
     }
   },
   "config_subentries": {
@@ -245,6 +314,46 @@
           "name": "Voortgang",
           "description": "Voortgang in procenten, 0 tot 100."
         }
+      }
+    },
+    "add_homework_label": {
+      "name": "Huiswerklabel toevoegen",
+      "description": "Voegt een handmatig label toe aan een afspraak. De afspraak verschijnt met dit label in de huiswerkplanner. Er wordt niets naar Magister geschreven.",
+      "fields": {
+        "appointment": {
+          "name": "Afspraak",
+          "description": "De id (uid) van de afspraak: host:kindId:afspraakId, bijvoorbeeld myschool.magister.net:1001:100070."
+        },
+        "label": {
+          "name": "Label",
+          "description": "De id of de naam (hoofdletterongevoelig) van een van de labels die voor dit kind zijn ingesteld."
+        },
+        "note": {
+          "name": "Notitie",
+          "description": "Een optionele korte notitie, maximaal 200 tekens."
+        }
+      }
+    },
+    "remove_homework_label": {
+      "name": "Huiswerklabel verwijderen",
+      "description": "Verwijdert een handmatig label van een afspraak. Labels uit Magister kunnen niet worden verwijderd.",
+      "fields": {
+        "appointment": {
+          "name": "Afspraak",
+          "description": "De id (uid) van de afspraak."
+        },
+        "label": {
+          "name": "Label",
+          "description": "De id of de naam (hoofdletterongevoelig) van het label."
+        }
+      }
+    }
+  },
+  "selector": {
+    "label_kind": {
+      "options": {
+        "homework": "Huiswerk",
+        "test": "Toets"
       }
     }
   }

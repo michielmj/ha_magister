@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  applyLabelRemovals,
   applyOverlay,
+  clockTime,
+  dateBounds,
+  generateCardId,
+  hashString,
+  labelKey,
+  loadSwitches,
+  saveSwitches,
+  storageKey,
+  timeRange,
   optimisticOverlay,
   filterItems,
   formatDay,
@@ -170,6 +180,8 @@ describe("normalizeConfig", () => {
       show_progress_week: false,
       show_progress_next_week: false,
       title: "",
+      language: "auto",
+      card_id: "",
     });
   });
 
@@ -222,5 +234,90 @@ describe("optimisticOverlay", () => {
       last_partial: 75,
     });
     expect(optimisticOverlay(item({ progress: 100, completed: true, last_partial: 40 }), 100).last_partial).toBe(40);
+  });
+});
+
+describe("manual label helpers", () => {
+  const manual = (id: string) => ({ id, name: id, kind: "test" as const, note: "" });
+
+  it("hides removed labels and drops items that only had manual labels", () => {
+    const both = item({ uid: "a", manual_labels: [manual("x"), manual("y")] });
+    const only = item({ uid: "b", info_type: null, manual_labels: [manual("x")] });
+    const hidden = new Set([labelKey("a", "x"), labelKey("b", "x")]);
+    const result = applyLabelRemovals([both, only], hidden);
+    expect(result.map((entry) => entry.uid)).toEqual(["a"]);
+    expect(result[0]?.manual_labels.map((label) => label.id)).toEqual(["y"]);
+    expect(applyLabelRemovals([both], new Set())).toEqual([both]);
+  });
+
+  it("bounds the dates by today, the days ahead and the items", () => {
+    const items = [item({ date: "2026-11-10" }), item({ date: "2026-11-30" })];
+    // labels go on today or later; at least 21 days, or further for later items or days_ahead
+    expect(dateBounds(items, TODAY, 7)).toEqual({ min: TODAY, max: "2026-12-04" });
+    expect(dateBounds([item({ date: "2026-12-20" })], TODAY, 7).max).toBe("2026-12-20");
+    expect(dateBounds([], TODAY, 40)).toEqual({ min: TODAY, max: "2026-12-23" });
+    expect(dateBounds([], TODAY, 7)).toEqual({ min: TODAY, max: "2026-12-04" });
+  });
+
+  it("reads clock times from the text", () => {
+    expect(clockTime("2026-11-16T09:10:00+01:00")).toBe("09:10");
+    expect(clockTime("2026-11-16")).toBe("");
+    const base = {
+      uid: "u", all_day: false, lesson_hour: 1, subject: "s", cancelled: false,
+      info_type: null, manual_labels: [],
+    };
+    expect(
+      timeRange({ ...base, start: "2026-11-16T09:10:00+01:00", end: "2026-11-16T10:00:00+01:00" }),
+    ).toBe("09:10\u201310:00");
+    expect(timeRange({ ...base, start: "2026-11-16T09:10:00+01:00", end: "" })).toBe("09:10");
+    expect(timeRange({ ...base, all_day: true, start: "2026-11-16", end: "2026-11-16" })).toBe("");
+  });
+});
+
+describe("remembered switches", () => {
+  const config = normalizeConfig({ entity: "todo.a", title: "T" });
+
+  it("has a key per entity, card id and config", () => {
+    const key = storageKey(config);
+    expect(key).toMatch(/^magister-homework-card:todo\.a:[0-9a-f]{8}:[0-9a-f]{8}$/);
+    expect(storageKey(normalizeConfig({ entity: "todo.a", title: "T" }))).toBe(key);
+    expect(storageKey(normalizeConfig({ entity: "todo.a", title: "T", show_past: true }))).not.toBe(key);
+    expect(storageKey(normalizeConfig({ entity: "todo.a", title: "U" }))).not.toBe(key);
+    expect(storageKey(normalizeConfig({ entity: "todo.b", title: "T" }))).not.toBe(key);
+    const withId = storageKey(normalizeConfig({ entity: "todo.a", title: "T", card_id: "abc" }));
+    expect(withId).toContain(":abc:");
+    // layout keys that are not options do not reset the switches
+    expect(storageKey(normalizeConfig({ entity: "todo.a", title: "T", grid_options: {} } as never))).toBe(key);
+  });
+
+  it("round-trips, ignores garbage and never throws without storage", () => {
+    saveSwitches("k", { show_completed: true, show_past: false });
+    expect(loadSwitches("k")).toEqual({ show_completed: true, show_past: false });
+    window.localStorage.setItem("bad", "{not json");
+    expect(loadSwitches("bad")).toBeUndefined();
+    window.localStorage.setItem("odd", '{"show_completed":1}');
+    expect(loadSwitches("odd")).toBeUndefined();
+    window.localStorage.setItem("nul", "null");
+    expect(loadSwitches("nul")).toBeUndefined();
+    expect(loadSwitches("missing")).toBeUndefined();
+  });
+
+  it("removes the values of earlier configs of the same card when saving", () => {
+    const on = { show_completed: true, show_past: false };
+    window.localStorage.setItem("magister-homework-card:todo.a:id1:aaaaaaaa", "{}");
+    window.localStorage.setItem("magister-homework-card:todo.a:id2:aaaaaaaa", "{}");
+    window.localStorage.setItem("other", "x");
+    saveSwitches("magister-homework-card:todo.a:id1:bbbbbbbb", on);
+    expect(window.localStorage.getItem("magister-homework-card:todo.a:id1:aaaaaaaa")).toBeNull();
+    expect(window.localStorage.getItem("magister-homework-card:todo.a:id2:aaaaaaaa")).toBe("{}");
+    expect(window.localStorage.getItem("other")).toBe("x");
+    expect(loadSwitches("magister-homework-card:todo.a:id1:bbbbbbbb")).toEqual(on);
+  });
+
+  it("hashes and ids are stable and well-formed", () => {
+    expect(hashString("a")).toBe(hashString("a"));
+    expect(hashString("a")).not.toBe(hashString("b"));
+    expect(generateCardId()).toMatch(/^[0-9a-f]{12}$/);
+    expect(generateCardId()).not.toBe(generateCardId());
   });
 });

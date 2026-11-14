@@ -1,5 +1,5 @@
 import { LitElement, html, nothing, type TemplateResult } from "lit";
-import { DEFAULT_DAYS_AHEAD, MAX_DAYS_AHEAD, PROGRESS_PERIODS } from "./logic";
+import { DEFAULT_DAYS_AHEAD, MAX_DAYS_AHEAD, PROGRESS_PERIODS, generateCardId } from "./logic";
 import { textsFor, type Texts } from "./translations";
 import type { CardConfig, Hass } from "./types";
 
@@ -10,7 +10,7 @@ export interface FormSchema {
 }
 
 /** The ha-form schema of the card editor. */
-export function editorSchema(): FormSchema[] {
+export function editorSchema(texts: Texts = textsFor("en")): FormSchema[] {
   return [
     {
       name: "entity",
@@ -18,6 +18,19 @@ export function editorSchema(): FormSchema[] {
       selector: { entity: { filter: { domain: "todo", integration: "magister" } } },
     },
     { name: "title", selector: { text: {} } },
+    {
+      name: "language",
+      selector: {
+        select: {
+          mode: "dropdown",
+          options: [
+            { value: "auto", label: texts.editor.language_auto },
+            { value: "nl", label: "Nederlands" },
+            { value: "en", label: "English" },
+          ],
+        },
+      },
+    },
     { name: "show_completed", selector: { boolean: {} } },
     { name: "show_past", selector: { boolean: {} } },
     {
@@ -33,6 +46,7 @@ export function formData(config: Partial<CardConfig>): Record<string, unknown> {
   return {
     entity: config.entity ?? "",
     title: config.title ?? "",
+    language: config.language ?? "auto",
     show_completed: config.show_completed ?? false,
     show_past: config.show_past ?? false,
     days_ahead: config.days_ahead ?? DEFAULT_DAYS_AHEAD,
@@ -59,6 +73,9 @@ export function configFromForm(
   const title = value["title"];
   if (typeof title === "string" && title.trim() !== "") config.title = title;
   else delete config.title;
+  const language = value["language"];
+  if (language === "nl" || language === "en") config.language = language;
+  else delete config.language;
   if (value["show_completed"] === true) config.show_completed = true;
   else delete config.show_completed;
   if (value["show_past"] === true) config.show_past = true;
@@ -107,6 +124,8 @@ export class MagisterHomeworkCardEditor extends LitElement {
     event.stopPropagation();
     if (!this._config) return;
     const config = configFromForm(this._config, event.detail.value);
+    // A stable id of this card, made once: it keeps the card's remembered switches apart.
+    config.card_id ??= generateCardId();
     this._config = config;
     this.dispatchEvent(
       new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }),
@@ -118,7 +137,7 @@ export class MagisterHomeworkCardEditor extends LitElement {
     return html`<ha-form
       .hass=${this.hass}
       .data=${formData(this._config)}
-      .schema=${editorSchema()}
+      .schema=${editorSchema(this._texts())}
       .computeLabel=${this._computeLabel}
       @value-changed=${this._valueChanged}
     ></ha-form>`;

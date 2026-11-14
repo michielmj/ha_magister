@@ -24,6 +24,7 @@ from custom_components.magister.api import (
 from custom_components.magister.const import (
     CONF_CHILDREN,
     CONF_INTERVAL,
+    CONF_LABELS,
     CONF_WEEKS_AHEAD,
     CONF_WEEKS_BACK,
     CONF_WEIGHTS,
@@ -75,7 +76,7 @@ async def _open_general(hass: HomeAssistant, entry: Any) -> Any:
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.MENU
     assert result["step_id"] == "init"
-    assert result["menu_options"] == ["general", "weights"]
+    assert result["menu_options"] == ["general", "weights", "labels"]
     return await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "general"}
     )
@@ -434,6 +435,17 @@ async def _open_weights(hass: HomeAssistant, entry: Any) -> Any:
     )
 
 
+async def _submit_types(
+    hass: HomeAssistant, result: Any, values: dict[str, Any]
+) -> Any:
+    """Submit the type weights; with only default labels there is no labels step."""
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], values
+    )
+    assert result["step_id"] == "weights_subjects"
+    return result
+
+
 async def test_weights_flow_saves_only_non_default_values(
     hass: HomeAssistant, mocked: aioresponses
 ) -> None:
@@ -451,8 +463,9 @@ async def test_weights_flow_saves_only_non_default_values(
     assert selector.config["step"] == 0.5
     assert result["description_placeholders"] == {"child": "Kind A"}
 
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
+    result = await _submit_types(
+        hass,
+        result,
         {
             "homework": 1,
             "test": 3,
@@ -509,8 +522,9 @@ async def test_weights_flow_keeps_absent_subjects_and_resets_to_default(
     result = await _open_weights(hass, entry)
     keys = {str(k): k for k in result["data_schema"].schema}
     assert keys["test"].description["suggested_value"] == 4.0
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
+    result = await _submit_types(
+        hass,
+        result,
         {"homework": 1, "test": 1, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
     )
     keys = {str(k): k for k in result["data_schema"].schema}
@@ -539,8 +553,9 @@ async def test_weights_flow_removes_empty_weights(
     )
     await hass.async_block_till_done()
     result = await _open_weights(hass, entry)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
+    result = await _submit_types(
+        hass,
+        result,
         {"homework": 1, "test": 1, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
     )
     result = await hass.config_entries.options.async_configure(
@@ -593,8 +608,9 @@ async def test_weights_flow_asks_for_the_child(
     )
     assert result["step_id"] == "weights_types"
     assert result["description_placeholders"] == {"child": "Bram"}
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
+    result = await _submit_types(
+        hass,
+        result,
         {"homework": 1, "test": 5, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
     )
     result = await hass.config_entries.options.async_configure(
@@ -636,3 +652,295 @@ async def test_general_settings_keep_the_weights(
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_WEIGHTS] == weights
     assert entry.options[CONF_WEEKS_BACK] == 2
+
+
+# -- labels -------------------------------------------------------------------------
+
+
+async def _open_labels(hass: HomeAssistant, entry: Any) -> Any:
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    return await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "labels"}
+    )
+
+
+async def _labels_action(hass: HomeAssistant, result: Any, action: str) -> Any:
+    assert result["step_id"] == "labels_menu"
+    return await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": action}
+    )
+
+
+async def test_labels_flow_add_rename_kind_and_delete(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Add, rename, change the kind and delete; no reload, no Magister request."""
+    fake, entry = await _setup(hass, mocked)
+    runtime = entry.runtime_data
+    requests = len(fake.appointment_requests)
+    result = await _open_labels(hass, entry)  # one child: no child selection
+    assert result["step_id"] == "labels_menu"
+    assert result["menu_options"] == ["label_add", "label_edit", "label_delete"]
+    assert result["description_placeholders"] == {"child": "Kind A"}
+
+    # add: the defaults are stored with their ids, plus the new label
+    result = await _labels_action(hass, result, "label_add")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"name": " Toetsweek ", "kind": "test"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    stored = entry.options[CONF_LABELS][str(CHILD_ID)]
+    assert [(o["name"], o["kind"]) for o in stored] == [
+        ("Huiswerk", "homework"),
+        ("Proefwerk", "test"),
+        ("Tentamen", "test"),
+        ("SO", "test"),
+        ("MO", "test"),
+        ("Toetsweek", "test"),
+    ]
+    new_id = stored[-1]["id"]
+    assert new_id and new_id not in {o["id"] for o in stored[:-1]}
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.runtime_data is runtime
+    assert len(fake.appointment_requests) == requests
+
+    # rename and change the kind (the id stays)
+    result = await _open_labels(hass, entry)
+    result = await _labels_action(hass, result, "label_edit")
+    assert result["step_id"] == "label_edit"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"label": new_id}
+    )
+    assert result["step_id"] == "label_edit_details"
+    assert result["description_placeholders"] == {"label": "Toetsweek"}
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["name"].description["suggested_value"] == "Toetsweek"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"name": "Extra", "kind": "homework"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.options[CONF_LABELS][str(CHILD_ID)][-1] == {
+        "id": new_id,
+        "name": "Extra",
+        "kind": "homework",
+    }
+    assert entry.runtime_data is runtime
+
+    # delete
+    result = await _open_labels(hass, entry)
+    result = await _labels_action(hass, result, "label_delete")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"label": new_id}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert [o["name"] for o in entry.options[CONF_LABELS][str(CHILD_ID)]] == [
+        "Huiswerk",
+        "Proefwerk",
+        "Tentamen",
+        "SO",
+        "MO",
+    ]
+    assert entry.runtime_data is runtime
+
+
+async def test_labels_flow_name_errors(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Empty, too long and duplicate names are refused (case-insensitive)."""
+    _, entry = await _setup(hass, mocked)
+    result = await _labels_action(hass, await _open_labels(hass, entry), "label_add")
+    for name, error in (
+        ("   ", "name_required"),
+        ("x" * 41, "name_too_long"),
+        ("proefWERK", "name_exists"),
+        ("[Proef]", "name_invalid_chars"),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"name": name, "kind": "test"}
+        )
+        assert result["type"] is FlowResultType.FORM
+        assert result["errors"] == {"name": error}
+    # renaming a label to its own name (another case) is fine, to another's is not
+    result = await _labels_action(hass, await _open_labels(hass, entry), "label_edit")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"label": "default_test"}
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"name": "so", "kind": "test"}
+    )
+    assert result["errors"] == {"name": "name_exists"}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"name": "PROEFWERK", "kind": "homework"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    stored = entry.options[CONF_LABELS][str(CHILD_ID)]
+    assert stored[1] == {"id": "default_test", "name": "PROEFWERK", "kind": "homework"}
+
+
+async def test_deleting_a_label_in_use_is_refused(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A label that is on a lesson cannot be deleted; after removing it, it can."""
+    _, entry = await _setup(hass, mocked)
+    manager = entry.runtime_data.homework
+    uid = f"school.magister.net:{CHILD_ID}:100067"
+    await hass.services.async_call(
+        DOMAIN,
+        "add_homework_label",
+        {
+            "entity_id": "todo.kind_school_homework",
+            "appointment": uid,
+            "label": "Proefwerk",
+        },
+        blocking=True,
+    )
+    assert manager.label_in_use(CHILD_ID, "default_test")
+    result = await _labels_action(hass, await _open_labels(hass, entry), "label_delete")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"label": "default_test"}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "label_delete"
+    assert result["errors"] == {"base": "label_in_use"}
+    assert CONF_LABELS not in entry.options
+    # another label can still be deleted from the same form
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"label": "default_oral_quiz"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    names = [o["name"] for o in entry.options[CONF_LABELS][str(CHILD_ID)]]
+    assert "MO" not in names and "Proefwerk" in names
+
+    manager.remove_label(
+        CHILD_ID,
+        uid,
+        next(o for o in manager.label_options(CHILD_ID) if o.name == "Proefwerk"),
+    )
+    result = await _labels_action(hass, await _open_labels(hass, entry), "label_delete")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"label": "default_test"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+async def test_labels_menu_without_labels_and_edge_cases(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """With no labels only 'add' is offered; a vanished label aborts the edit."""
+    _, entry = await _setup(hass, mocked)
+    hass.config_entries.async_update_entry(
+        entry, options={CONF_LABELS: {str(CHILD_ID): []}}
+    )
+    await hass.async_block_till_done()
+    result = await _open_labels(hass, entry)
+    assert result["menu_options"] == ["label_add"]
+
+    hass.config_entries.async_update_entry(
+        entry,
+        options={
+            CONF_LABELS: {str(CHILD_ID): [{"id": "a", "name": "A", "kind": "test"}]}
+        },
+    )
+    await hass.async_block_till_done()
+    result = await _labels_action(hass, await _open_labels(hass, entry), "label_edit")
+    hass.config_entries.async_update_entry(
+        entry, options={CONF_LABELS: {str(CHILD_ID): []}}
+    )
+    await hass.async_block_till_done()
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"label": "a"}
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "label_gone"
+
+
+async def test_labels_need_a_loaded_entry_and_ask_for_the_child(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Not loaded aborts; with several children the first step selects the child."""
+    _, entry = await _setup(
+        hass,
+        mocked,
+        children=[(1001, "Anna"), (1002, "Bram")],
+        magister_children=TWO_CHILDREN,
+    )
+    result = await _open_labels(hass, entry)
+    assert result["step_id"] == "labels"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"child": "1002"}
+    )
+    assert result["description_placeholders"] == {"child": "Bram"}
+    result = await _labels_action(hass, result, "label_add")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"name": "Extra", "kind": "homework"}
+    )
+    assert "1001" not in entry.options[CONF_LABELS]
+    assert entry.options[CONF_LABELS]["1002"][-1]["name"] == "Extra"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    result = await _open_labels(hass, entry)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "not_loaded"
+
+
+async def test_weights_flow_lists_and_stores_label_weights(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """The labels step lists the child's labels by name; weights are stored by id."""
+    fake = FakeMagister(mocked)
+    entry = make_entry(
+        options={
+            CONF_LABELS: {
+                str(CHILD_ID): [
+                    {"id": "tw", "name": "Toetsweek", "kind": "test"},
+                    {"id": "ex", "name": "Extra", "kind": "homework"},
+                ]
+            },
+            CONF_WEIGHTS: {str(CHILD_ID): {"labels": {"tw": 3, "gone": 2}}},
+        }
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    result = await _open_weights(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"homework": 1, "test": 1, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
+    )
+    assert result["step_id"] == "weights_labels"
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert list(keys) == ["Toetsweek", "Extra"]
+    assert keys["Toetsweek"].description["suggested_value"] == 3.0
+    assert result["description_placeholders"] == {"child": "Kind A"}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"Toetsweek": 4, "Extra": 1}
+    )
+    assert result["step_id"] == "weights_subjects"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {str(k): 1 for k in result["data_schema"].schema}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_WEIGHTS] == {
+        str(CHILD_ID): {"types": {}, "subjects": {}, "labels": {"tw": 4.0}}
+    }
+    assert fake.appointment_requests
+
+
+async def test_weights_flow_skips_the_labels_step_without_labels(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A child whose labels were all deleted goes straight to the subjects."""
+    FakeMagister(mocked)
+    entry = make_entry(options={CONF_LABELS: {str(CHILD_ID): []}})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    result = await _open_weights(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"homework": 1, "test": 1, "exam": 1, "written_quiz": 1, "oral_quiz": 1},
+    )
+    assert result["step_id"] == "weights_subjects"

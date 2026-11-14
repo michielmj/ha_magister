@@ -58,6 +58,7 @@ async def test_subscribe_sends_the_list_and_pushes_changes(
         "subject": "wiskunde",
         "info_type": 1,
         "label": "Huiswerk",
+        "manual_labels": [],
         "is_test": False,
         "text": item["text"],
         "cancelled": False,
@@ -334,9 +335,9 @@ async def test_progress_matches_the_sensors(
     await setup_homework(hass, mocked)
     client = await hass_ws_client(hass)
     progress = (await _subscribe(client))["progress"]
-    assert set(progress) == {"tomorrow", "week", "next_week"}
+    assert set(progress) == {"next_day", "week", "next_week"}
     for key, entity in (
-        ("tomorrow", "sensor.kind_school_homework_tomorrow"),
+        ("next_day", "sensor.kind_school_homework_next_school_day"),
         ("week", "sensor.kind_school_homework_this_week"),
         ("next_week", "sensor.kind_school_homework_next_week"),
     ):
@@ -347,7 +348,7 @@ async def test_progress_matches_the_sensors(
             "items": state.attributes["items"],
             "completed": state.attributes["completed"],
         }
-    assert progress["tomorrow"] == {"value": 100.0, "items": 0, "completed": 0}
+    assert progress["next_day"] == {"value": 0.0, "items": 6, "completed": 0}
 
     await set_progress(hass, uid(100061), 100)  # Friday, this week
     after = (await client.receive_json())["event"]["progress"]
@@ -371,10 +372,10 @@ async def test_progress_follows_weights_and_midnight(
     token = hass.auth.async_create_access_token(refresh)
     client = await hass_ws_client(hass, token)
     first = await _subscribe(client)
-    await set_progress(hass, uid(100061), 100)
+    await set_progress(hass, uid(100065), 100)
     before = (await client.receive_json())["event"]["progress"]
 
-    subject = entry.runtime_data.homework.find_item(CHILD_ID, uid(100061))
+    subject = entry.runtime_data.homework.find_item(CHILD_ID, uid(100065))
     assert subject is not None
     hass.config_entries.async_update_entry(
         entry,
@@ -390,9 +391,10 @@ async def test_progress_follows_weights_and_midnight(
     assert pushed["week"]["value"] == float(weighted.state) != before["week"]["value"]
     assert first["progress"]["week"] is not None
 
-    # Sunday to Monday: "tomorrow" moves from Monday to Tuesday. The step is 15 minutes,
-    # so only the midnight timer (no coordinator refresh) can push the new values.
-    assert first["progress"]["tomorrow"]["items"] == 4  # Monday 16 Nov
+    # Sunday to Monday: "next_day" (Sunday + Monday) becomes Monday + Tuesday. The
+    # step is 15 minutes, so only the midnight timer (no coordinator refresh) can
+    # push the new values.
+    assert first["progress"]["next_day"]["items"] == 4  # Monday 16 Nov
     # A collector next to the socket: a missing push then fails instead of waiting.
     pushed_events: list[dict[str, Any]] = []
     async_subscribe(hass, TODO_ID, pushed_events.append)
@@ -408,7 +410,8 @@ async def test_progress_follows_weights_and_midnight(
         for i in entry.runtime_data.homework.items(CHILD_ID)
         if i.due_date.isoformat() == "2026-11-17"
     )
-    assert event["progress"]["tomorrow"]["items"] == tuesday != 4
+    assert tuesday > 0
+    assert event["progress"]["next_day"]["items"] == 4 + tuesday
 
 
 async def test_progress_is_null_where_unavailable(
@@ -419,8 +422,8 @@ async def test_progress_is_null_where_unavailable(
     client = await hass_ws_client(hass)
     progress = (await _subscribe(client))["progress"]
     assert progress["next_week"] is None
-    assert progress["week"] is not None and progress["tomorrow"] is not None
+    assert progress["week"] is not None and progress["next_day"] is not None
     assert await hass.config_entries.async_unload(entry.entry_id)
     event = (await client.receive_json())["event"]
     assert event["available"] is False
-    assert event["progress"] == {"tomorrow": None, "week": None, "next_week": None}
+    assert event["progress"] == {"next_day": None, "week": None, "next_week": None}

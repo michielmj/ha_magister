@@ -27,6 +27,10 @@ CONF_INTERVAL: Final = "update_interval"
 CONF_WEIGHTS: Final = "weights"
 
 WEEKS_BACK: Final = 1
+# Manual label options: ``{child_id: [{"id", "name", "kind"}]}``. Like the weights, part
+# of the options but not of the reload snapshot.
+CONF_LABELS: Final = "labels"
+
 WEEKS_AHEAD: Final = 3
 INTERVAL_MINUTES: Final = 30
 UPDATE_INTERVAL: Final = timedelta(minutes=INTERVAL_MINUTES)
@@ -46,6 +50,11 @@ OFFSET_FIELD_MAX: Final = 100
 SERVICE_SET_HOMEWORK_PROGRESS: Final = "set_homework_progress"
 ATTR_ITEM: Final = "item"
 ATTR_PROGRESS: Final = "progress"
+SERVICE_ADD_HOMEWORK_LABEL: Final = "add_homework_label"
+SERVICE_REMOVE_HOMEWORK_LABEL: Final = "remove_homework_label"
+ATTR_APPOINTMENT: Final = "appointment"
+ATTR_LABEL: Final = "label"
+ATTR_NOTE: Final = "note"
 
 MANUFACTURER: Final = "Magister"
 
