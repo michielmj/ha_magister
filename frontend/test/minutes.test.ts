@@ -105,6 +105,14 @@ describe("logic", () => {
     expect(minuteChoices(45)).toEqual([15, 30, 45, 60, 90, 120, 180, 240]);
     expect(minuteChoices(20)).toEqual([15, 20, 30, 45, 60, 90, 120, 180, 240]);
     expect(minuteChoices(undefined)).toHaveLength(8);
+    expect(minuteChoices(60, 20)).toEqual([15, 20, 30, 45, 60, 90, 120, 180, 240]);
+    expect(minuteChoices(20, 20)).toEqual([15, 20, 30, 45, 60, 90, 120, 180, 240]);
+    expect(minuteChoices(25, 20)).toHaveLength(10);
+  });
+
+  it("counts the subtasks of a cancelled item in the day total", () => {
+    const cancelled = test([sub("a", { minutes: 30 })], { cancelled: true });
+    expect(plannedMinutes([cancelled]).get(MONDAY)).toBe(30);
   });
 
   it("sums the minutes per current date, done or not, and skips disabled items", () => {
@@ -214,6 +222,8 @@ describe("day total", () => {
     expect(total?.querySelector(".sr-only")?.textContent).toBe(", over daily maximum (1 h)");
     expect(total?.getAttribute("title")).toBe("over daily maximum (1 h)");
     expect(total?.querySelector("[aria-hidden]")?.textContent.trim()).toBe("⚠");
+    const visible = [...(total?.querySelectorAll("[aria-hidden]") ?? [])].map((e) => e.textContent.trim());
+    expect(visible).toEqual(["⚠", "/ max 1 h"]);
     expect(head(card, "2026-11-14")?.classList.contains("over")).toBe(false);
   });
 
@@ -224,6 +234,7 @@ describe("day total", () => {
     expect(head(second, MONDAY)?.querySelector(".sr-only")?.textContent).toBe(
       ", boven dagmaximum (1 u)",
     );
+    expect(head(second, MONDAY)?.textContent).toContain("/ max 1 u");
   });
 
   it("shows no warning when the backend sends no maximum", async () => {
@@ -314,6 +325,17 @@ describe("forms", () => {
     await flush(card);
     expect(qs(card, ".sub-minutes-input").value).toBe("60");
     expect([...qs(card, ".sub-minutes-input").options].map((o) => o.value)).not.toContain("20");
+  });
+
+  it("keeps the stored off-list estimate selectable after choosing another", async () => {
+    const { card } = await setup([test([sub("a", { minutes: 20 })])]);
+    qb(card, `[data-edit="${PARENT}:sub:a"]`).click();
+    await flush(card);
+    choose(qs(card, ".sub-minutes-input"), "60");
+    await flush(card);
+    const select = qs(card, ".sub-minutes-input");
+    expect(select.value).toBe("60");
+    expect([...select.options].map((o) => o.value)).toContain("20");
   });
 
   it("sends nothing when the estimate is unchanged, even if it is not in the list", async () => {

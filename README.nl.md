@@ -390,18 +390,19 @@ show_progress_next_week: false
   kies je — dan wordt de tijd gewist). De tijd staat in de regel van de deelstap ("30 min"). Elke dagkop toont de geplande
   tijd van die dag, bijvoorbeeld "± 1 u 15 min gepland": de som van de schattingen van alle deelstappen (af of niet)
   waarvan dit de huidige dag is; bij 0 blijft het weg. Is de som hoger dan het **dagmaximum** van het kind
-  (Configureer, Dagmaximum studietijd, standaard 90 minuten), dan staat het met een waarschuwingsicoon en
-  markering, en lezen schermlezers "boven dagmaximum (1 u 30 min)" voor. Wijzigingen zijn direct zichtbaar en worden met een
+  (Configureer, Dagmaximum studietijd, standaard 90 minuten), dan staat het met een waarschuwingsicoon, markering en de zichtbare tekst "/ max 1 u 30" (ook op touchscreens), en
+  lezen schermlezers "boven dagmaximum (1 u 30 min)" voor. De minuten van achterstallige deelstappen tellen mee voor hun
+  (voorbije) dag; de groep Achterstallig zelf toont geen totaal. Wijzigingen zijn direct zichtbaar en worden met een
   melding teruggedraaid als opslaan mislukt.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
 
 ## AI-huiswerkcoach
 
-*Sinds 1.6.0 (ouders sinds 1.7.0). Optioneel en standaard uit.* Een leerling, of een ouder (zie *Voor ouders* hieronder), kan een AI-assistent (bijvoorbeeld de Claude
-desktop-app) koppelen aan **het eigen** rooster en de eigen huiswerkplanner, zodat de assistent kan helpen
-bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde Home Assistant-integratie
-**Model Context Protocol Server**.
+*Sinds 1.6.0 (ouders sinds 1.7.0). Optioneel en standaard uit.* Een leerling, of een ouder (zie *Voor ouders*
+hieronder), kan een AI-assistent (bijvoorbeeld de Claude desktop-app) koppelen aan **het eigen** rooster en de eigen
+huiswerkplanner, zodat de assistent kan helpen bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde
+Home Assistant-integratie **Model Context Protocol Server**.
 
 ### Wat het wel en niet kan
 
@@ -424,7 +425,7 @@ bij het plannen van huiswerk en toetsen. Het werkt via de ingebouwde Home Assist
    **Inloggen toestaan** aan en laat **Beheerder** uit. Gebruik per leerling een aparte gebruiker; een ouder kan één
    gebruiker hebben die aan meerdere kinderen is gekoppeld.
 2. **Koppel de gebruiker aan het kind:** Instellingen, Apparaten en diensten, Magister, **Configureer**,
-   **AI-coach**. Kies het kind, zet **AI-coach ingeschakeld** aan, kies de gebruiker(s) onder **Leerlingen** (een ouder
+   **AI-coach**, **Instellingen per kind**. Kies het kind, zet **AI-coach ingeschakeld** aan, kies de gebruiker(s) onder **Leerlingen** (een ouder
    komt onder **Ouders**, zie *Voor ouders*) en pas zo nodig de
    **coachrichtlijnen** aan (zie hieronder). Wijzigingen werken direct, zonder herladen.
 3. **Voeg de integratie "Model Context Protocol Server" toe** (Instellingen, Apparaten en diensten,
@@ -521,16 +522,17 @@ inloggen mislukt, de aanvraagheader `Authorization: Bearer <langlevend token>`.
   de ouders. De coach staat per kind standaard uit.
 - **Wat de AI-aanbieder ontvangt.** De huiswerkteksten, het rooster (vakken, tijden, lokalen, labels), de
   deelstappen en de voortgang van het gekoppelde kind, en wat de leerling typt. Namen en codes van docenten
-  worden via de coach **niet** gedeeld, en ook niets over andere kinderen. De aanbieder verwerkt dit onder zijn eigen
-  voorwaarden; lees die eerst.
+  worden via de coach **niet** gedeeld, en ook niets over andere kinderen. De assistent van een **ouder** krijgt
+  het huiswerk en de roosters van **elk kind waaraan de ouder is gekoppeld**, plus wat de ouder typt, en stuurt dat
+  naar de eigen AI-aanbieder van de ouder. De aanbieder verwerkt dit onder zijn eigen voorwaarden; lees die eerst.
 - **De grens van de afscherming.** De afscherming geldt **alleen voor de coach**. De Home Assistant-gebruiker van
-  de leerling, en het token op diens computer, kunnen **alle entiteitsstatussen** lezen **en
+  de leerling (en op dezelfde manier die van een ouder), en het token op diens computer, kunnen **alle entiteitsstatussen** lezen **en
   apparaten bedienen**, via de Home Assistant-app en de REST/WebSocket-API en via Assist (zie de opmerking
   bij Instellen). Dat geldt ook voor de agenda's van de andere kinderen met de namen van docenten. Behandel de
   gebruiker en het token daarom als die toegang: gebruik een aparte gebruiker zonder beheerdersrechten, houd het
   token privé, trek het in als het niet meer nodig is en beperk welke entiteiten aan Assist zijn
   blootgesteld (Instellingen, Spraakassistenten, Ontsluit).
-- **Het token.** Een langlevend token staat leesbaar (platte tekst) in de Claude-configuratie op die computer.
+- **Het token.** Hetzelfde geldt voor de Home Assistant-gebruiker van een ouder. Een langlevend token staat leesbaar (platte tekst) in de Claude-configuratie op die computer.
   Gebruik waar mogelijk **HTTPS**: met `http://` gaat het token onversleuteld over je netwerk. Trek het token in op
   het profiel als het niet meer nodig is.
 - Er wordt niets naar Magister geschreven, en de coach kan geen instellingen of gewichten wijzigen.
@@ -549,7 +551,7 @@ De assistent krijgt richtlijnen mee met de tools. Zonder eigen tekst gelden deze
 > - Spreek Nederlands, tenzij de leerling een andere taal gebruikt.
 > - Leg kort uit wat je in de planner verandert, en vraag toestemming voor het verwijderen van deelstappen of labels.
 
-Je kunt de tekst **per kind** aanpassen onder Configureer, AI-coach (leeg betekent de standaardtekst, en er is
+Je kunt de tekst **per kind** aanpassen onder Configureer, AI-coach, Instellingen per kind (leeg betekent de standaardtekst, en er is
 een optie "terugzetten naar standaard").
 
 ### Voor ouders (Ouder)
@@ -559,7 +561,7 @@ met een geschatte tijd, verspreid over de dagen vóór toetsen en opdrachten, bi
 dezelfde MCP Server-opzet als hierboven (hoofdadres `/api/mcp`); alleen de rol verschilt.
 
 1. **Koppel je gebruiker als Ouder.** Maak een Home Assistant-gebruiker voor jezelf (geen beheerder) en ga naar
-   Instellingen, Apparaten en diensten, Magister, **Configureer**, **AI-coach**, kies het kind, zet **AI-coach
+   Instellingen, Apparaten en diensten, Magister, **Configureer**, **AI-coach**, **Instellingen per kind**, kies het kind, zet **AI-coach
    ingeschakeld** aan en kies je gebruiker onder **Ouders**. Herhaal dit voor elk kind (één ouder-gebruiker kan aan
    meerdere kinderen zijn gekoppeld). De gebruiker van een leerling komt onder **Leerlingen**; dezelfde gebruiker kan voor één
    kind niet in beide lijsten staan. Gebruikers die in 1.6.0 zijn gekoppeld, zijn leerlingen.
@@ -599,9 +601,9 @@ labelopties wijzigen.
 > **Jij:** Maak een studieplanning voor de toets Engels van volgende week dinsdag.
 >
 > **Assistent:** *(kijkt naar het overzicht van volgende week)* Volgende week dinsdag staat het proefwerk Engels
-> (hoofdstuk 4). Maandag is al druk (huiswerk Duits, 30 minuten gepland bij een maximum van 90). Mijn voorstel:
+> (hoofdstuk 4). Maandag is er alleen huiswerk Duits (30 van de 90 minuten). Mijn voorstel:
 > donderdag woordjes leren (30 min), vrijdag grammatica oefenen (30 min), maandag een oefentoets (45 min,
-> dan blijf je binnen het maximum) en dinsdagochtend de samenvatting herhalen (15 min). Zal ik dit zo
+> dan blijft ze binnen het maximum) en dinsdagochtend de samenvatting herhalen (15 min). Zal ik dit zo
 > toevoegen?
 >
 > **Jij:** Ja, graag.
@@ -668,7 +670,8 @@ gevraagd.
 - Gegevens gaan alleen tussen je Home Assistant en Magister (de Magister-server en de loginservice
   van je school). Er is geen andere server en er worden geen gebruiksgegevens verzameld. Uitzondering: als je de
   optionele AI-huiswerkcoach inschakelt, ziet de AI-aanbieder van de assistent van de leerling de huiswerkteksten en het
-  rooster (zonder gegevens van docenten); zie [AI-huiswerkcoach](#ai-huiswerkcoach) voor wat wel en niet is afgeschermd.
+  rooster (zonder gegevens van docenten), en stuurt de assistent van een ouder het huiswerk en de roosters van alle
+  gekoppelde kinderen, plus wat de ouder typt, naar de eigen AI-aanbieder van de ouder; zie [AI-huiswerkcoach](#ai-huiswerkcoach) voor wat wel en niet is afgeschermd.
 - Bescherming tegen blokkade: na een mislukte login of herhaalde serverfouten wacht de integratie
   en probeert niet opnieuw met het wachtwoord; ze stopt helemaal als een poging kan meetellen voor
   een blokkade, tot je de integratie opnieuw laadt of opnieuw verifieert.

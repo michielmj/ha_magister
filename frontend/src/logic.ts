@@ -218,10 +218,13 @@ export interface SubtaskEdit {
 /** The estimates the forms offer (minutes). */
 export const MINUTE_CHOICES: readonly number[] = [15, 30, 45, 60, 90, 120, 180, 240];
 
-/** The choices plus an existing value that is not among them, in ascending order. */
-export function minuteChoices(current: number | null | undefined): number[] {
-  if (typeof current !== "number" || MINUTE_CHOICES.includes(current)) return [...MINUTE_CHOICES];
-  return [...MINUTE_CHOICES, current].sort((a, b) => a - b);
+/** The choices plus existing values (form and stored) that are not among them, in ascending order. */
+export function minuteChoices(...existing: (number | null | undefined)[]): number[] {
+  const extra = existing.filter(
+    (value, index): value is number =>
+      typeof value === "number" && !MINUTE_CHOICES.includes(value) && existing.indexOf(value) === index,
+  );
+  return [...MINUTE_CHOICES, ...extra].sort((a, b) => a - b);
 }
 
 /** "45 min", "1 u", "1 u 15 min" (nl) / "1 h 15 min" (en). */

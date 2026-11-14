@@ -85,6 +85,8 @@ interface SubForm {
   date: string;
   /** The estimated time; null when unknown (none chosen). */
   minutes: number | null;
+  /** Edit only: the stored estimate, which stays selectable after it is changed. */
+  storedMinutes?: number | null;
   error: string;
   busy: boolean;
 }
@@ -845,7 +847,9 @@ export class MagisterHomeworkCard extends LitElement {
     }
     const warning = format(texts.sub.over_max, { max: formatMinutes(max, lang) });
     return html`<span class="planned over" title=${warning}
-      ><span aria-hidden="true">⚠ </span>${text}<span class="sr-only">, ${warning}</span></span
+      ><span aria-hidden="true">⚠ </span>${text}<span aria-hidden="true">
+        ${format(texts.sub.max_short, { max: formatMinutes(max, lang) })}</span
+      ><span class="sr-only">, ${warning}</span></span
     >`;
   }
 
@@ -1325,7 +1329,7 @@ export class MagisterHomeworkCard extends LitElement {
           }}
         >
           <option value="">${texts.sub.minutes_none}</option>
-          ${minuteChoices(form.minutes).map(
+          ${minuteChoices(form.minutes, form.storedMinutes).map(
             (value) =>
               html`<option value=${String(value)} ?selected=${form.minutes === value}>${formatMinutes(
                 value,
@@ -1366,6 +1370,7 @@ export class MagisterHomeworkCard extends LitElement {
       title: sub?.title ?? "",
       date: sub ? this._clampDate(sub.planned, bounds) : bounds.fixed ? bounds.max : bounds.min,
       minutes: sub?.minutes ?? null,
+      storedMinutes: sub?.minutes ?? null,
       error: "",
       busy: false,
     };
@@ -2295,7 +2300,7 @@ export class MagisterHomeworkCard extends LitElement {
       white-space: nowrap;
     }
     .sub-title {
-      flex: 1 1 5em;
+      flex: 1 1 8em;
       min-width: 0;
       overflow-wrap: anywhere;
     }
