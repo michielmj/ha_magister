@@ -1,9 +1,9 @@
-# M7 — Homework planner enhancements (release 1.3.0, includes M6 / 1.2.0)
+# M7 — Homework planner enhancements (release 1.3.0)
 
 | | |
 |---|---|
 | Status | **Approved by PM (2026-11-14)**, via the survey answers below |
-| Branch | `claude/jolly-mayer-i2h3oo` (PR #11 stays open and is renamed to 1.3.0) |
+| Branch | `claude/jolly-mayer-i2h3oo` (a new PR for 1.3.0; 1.2.0 was merged and installed on 2026-11-14) |
 | Refs | M5, M6 · `docs/reference/homework-websocket.md` (binding, updated for 1.3.0) |
 
 ## PM decisions (survey 2026-11-14)
@@ -19,7 +19,7 @@
 | 8 | A manual label has an optional **note** (short free text), shown like Magister's homework text. |
 | 9 | Manual labels also appear in **calendar titles**, after the Magister label: `[Proefwerk] [Toetsweek] wisB`. |
 | 10 | A **card language** setting: Automatic (follows HA), Nederlands, English. |
-| 11 | **1.2.0 is not released separately.** Everything ships as **1.3.0**. |
+| 11 | All of this ships as **1.3.0**. 1.2.0 was already merged and installed. |
 
 ## Design
 
@@ -38,7 +38,7 @@
   "next week").
 - The existing **unique ids stay the same**, so the old `:homework:tomorrow` id is reused for next_day. Users keep
   their entity ids and history; only the display name changes. The README says so.
-- The WebSocket `progress` key is renamed from `tomorrow` to `next_day` (the card ships in the same bundle).
+- The WebSocket `progress` key is renamed from `tomorrow` (1.2.0) to `next_day`. The card ships in the same bundle, so no compatibility shim is needed.
 
 ### Manual labels (backend)
 - **Label configuration** per child, stored in the entry options as
@@ -91,7 +91,7 @@
   - the add-label dialog and removable chips
   - bars renamed
   - tests, bundle, screenshots, README
-- Then **release 1.3.0** (rename PR #11, squash-merge, publish `v1.3.0`).
+- Then **release 1.3.0**: a new PR, squash-merge, publish `v1.3.0`.
 
 ## Acceptance criteria
 - [ ] Both phases reviewed; CI green.
