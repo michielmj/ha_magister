@@ -23,6 +23,7 @@ from .const import (
     CONF_CHILD_ID,
     CONF_CHILDREN,
     CONF_HOST,
+    CONF_LABELS,
     CONF_TOTP_SECRET,
     CONF_WEIGHTS,
     DOMAIN,
@@ -44,7 +45,7 @@ from .pending import (
     retain_login,
     take_pending_login,
 )
-from .todo import async_register_homework_service
+from .todo import async_register_homework_services
 from .ws_api import async_register_websocket_api
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -56,7 +57,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Magister integration."""
     async_register_shutdown(hass)
     async_register_websocket_api(hass)
-    async_register_homework_service(hass)
+    async_register_homework_services(hass)
     await async_register_card(hass)
     return True
 
@@ -174,14 +175,14 @@ def config_snapshot(entry: MagisterConfigEntry) -> str:
     """The parts of an entry that need a reload when they change.
 
     Credentials are left out: reauth and reconfigure schedule their own reload. So are
-    the homework weights, which are applied to the sensors without a reload.
+    the homework weights and label options, which are applied without a reload.
     """
     return json.dumps(
         {
             "options": {
                 key: value
                 for key, value in entry.options.items()
-                if key != CONF_WEIGHTS
+                if key not in (CONF_WEIGHTS, CONF_LABELS)
             },
             "children": [child[CHILD_ID] for child in entry.data[CONF_CHILDREN]],
             "subentries": {
@@ -197,12 +198,12 @@ def config_snapshot(entry: MagisterConfigEntry) -> str:
 async def _async_update_listener(
     hass: HomeAssistant, entry: MagisterConfigEntry
 ) -> None:
-    """Reload after options, children or sensors changed; apply new weights live."""
+    """Reload after options, children or sensors changed; apply weights/labels live."""
     async_sync_duplicate_issues(hass)
     if config_snapshot(entry) != entry.runtime_data.snapshot:
         hass.config_entries.async_schedule_reload(entry.entry_id)
     else:
-        entry.runtime_data.homework.async_weights_changed()
+        entry.runtime_data.homework.async_options_changed()
 
 
 def _child_of_unique_id(unique_id: str) -> int | None:

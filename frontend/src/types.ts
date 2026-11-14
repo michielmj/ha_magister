@@ -31,7 +31,7 @@ export interface PeriodProgress {
   completed: number;
 }
 
-export type ProgressPeriod = "tomorrow" | "week" | "next_week";
+export type ProgressPeriod = "next_day" | "week" | "next_week";
 
 export type ProgressMap = Record<ProgressPeriod, PeriodProgress | null>;
 

@@ -39,7 +39,7 @@ from custom_components.magister.homework_sensor import next_week_issue_id
 from .ha_helpers import CHILD_ID, NOW, FakeMagister, make_entry
 
 TODO_ID = "todo.kind_school_homework"
-TOMORROW = "sensor.kind_school_homework_tomorrow"
+NEXT_DAY = "sensor.kind_school_homework_next_school_day"
 WEEK = "sensor.kind_school_homework_this_week"
 NEXT_WEEK = "sensor.kind_school_homework_next_week"
 HOST = "school.magister.net"
@@ -111,7 +111,7 @@ async def test_entities_per_child(hass: HomeAssistant, mocked: aioresponses) -> 
     _, entry = await setup_homework(hass, mocked)
     registry = er.async_get(hass)
     entities = er.async_entries_for_config_entry(registry, entry.entry_id)
-    assert {e.entity_id for e in entities} >= {TODO_ID, TOMORROW, WEEK, NEXT_WEEK}
+    assert {e.entity_id for e in entities} >= {TODO_ID, NEXT_DAY, WEEK, NEXT_WEEK}
     assert sensor(hass, TODO_ID).attributes["friendly_name"] == "Kind (school) Homework"
     assert sensor(hass, WEEK).attributes["friendly_name"] == (
         "Kind (school) Homework this week"
@@ -214,20 +214,20 @@ async def test_service_validation(hass: HomeAssistant, mocked: aioresponses) -> 
 async def test_progress_sensors_without_weights(
     hass: HomeAssistant, mocked: aioresponses
 ) -> None:
-    """Tomorrow is empty (100 %), the week and next week follow the progress."""
+    """On Friday the next school day is Monday; week and next week are Sat-Fri."""
     await setup_homework(hass, mocked)
-    tomorrow = sensor(hass, TOMORROW)
-    assert tomorrow.state == "100.0"
-    assert tomorrow.attributes["items"] == 0
-    assert tomorrow.attributes["unit_of_measurement"] == "%"
-    assert tomorrow.attributes["state_class"] == "measurement"
-    assert tomorrow.attributes["period_start"] == "2026-11-14"
-    assert tomorrow.attributes["period_end"] == "2026-11-14"
+    next_day = sensor(hass, NEXT_DAY)
+    assert next_day.state == "0.0"
+    assert next_day.attributes["items"] == 6  # Friday (2) and Monday (4)
+    assert next_day.attributes["unit_of_measurement"] == "%"
+    assert next_day.attributes["state_class"] == "measurement"
+    assert next_day.attributes["period_start"] == "2026-11-13"
+    assert next_day.attributes["period_end"] == "2026-11-16"
 
     week = sensor(hass, WEEK)
     assert week.state == "0.0"
-    assert week.attributes["period_start"] == "2026-11-09"
-    assert week.attributes["period_end"] == "2026-11-15"
+    assert week.attributes["period_start"] == "2026-11-07"
+    assert week.attributes["period_end"] == "2026-11-13"
     assert (week.attributes["items"], week.attributes["tests"]) == (
         week.attributes["open"],
         0,
@@ -319,16 +319,24 @@ async def test_school_b_subjects_from_description(
 async def test_midnight_rolls_the_periods(
     hass: HomeAssistant, mocked: aioresponses, frozen_now: FrozenDateTimeFactory
 ) -> None:
-    """At Amsterdam midnight 'tomorrow' moves on."""
+    """At Amsterdam midnight the periods move on."""
     await setup_homework(hass, mocked)
-    assert sensor(hass, TOMORROW).attributes["items"] == 0  # Saturday
+    assert sensor(hass, NEXT_DAY).attributes["items"] == 6  # Friday + Monday
     frozen_now.move_to("2026-11-14 23:00:01+00:00")  # Sunday 00:00:01 in Amsterdam
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    tomorrow = sensor(hass, TOMORROW)
-    assert tomorrow.attributes["period_start"] == "2026-11-16"
-    assert tomorrow.attributes["items"] == 4
-    assert sensor(hass, WEEK).attributes["period_start"] == "2026-11-09"
+    next_day = sensor(hass, NEXT_DAY)
+    assert next_day.attributes["period_start"] == "2026-11-15"
+    assert next_day.attributes["period_end"] == "2026-11-16"
+    assert next_day.attributes["items"] == 4
+    assert sensor(hass, WEEK).attributes["period_start"] == "2026-11-14"
+    frozen_now.move_to("2026-11-15 23:00:01+00:00")  # Monday 00:00:01
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    next_day = sensor(hass, NEXT_DAY)
+    assert next_day.attributes["period_start"] == "2026-11-16"
+    assert next_day.attributes["period_end"] == "2026-11-17"
+    assert sensor(hass, WEEK).attributes["period_start"] == "2026-11-14"
 
 
 async def test_next_week_outside_window(
@@ -380,7 +388,7 @@ async def test_availability_follows_the_24_hour_rule(
     frozen_now.tick(timedelta(hours=4))
     async_fire_time_changed(hass)
     await hass.async_block_till_done(wait_background_tasks=True)
-    for entity_id in (TODO_ID, TOMORROW, WEEK, NEXT_WEEK):
+    for entity_id in (TODO_ID, NEXT_DAY, WEEK, NEXT_WEEK):
         assert sensor(hass, entity_id).state == "unavailable"
 
 
@@ -399,6 +407,7 @@ async def test_progress_survives_reload_and_restart(
         "progress": 100,
         "last_partial": 0,
         "updated": "",
+        "labels": [],
     }
     assert uid(100061) not in stored
 
@@ -583,7 +592,12 @@ async def test_diagnostics_have_homework_statistics_only(
         "done": 1,
         "average": round(150 / 53, 1),
     }
-    assert stats["weights"] == {"types_set": 0, "subjects_set": 1}
+    assert stats["weights"] == {
+        "types_set": 0,
+        "labels_set": 0,
+        "subjects_set": 1,
+    }
+    assert stats["manual_labels"] == {"homework": 0, "test": 0}
     assert diagnostics["homework_store"] == {"stored_entries": 2}
     assert CONF_WEIGHTS not in diagnostics["entry"]["options"]
     text = str(diagnostics)

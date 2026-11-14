@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +12,10 @@ import pytest
 from custom_components.magister.api import Appointment
 from custom_components.magister.api.homework import (
     HomeworkItem,
+    LabelOption,
+    ManualLabel,
     Weights,
+    default_label_options,
     effective_weights,
     extract_homework,
     homework_periods,
@@ -20,9 +23,13 @@ from custom_components.magister.api.homework import (
     items_in_period,
     merge_subject_weights,
     next_week_fits,
+    parse_label_options,
+    skipped_days,
     subjects_of,
     summarize,
 )
+from custom_components.magister.api.mapping import LOCAL_TZ
+from custom_components.magister.coordinator import fetch_window
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 HOST = "school.magister.net"
@@ -125,37 +132,98 @@ def test_items_are_sorted_by_time_hour_and_id() -> None:
 
 
 @pytest.mark.parametrize(
-    ("today", "tomorrow", "week", "next_week"),
+    ("today", "next_day", "week", "next_week"),
     [
-        # Friday
-        (date(2026, 11, 13), (14, 15), (9, 16), (16, 23)),
-        # Monday: this week includes today
-        (date(2026, 11, 9), (10, 11), (9, 16), (16, 23)),
-        # Sunday: tomorrow is next week's Monday
-        (date(2026, 11, 15), (16, 17), (9, 16), (16, 23)),
+        # Monday 9 to Sunday 15 November 2026: (first day, last day inclusive).
+        (date(2026, 11, 9), (9, 10), (7, 13), (14, 20)),
+        (date(2026, 11, 10), (10, 11), (7, 13), (14, 20)),
+        (date(2026, 11, 11), (11, 12), (7, 13), (14, 20)),
+        (date(2026, 11, 12), (12, 13), (7, 13), (14, 20)),
+        # Friday: Monday is the next school day; the week ends today
+        (date(2026, 11, 13), (13, 16), (7, 13), (14, 20)),
+        # Saturday: the week starts today
+        (date(2026, 11, 14), (14, 16), (14, 20), (21, 27)),
+        (date(2026, 11, 15), (15, 16), (14, 20), (21, 27)),
     ],
 )
 def test_periods(
     today: date,
-    tomorrow: tuple[int, int],
+    next_day: tuple[int, int],
     week: tuple[int, int],
     next_week: tuple[int, int],
 ) -> None:
-    """Tomorrow, Mon-Sun this week (past days included) and next week."""
+    """Next school day, Saturday-Friday this week and the following week."""
     periods = homework_periods(today)
-    for name, (first, end) in (
-        ("tomorrow", tomorrow),
+    for name, (first, last) in (
+        ("next_day", next_day),
         ("week", week),
         ("next_week", next_week),
     ):
-        assert periods[name] == (date(2026, 11, first), date(2026, 11, end))
+        assert periods[name] == (date(2026, 11, first), date(2026, 11, last + 1))
+
+
+@pytest.mark.parametrize(
+    "start", [date(2026, 3, 16), date(2026, 10, 19), date(2026, 12, 28)]
+)
+def test_periods_every_weekday_incl_dst_weeks(start: date) -> None:
+    """The invariants hold for every weekday, also in the weeks the clocks change."""
+    for offset in range(7):
+        today = start + timedelta(days=offset)
+        periods = homework_periods(today)
+        first, end = periods["week"]
+        assert first.weekday() == 5 and first <= today < end  # Saturday..Friday
+        assert (end - first).days == 7
+        assert periods["next_week"] == (end, end + timedelta(days=7))
+        next_first, next_end = periods["next_day"]
+        assert next_first == today
+        last = next_end - timedelta(days=1)
+        assert last.weekday() < 5 and last > today  # a school day after today
+        assert (last - today).days <= 3
+        # no school day lies between today and the next school day
+        skipped = skipped_days("next_day", today)
+        assert all(day.weekday() >= 5 for day in skipped)
+        assert len(skipped) == (last - today).days - 1
+
+
+@pytest.mark.parametrize("weeks_ahead", [1, 2, 3, 12])
+def test_next_week_fits_the_fetch_window(weeks_ahead: int) -> None:
+    """Next week lies in the window on every weekday exactly when it is said to fit."""
+    fits = []
+    for offset in range(7):
+        today = date(2026, 11, 9) + timedelta(days=offset)
+        window = fetch_window(
+            datetime.combine(today, time(12), LOCAL_TZ), 1, weeks_ahead
+        )
+        fits.append(homework_periods(today)["next_week"][1] <= window[1].date())
+    assert all(fits) == next_week_fits(weeks_ahead)
+
+
+def test_next_day_skips_the_free_days() -> None:
+    """On Friday the weekend items are not part of the next-day period."""
+    items = extract_homework(
+        [
+            appointment(Id=1, Start="2026-11-13T08:00:00.0000000Z"),  # Friday
+            appointment(Id=2, Start="2026-11-14T08:00:00.0000000Z"),  # Saturday
+            appointment(Id=3, Start="2026-11-16T08:00:00.0000000Z"),  # Monday
+            appointment(Id=4, Start="2026-11-17T08:00:00.0000000Z"),  # Tuesday
+        ],
+        HOST,
+        1,
+    )
+    today = date(2026, 11, 13)
+    got = items_in_period(
+        items, homework_periods(today)["next_day"], skipped_days("next_day", today)
+    )
+    assert [i.appointment_id for i in got] == [1, 3]
+    assert skipped_days("week", today) == frozenset()
 
 
 def test_periods_across_month_and_year() -> None:
-    """The week arithmetic crosses month and year ends."""
-    periods = homework_periods(date(2026, 12, 31))
-    assert periods["tomorrow"][0] == date(2027, 1, 1)
-    assert periods["next_week"] == (date(2027, 1, 4), date(2027, 1, 11))
+    """The arithmetic crosses month and year ends."""
+    periods = homework_periods(date(2026, 12, 31))  # Thursday
+    assert periods["next_day"] == (date(2026, 12, 31), date(2027, 1, 2))
+    assert periods["week"] == (date(2026, 12, 26), date(2027, 1, 2))
+    assert periods["next_week"] == (date(2027, 1, 2), date(2027, 1, 9))
 
 
 def test_next_week_fits() -> None:
@@ -279,3 +347,118 @@ def test_fixture_items(school: str) -> None:
     assert [i.start for i in items] == sorted(i.start for i in items)
     assert any(i.cancelled for i in items)
     assert datetime(2026, 11, 2, tzinfo=UTC) <= items[0].start
+
+
+def _label(label_id: str, kind: str = "test", note: str = "") -> ManualLabel:
+    return ManualLabel(
+        label_id, label_id.title(), kind, note, "2026-11-13T10:00:00+00:00"
+    )
+
+
+def test_item_set_is_magister_type_or_manual_label() -> None:
+    """Untyped appointments only appear with a manual label; info_type stays None."""
+    appointments = [
+        appointment(Id=1, InfoType=0),
+        appointment(Id=2, InfoType=0),
+        appointment(Id=3, InfoType=6),
+        appointment(Id=4, InfoType=2),
+    ]
+    manual = {item_uid(HOST, 1, 2): (_label("a", "homework"),)}
+    manual[item_uid(HOST, 1, 3)] = (_label("b"),)
+    manual[item_uid(HOST, 1, 4)] = (_label("c", "homework"),)
+    items = {
+        i.appointment_id: i for i in extract_homework(appointments, HOST, 1, manual)
+    }
+    assert set(items) == {2, 3, 4}
+    assert (items[2].info_type, items[2].label, items[2].is_test) == (None, None, False)
+    assert items[3].info_type is None and items[3].is_test  # a test label
+    assert items[4].info_type == 2 and items[4].label == "Proefwerk"
+    assert items[4].is_test  # Magister type 2
+
+
+def test_is_test_rule() -> None:
+    """Type 2-5 or any manual test label; homework labels do not make a test."""
+    plain, homework, test = extract_homework(
+        [appointment(Id=1), appointment(Id=2), appointment(Id=3)],
+        HOST,
+        1,
+        {
+            item_uid(HOST, 1, 2): (_label("a", "homework"),),
+            item_uid(HOST, 1, 3): (_label("a", "homework"), _label("b", "test")),
+        },
+    )
+    assert (plain.is_test, homework.is_test, test.is_test) == (False, False, True)
+
+
+def test_weight_is_the_max_of_the_labels_times_the_subject() -> None:
+    """Magister type and manual labels: highest weight; subject weight multiplies."""
+    weights = Weights(
+        types={"test": 3.0}, subjects={"wiskunde": 2.0}, labels={"a": 5.0, "b": 0.5}
+    )
+    items = {
+        i.appointment_id: i
+        for i in extract_homework(
+            [
+                appointment(Id=1, InfoType=2),  # type only
+                appointment(Id=2, InfoType=2),  # type 3, label 5 -> 5
+                appointment(Id=3, InfoType=2),  # type 3, label 0.5 -> 3
+                appointment(Id=4, InfoType=0),  # two labels -> 5
+                appointment(Id=5, InfoType=0),  # label without weight -> 1
+            ],
+            HOST,
+            1,
+            {
+                item_uid(HOST, 1, 2): (_label("a"),),
+                item_uid(HOST, 1, 3): (_label("b"),),
+                item_uid(HOST, 1, 4): (_label("b"), _label("a")),
+                item_uid(HOST, 1, 5): (_label("zzz"),),
+            },
+        )
+    }
+    got = {i: weights.item_weight(item) for i, item in items.items()}
+    assert got == {1: 6.0, 2: 10.0, 3: 6.0, 4: 10.0, 5: 2.0}
+
+
+def test_effective_weights_lists_the_labels_in_use() -> None:
+    """Manual labels present in the period appear by name."""
+    items = extract_homework(
+        [appointment(Id=1, InfoType=0)],
+        HOST,
+        1,
+        {item_uid(HOST, 1, 1): (_label("a"),)},
+    )
+    result = effective_weights(items, Weights(labels={"a": 4.0}))
+    assert result["labels"] == {"A": 4.0}
+
+
+def test_weights_parse_labels_leniently() -> None:
+    """Bad label weights are ignored, good ones clamped."""
+    weights = Weights.from_options({"labels": {"a": 99, "b": "x", "": 1, 3: 1}})
+    assert dict(weights.labels) == {"a": 10.0}
+
+
+def test_label_options_parse_and_defaults() -> None:
+    """Defaults are the five Magister names; stored options are parsed leniently."""
+    defaults = default_label_options()
+    assert [(o.name, o.kind) for o in defaults] == [
+        ("Huiswerk", "homework"),
+        ("Proefwerk", "test"),
+        ("Tentamen", "test"),
+        ("SO", "test"),
+        ("MO", "test"),
+    ]
+    assert len({o.id for o in defaults}) == 5
+    assert parse_label_options(None) is None
+    assert parse_label_options([]) == []
+    raw = [
+        {"id": "a", "name": " Toetsweek ", "kind": "test"},
+        {"id": "a", "name": "dup", "kind": "test"},
+        {"id": "b", "name": "X", "kind": "weird"},
+        {"id": "", "name": "no id"},
+        {"id": "c", "name": "  "},
+        "junk",
+    ]
+    assert parse_label_options(raw) == [
+        LabelOption("a", "Toetsweek", "test"),
+        LabelOption("b", "X", "homework"),
+    ]

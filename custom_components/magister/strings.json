@@ -80,8 +80,8 @@
       }
     },
     "sensor": {
-      "homework_tomorrow": {
-        "name": "Homework tomorrow"
+      "homework_next_day": {
+        "name": "Homework next school day"
       },
       "homework_week": {
         "name": "Homework this week"
@@ -109,6 +109,18 @@
     },
     "homework_status_only": {
       "message": "Only the status of a homework item can be changed; the items come from Magister."
+    },
+    "homework_appointment_not_found": {
+      "message": "This appointment does not exist (any more) in the fetched agenda."
+    },
+    "homework_label_not_found": {
+      "message": "This label is not one of the labels configured for this child."
+    },
+    "homework_label_exists": {
+      "message": "This appointment already has this label."
+    },
+    "homework_label_not_on_appointment": {
+      "message": "This appointment does not have this manual label. Magister labels cannot be removed."
     }
   },
   "options": {
@@ -118,7 +130,8 @@
         "description": "What do you want to change?",
         "menu_options": {
           "general": "General settings",
-          "weights": "Homework weights"
+          "weights": "Homework weights",
+          "labels": "Labels"
         }
       },
       "general": {
@@ -154,19 +167,74 @@
           "oral_quiz": "Oral quiz (MO)"
         }
       },
+      "weights_labels": {
+        "title": "Weights per label",
+        "description": "How much each manual label counts for {child}. 1 is normal, 0 leaves it out of the average. An item with several labels counts with its highest label weight. Steps of 0.5."
+      },
       "weights_subjects": {
         "title": "Weights per subject",
         "description": "How much each subject counts. 1 is normal, 0 leaves it out of the average. Subjects that are not in the data now keep their saved weight."
+      },
+      "labels": {
+        "title": "Labels",
+        "description": "Choose the child. These are the labels you can add to a lesson in the homework card.",
+        "data": {
+          "child": "Child"
+        }
+      },
+      "labels_menu": {
+        "title": "Labels of {child}",
+        "description": "What do you want to do?",
+        "menu_options": {
+          "label_add": "Add a label",
+          "label_edit": "Rename a label or change its kind",
+          "label_delete": "Delete a label"
+        }
+      },
+      "label_add": {
+        "title": "Add a label",
+        "description": "A label has a name and a kind: homework or test (a test counts as a test in the progress). Set its weight under Homework weights.",
+        "data": {
+          "name": "Name",
+          "kind": "Kind"
+        }
+      },
+      "label_edit": {
+        "title": "Choose a label",
+        "description": "Which label of {child} do you want to change?",
+        "data": {
+          "label": "Label"
+        }
+      },
+      "label_edit_details": {
+        "title": "Change label",
+        "description": "Change the name or the kind of \"{label}\".",
+        "data": {
+          "name": "Name",
+          "kind": "Kind"
+        }
+      },
+      "label_delete": {
+        "title": "Delete a label",
+        "description": "Which label of {child} do you want to delete? A label that is still on a lesson cannot be deleted.",
+        "data": {
+          "label": "Label"
+        }
       }
     },
     "error": {
       "no_children_selected": "Select at least one child.",
-      "child_already_configured": "This child is already added under another login of this school. Add each child under one login only."
+      "child_already_configured": "This child is already added under another login of this school. Add each child under one login only.",
+      "label_in_use": "This label is still used on one or more lessons. Remove it from those lessons first.",
+      "name_required": "Enter a name.",
+      "name_too_long": "The name can be at most 40 characters.",
+      "name_exists": "This child already has a label with this name."
     },
     "abort": {
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",
       "cannot_connect": "Could not read the children from Magister. Try again later.",
-      "not_loaded": "The integration is not loaded. Wait until it is running and try again."
+      "not_loaded": "The integration is not loaded. Wait until it is running and try again.",
+      "label_gone": "This label no longer exists."
     }
   },
   "config_subentries": {
@@ -245,6 +313,46 @@
           "name": "Progress",
           "description": "Progress in percent, 0 to 100."
         }
+      }
+    },
+    "add_homework_label": {
+      "name": "Add homework label",
+      "description": "Adds a manual label to an appointment. The appointment appears in the homework planner with this label. Nothing is written to Magister.",
+      "fields": {
+        "appointment": {
+          "name": "Appointment",
+          "description": "The id (uid) of the appointment, like <host>:<childId>:<appointmentId>."
+        },
+        "label": {
+          "name": "Label",
+          "description": "The id or the name (not case-sensitive) of one of the labels configured for this child."
+        },
+        "note": {
+          "name": "Note",
+          "description": "An optional short note, at most 200 characters."
+        }
+      }
+    },
+    "remove_homework_label": {
+      "name": "Remove homework label",
+      "description": "Removes a manual label from an appointment. Labels from Magister cannot be removed.",
+      "fields": {
+        "appointment": {
+          "name": "Appointment",
+          "description": "The id (uid) of the appointment."
+        },
+        "label": {
+          "name": "Label",
+          "description": "The id or the name (not case-sensitive) of the label."
+        }
+      }
+    }
+  },
+  "selector": {
+    "label_kind": {
+      "options": {
+        "homework": "Homework",
+        "test": "Test"
       }
     }
   }

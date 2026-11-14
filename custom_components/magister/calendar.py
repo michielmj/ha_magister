@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -14,6 +15,7 @@ from .api.mapping import CANCELLED_STATUSES
 from .const import CHILD_ID, CHILD_SHORT_NAME, CONF_CHILDREN, CONF_HOST
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
 from .entity import MagisterEntity
+from .homework import HomeworkManager
 
 PARALLEL_UPDATES = 0
 
@@ -28,15 +30,21 @@ async def async_setup_entry(
     host: str = entry.data[CONF_HOST]
     async_add_entities(
         MagisterCalendar(
-            coordinator, host, int(child[CHILD_ID]), str(child[CHILD_SHORT_NAME])
+            coordinator,
+            entry.runtime_data.homework,
+            host,
+            int(child[CHILD_ID]),
+            str(child[CHILD_SHORT_NAME]),
         )
         for child in entry.data[CONF_CHILDREN]
     )
 
 
-def to_calendar_event(appointment: Appointment, host: str) -> CalendarEvent:
+def to_calendar_event(
+    appointment: Appointment, host: str, manual_labels: Sequence[str] = ()
+) -> CalendarEvent:
     """Convert an appointment to a Home Assistant calendar event."""
-    fields = map_appointment(appointment, host)
+    fields = map_appointment(appointment, host, manual_labels)
     return CalendarEvent(
         start=fields.start,
         end=fields.end,
@@ -55,25 +63,44 @@ class MagisterCalendar(MagisterEntity, CalendarEntity):
     def __init__(
         self,
         coordinator: MagisterCoordinator,
+        manager: HomeworkManager,
         host: str,
         child_id: int,
         short_name: str,
     ) -> None:
         """Create the calendar."""
         super().__init__(coordinator, host, child_id, short_name)
+        self._manager = manager
         self._events: list[CalendarEvent] = []
         self._current_candidates: list[CalendarEvent] = []
         self._build_events()
 
     def _build_events(self) -> None:
         appointments = (self.coordinator.data or {}).get(self._child_id, [])
-        self._events = [to_calendar_event(item, self._host) for item in appointments]
+        self._events = [
+            to_calendar_event(
+                item,
+                self._host,
+                self._manager.manual_label_names(self._child_id, item.id),
+            )
+            for item in appointments
+        ]
         # Cancelled lessons stay in the calendar but are not "current" or "next".
         self._current_candidates = [
             event
             for event, item in zip(self._events, appointments, strict=True)
             if item.status not in CANCELLED_STATUSES
         ]
+
+    async def async_added_to_hass(self) -> None:
+        """Follow label changes (the titles carry the manual labels)."""
+        await super().async_added_to_hass()
+        self.async_on_remove(self._manager.async_add_listener(self._handle_labels))
+
+    @callback
+    def _handle_labels(self) -> None:
+        self._build_events()
+        self.async_write_ha_state()
 
     @callback
     def _handle_coordinator_update(self) -> None:

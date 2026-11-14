@@ -1,14 +1,15 @@
 """Homework planner logic (pure, no Home Assistant imports).
 
 A homework item is a Magister appointment with InfoType 1-5 (homework, test, exam,
-written quiz, oral quiz). This module extracts the items, computes the periods
-(tomorrow, this week, next week in Europe/Amsterdam) and the weighted progress.
+written quiz, oral quiz) or with at least one manual label. This module extracts the
+items, computes the periods (next school day, this week, next week in
+Europe/Amsterdam) and the weighted progress.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any, Final
@@ -27,16 +28,97 @@ HOMEWORK_TYPES: Final[dict[int, tuple[str, str]]] = {
 TYPE_KEYS: Final[tuple[str, ...]] = tuple(key for key, _ in HOMEWORK_TYPES.values())
 TEST_INFO_TYPES: Final = frozenset({2, 3, 4, 5})
 
-PERIOD_TOMORROW: Final = "tomorrow"
+PERIOD_NEXT_DAY: Final = "next_day"
 PERIOD_WEEK: Final = "week"
 PERIOD_NEXT_WEEK: Final = "next_week"
-PERIODS: Final = (PERIOD_TOMORROW, PERIOD_WEEK, PERIOD_NEXT_WEEK)
+PERIODS: Final = (PERIOD_NEXT_DAY, PERIOD_WEEK, PERIOD_NEXT_WEEK)
+
+# Manual label kinds and the stored note length.
+KIND_HOMEWORK: Final = "homework"
+KIND_TEST: Final = "test"
+LABEL_KINDS: Final = (KIND_HOMEWORK, KIND_TEST)
+NOTE_MAX: Final = 200
+LABEL_NAME_MAX: Final = 40
 
 WEIGHT_MIN: Final = 0.0
 WEIGHT_MAX: Final = 10.0
 DEFAULT_WEIGHT: Final = 1.0
 
 PROGRESS_STEPS: Final = (0, 25, 50, 75, 100)
+
+
+@dataclass(frozen=True, slots=True)
+class LabelOption:
+    """A label a child can get manually: a stable id, a name and a kind."""
+
+    id: str
+    name: str
+    kind: str
+
+
+@dataclass(frozen=True, slots=True)
+class ManualLabel:
+    """A manual label on an appointment, resolved against the label options."""
+
+    id: str
+    name: str
+    kind: str
+    note: str
+    added: str
+
+
+def default_label_options() -> list[LabelOption]:
+    """The five Magister names with their kinds (the default label options)."""
+    return [
+        LabelOption(
+            f"default_{key}", label, KIND_HOMEWORK if info_type == 1 else KIND_TEST
+        )
+        for info_type, (key, label) in HOMEWORK_TYPES.items()
+    ]
+
+
+def parse_label_options(raw: Any) -> list[LabelOption] | None:
+    """Label options from stored options; ``None`` when not configured (default)."""
+    if not isinstance(raw, list):
+        return None
+    options: list[LabelOption] = []
+    seen: set[str] = set()
+    for entry in raw:
+        if not isinstance(entry, Mapping):
+            continue
+        label_id, name, kind = entry.get("id"), entry.get("name"), entry.get("kind")
+        if not isinstance(label_id, str) or not label_id or label_id in seen:
+            continue
+        if not isinstance(name, str) or not name.strip():
+            continue
+        seen.add(label_id)
+        options.append(
+            LabelOption(
+                label_id, name.strip(), kind if kind in LABEL_KINDS else KIND_HOMEWORK
+            )
+        )
+    return options
+
+
+def label_options_to_stored(options: Iterable[LabelOption]) -> list[dict[str, str]]:
+    """The stored form of label options."""
+    return [{"id": o.id, "name": o.name, "kind": o.kind} for o in options]
+
+
+def find_label_option(
+    options: Iterable[LabelOption], reference: str, *, by_name: bool = False
+) -> LabelOption | None:
+    """The option with id ``reference``; optionally also by name (case-insensitive)."""
+    options = list(options)
+    for option in options:
+        if option.id == reference:
+            return option
+    if by_name:
+        wanted = reference.strip().casefold()
+        for option in options:
+            if option.name.casefold() == wanted:
+                return option
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,17 +131,20 @@ class HomeworkItem:
     due_date: date
     all_day: bool
     subject: str
-    info_type: int
-    label: str
+    info_type: int | None
+    label: str | None
     text: str
     cancelled: bool
     lesson_hour: int | None
     has_attachments: bool
+    manual_labels: tuple[ManualLabel, ...] = ()
 
     @property
     def is_test(self) -> bool:
-        """Whether this is a test (InfoType 2-5) rather than plain homework."""
-        return self.info_type in TEST_INFO_TYPES
+        """A test: InfoType 2-5, or any manual label of the kind ``test``."""
+        return self.info_type in TEST_INFO_TYPES or any(
+            label.kind == KIND_TEST for label in self.manual_labels
+        )
 
 
 def item_uid(host: str, child_id: int, appointment_id: int) -> str:
@@ -67,47 +152,79 @@ def item_uid(host: str, child_id: int, appointment_id: int) -> str:
     return f"{host}:{child_id}:{appointment_id}"
 
 
+def uid_child_id(uid: str) -> int | None:
+    """The child id in an item uid, ``None`` when it is not one."""
+    parts = uid.rsplit(":", 2)
+    try:
+        return int(parts[1]) if len(parts) == 3 else None
+    except ValueError:
+        return None
+
+
+def magister_info_type(appointment: Appointment) -> int | None:
+    """The Magister homework InfoType (1-5) of an appointment, else ``None``."""
+    info_type = appointment.info_type
+    return info_type if info_type in HOMEWORK_TYPES else None
+
+
 def extract_homework(
-    appointments: Iterable[Appointment], host: str, child_id: int
+    appointments: Iterable[Appointment],
+    host: str,
+    child_id: int,
+    manual: Mapping[str, Sequence[ManualLabel]] | None = None,
 ) -> list[HomeworkItem]:
-    """Homework items of a child, ordered by due time, lesson hour and id."""
+    """Homework items of a child, ordered by due time, lesson hour and id.
+
+    An item is an appointment with a Magister InfoType 1-5 or a manual label
+    (``manual`` maps item uids to their labels).
+    """
     items: list[HomeworkItem] = []
     for appointment in appointments:
-        info_type = appointment.info_type
-        if info_type is None or info_type not in HOMEWORK_TYPES:
+        info_type = magister_info_type(appointment)
+        uid = item_uid(host, child_id, appointment.id)
+        labels = tuple((manual or {}).get(uid, ()))
+        if info_type is None and not labels:
             continue
         items.append(
             HomeworkItem(
-                uid=item_uid(host, child_id, appointment.id),
+                uid=uid,
                 appointment_id=appointment.id,
                 start=appointment.start,
                 due_date=appointment.start.astimezone(LOCAL_TZ).date(),
                 all_day=appointment.all_day,
                 subject=appointment.subject,
                 info_type=info_type,
-                label=HOMEWORK_TYPES[info_type][1],
+                label=HOMEWORK_TYPES[info_type][1] if info_type is not None else None,
                 text=html_to_text(appointment.content),
                 cancelled=appointment.status in CANCELLED_STATUSES,
                 lesson_hour=appointment.period_start,
                 has_attachments=appointment.has_attachments,
+                manual_labels=labels,
             )
         )
     items.sort(key=lambda i: (i.start, i.lesson_hour or 0, i.uid))
     return items
 
 
+def next_school_day(today: date) -> date:
+    """The first school day (Monday-Friday) after ``today``."""
+    weekday = today.weekday()
+    return today + timedelta(days=1 if weekday < 4 else 7 - weekday)
+
+
 def homework_periods(today: date) -> dict[str, tuple[date, date]]:
     """Periods as ``(first day, day after the last)`` for the local date ``today``.
 
-    Tomorrow is ``today + 1``; this week is Monday to Sunday of the current week
-    (days already past included); next week is the following Monday to Sunday.
+    ``next_day`` runs from today up to and including the next school day (Monday for
+    Friday, Saturday and Sunday). ``week`` is the Saturday on or before today through
+    the following Friday (so on a Saturday it starts today); ``next_week`` is the
+    Saturday-Friday week after that.
     """
-    monday = today - timedelta(days=today.weekday())
-    tomorrow = today + timedelta(days=1)
+    saturday = today - timedelta(days=(today.weekday() - 5) % 7)
     return {
-        PERIOD_TOMORROW: (tomorrow, tomorrow + timedelta(days=1)),
-        PERIOD_WEEK: (monday, monday + timedelta(days=7)),
-        PERIOD_NEXT_WEEK: (monday + timedelta(days=7), monday + timedelta(days=14)),
+        PERIOD_NEXT_DAY: (today, next_school_day(today) + timedelta(days=1)),
+        PERIOD_WEEK: (saturday, saturday + timedelta(days=7)),
+        PERIOD_NEXT_WEEK: (saturday + timedelta(days=7), saturday + timedelta(days=14)),
     }
 
 
@@ -127,18 +244,20 @@ def _clean_weight(value: Any) -> float | None:
 
 @dataclass(frozen=True, slots=True)
 class Weights:
-    """Weights of one child, per type and per subject (default 1).
+    """Weights of one child, per type, per manual label id and per subject (default 1).
 
-    ``types`` is keyed by the names in ``TYPE_KEYS``; ``subjects`` by the subject
-    as it was stored. Subject matching is exact and case-insensitive.
+    ``types`` is keyed by the names in ``TYPE_KEYS``; ``labels`` by label option id;
+    ``subjects`` by the subject as it was stored. Subject matching is exact and
+    case-insensitive.
     """
 
     types: Mapping[str, float] = field(default_factory=dict)
     subjects: Mapping[str, float] = field(default_factory=dict)
+    labels: Mapping[str, float] = field(default_factory=dict)
 
     @classmethod
     def from_options(cls, raw: Any) -> Weights:
-        """Parse the stored form ``{"types": {...}, "subjects": {...}}`` leniently."""
+        """Parse the stored form ``{"types", "labels", "subjects"}`` leniently."""
         if not isinstance(raw, Mapping):
             return cls()
         types: dict[str, float] = {}
@@ -153,12 +272,22 @@ class Weights:
                 weight = _clean_weight(value)
                 if isinstance(name, str) and name.strip() and weight is not None:
                     subjects[name] = weight
-        return cls(types, subjects)
+        labels: dict[str, float] = {}
+        if isinstance(raw_labels := raw.get("labels"), Mapping):
+            for label_id, value in raw_labels.items():
+                weight = _clean_weight(value)
+                if isinstance(label_id, str) and label_id and weight is not None:
+                    labels[label_id] = weight
+        return cls(types, subjects, labels)
 
     def type_weight(self, info_type: int) -> float:
         """Weight of an InfoType."""
         key = HOMEWORK_TYPES[info_type][0]
         return self.types.get(key, DEFAULT_WEIGHT)
+
+    def label_weight(self, label_id: str) -> float:
+        """Weight of a manual label."""
+        return self.labels.get(label_id, DEFAULT_WEIGHT)
 
     def subject_weight(self, subject: str) -> float:
         """Weight of a subject (case-insensitive)."""
@@ -169,8 +298,16 @@ class Weights:
         return DEFAULT_WEIGHT
 
     def item_weight(self, item: HomeworkItem) -> float:
-        """``type_weight x subject_weight`` of an item."""
-        return self.type_weight(item.info_type) * self.subject_weight(item.subject)
+        """``max(label weights) x subject_weight`` of an item.
+
+        The labels are the Magister type (if any) and the manual labels.
+        """
+        candidates = [self.label_weight(label.id) for label in item.manual_labels]
+        if item.info_type is not None:
+            candidates.append(self.type_weight(item.info_type))
+        return max(candidates, default=DEFAULT_WEIGHT) * self.subject_weight(
+            item.subject
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,12 +321,30 @@ class PeriodSummary:
     tests: int
 
 
+def skipped_days(period: str, today: date) -> frozenset[date]:
+    """Days inside a period's range that do not belong to it.
+
+    Only ``next_day`` has them: the free days between today and the next school day
+    (Saturday and Sunday on a Friday, Sunday on a Saturday).
+    """
+    if period != PERIOD_NEXT_DAY:
+        return frozenset()
+    last = next_school_day(today)
+    return frozenset(today + timedelta(days=n) for n in range(1, (last - today).days))
+
+
 def items_in_period(
-    items: Iterable[HomeworkItem], period: tuple[date, date]
+    items: Iterable[HomeworkItem],
+    period: tuple[date, date],
+    skipped: frozenset[date] = frozenset(),
 ) -> list[HomeworkItem]:
-    """Items due on a day in ``[first, end)``."""
+    """Items due on a day in ``[first, end)`` that is not in ``skipped``."""
     first, end = period
-    return [item for item in items if first <= item.due_date < end]
+    return [
+        item
+        for item in items
+        if first <= item.due_date < end and item.due_date not in skipped
+    ]
 
 
 def summarize(
@@ -221,15 +376,19 @@ def summarize(
 def effective_weights(
     items: Iterable[HomeworkItem], weights: Weights
 ) -> dict[str, dict[str, float]]:
-    """The weights in use for ``items``: all types and the subjects present."""
+    """The weights in use for ``items``: all types, the labels and subjects present."""
     subjects: dict[str, float] = {}
+    labels: dict[str, float] = {}
     seen: set[str] = set()
     for item in items:
+        for label in item.manual_labels:
+            labels[label.name] = weights.label_weight(label.id)
         if item.subject.casefold() not in seen:
             seen.add(item.subject.casefold())
             subjects[item.subject] = weights.subject_weight(item.subject)
     return {
         "types": {key: weights.types.get(key, DEFAULT_WEIGHT) for key in TYPE_KEYS},
+        "labels": dict(sorted(labels.items(), key=lambda kv: kv[0].casefold())),
         "subjects": dict(sorted(subjects.items(), key=lambda kv: kv[0].casefold())),
     }
 

@@ -7,6 +7,7 @@ event data itself comes from Magister in Dutch.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from html.parser import HTMLParser
@@ -115,8 +116,8 @@ class CalendarFields:
     all_day: bool
 
 
-def build_summary(appointment: Appointment) -> str:
-    """Title: ``[Vervallen] `` for cancelled items, a label word, then the subject."""
+def build_summary(appointment: Appointment, manual_labels: Sequence[str] = ()) -> str:
+    """Title: ``[Vervallen]``, the Magister label, manual labels, then the subject."""
     parts: list[str] = []
     if appointment.status in CANCELLED_STATUSES:
         parts.append(CANCELLED_PREFIX)
@@ -124,6 +125,7 @@ def build_summary(appointment: Appointment) -> str:
         label := INFO_TYPE_PREFIXES.get(appointment.info_type)
     ):
         parts.append(label)
+    parts.extend(f"[{name}]" for name in manual_labels)
     parts.append(appointment.subject or DEFAULT_SUBJECT)
     return " ".join(parts)
 
@@ -178,7 +180,9 @@ def _all_day_dates(appointment: Appointment) -> tuple[date, date]:
     return start.date(), end_date
 
 
-def map_appointment(appointment: Appointment, host: str) -> CalendarFields:
+def map_appointment(
+    appointment: Appointment, host: str, manual_labels: Sequence[str] = ()
+) -> CalendarFields:
     """Return the calendar fields for an appointment of school ``host``."""
     start: datetime | date
     end: datetime | date
@@ -190,7 +194,7 @@ def map_appointment(appointment: Appointment, host: str) -> CalendarFields:
             end = start + timedelta(minutes=1)
     return CalendarFields(
         uid=f"magister-{appointment.id}@{host}",
-        summary=build_summary(appointment),
+        summary=build_summary(appointment, manual_labels),
         description=build_description(appointment),
         location=appointment.location,
         start=start,

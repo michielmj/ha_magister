@@ -95,7 +95,7 @@ function payload(
 }
 
 const PROGRESS: ProgressMap = {
-  tomorrow: { value: 100, items: 0, completed: 0 },
+  next_day: { value: 100, items: 0, completed: 0 },
   week: { value: 62.5, items: 8, completed: 3 },
   next_week: null,
 };
@@ -751,7 +751,7 @@ describe("progress bars", () => {
     expect(bars(card)).toHaveLength(0);
   });
 
-  it("shows one bar per enabled period, in the order tomorrow, week, next week", async () => {
+  it("shows one bar per enabled period, in the order next day, week, next week", async () => {
     const { card, connection } = await mount({
       show_progress_next_week: true,
       show_progress_tomorrow: true,
@@ -760,7 +760,7 @@ describe("progress bars", () => {
     connection.push(payload([item()], true, PROGRESS));
     await flush(card);
     expect(texts(card, ".bar-head > span:first-child")).toEqual([
-      "Tomorrow",
+      "Next school day",
       "This week",
       "Next week",
     ]);
@@ -829,7 +829,7 @@ describe("progress bars", () => {
     expect(bars(card)).toHaveLength(1);
     expect(texts(card, ".state.empty")).toEqual(["No homework"]);
     connection.push(
-      payload([], false, { tomorrow: null, week: null, next_week: null }),
+      payload([], false, { next_day: null, week: null, next_week: null }),
     );
     await flush(card);
     expect(texts(card, ".bar-note")).toEqual(["not available"]);
@@ -853,7 +853,7 @@ describe("progress bars", () => {
     const { card } = await mount({ show_progress_week: true, show_progress_tomorrow: true }, hass, connection);
     connection.push(payload([item()], true, PROGRESS));
     await flush(card);
-    expect(texts(card, ".bar-head > span:first-child")).toEqual(["Morgen", "Deze week"]);
+    expect(texts(card, ".bar-head > span:first-child")).toEqual(["Volgende schooldag", "Deze week"]);
     expect(texts(card, ".bar-note")).toEqual(["geen huiswerk", "3 van 8 klaar"]);
     expect(texts(card, ".bar-value")).toEqual(["100 %", "63 %"]);
   });

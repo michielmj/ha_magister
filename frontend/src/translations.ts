@@ -26,7 +26,7 @@ const nl = {
   expand: "Toon de volledige tekst",
   collapse: "Toon minder",
   progress_label: {
-    tomorrow: "Morgen",
+    next_day: "Volgende schooldag",
     week: "Deze week",
     next_week: "Volgende week",
   },
@@ -80,7 +80,7 @@ const en: Texts = {
   expand: "Show the full text",
   collapse: "Show less",
   progress_label: {
-    tomorrow: "Tomorrow",
+    next_day: "Next school day",
     week: "This week",
     next_week: "Next week",
   },

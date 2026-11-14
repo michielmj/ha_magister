@@ -174,7 +174,7 @@ export interface NormalizedConfig {
 
 /** The progress periods, in display order, with the config option that shows each. */
 export const PROGRESS_PERIODS = [
-  { period: "tomorrow", option: "show_progress_tomorrow" },
+  { period: "next_day", option: "show_progress_tomorrow" },
   { period: "week", option: "show_progress_week" },
   { period: "next_week", option: "show_progress_next_week" },
 ] as const satisfies readonly { period: ProgressPeriod; option: keyof NormalizedConfig }[];
