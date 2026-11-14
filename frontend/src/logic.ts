@@ -1,4 +1,11 @@
-import type { CardConfig, HomeworkItem, PeriodProgress, ProgressPeriod } from "./types";
+import type {
+  Appointment,
+  CardConfig,
+  CardLanguage,
+  HomeworkItem,
+  PeriodProgress,
+  ProgressPeriod,
+} from "./types";
 
 /** The progress steps of the card (PM decision). */
 export const STEPS = [0, 25, 50, 75, 100] as const;
@@ -170,6 +177,8 @@ export interface NormalizedConfig {
   show_progress_week: boolean;
   show_progress_next_week: boolean;
   title: string;
+  language: CardLanguage;
+  card_id: string;
 }
 
 /** The progress periods, in display order, with the config option that shows each. */
@@ -210,5 +219,142 @@ export function normalizeConfig(config: Partial<CardConfig> | undefined): Normal
     show_progress_week: config.show_progress_week === true,
     show_progress_next_week: config.show_progress_next_week === true,
     title: typeof config.title === "string" ? config.title : "",
+    language: config.language === "nl" || config.language === "en" ? config.language : "auto",
+    card_id: typeof config.card_id === "string" ? config.card_id : "",
   };
+}
+
+// -- manual labels --
+
+/** Key of one manual label on one item (used for optimistic removal). */
+export function labelKey(uid: string, labelId: string): string {
+  return `${uid}\u0000${labelId}`;
+}
+
+/**
+ * The items without the manual labels that are being removed. An item that is in the
+ * planner only because of manual labels (no Magister type) leaves with its last label.
+ */
+export function applyLabelRemovals(
+  items: readonly HomeworkItem[],
+  hidden: ReadonlySet<string>,
+): HomeworkItem[] {
+  if (hidden.size === 0) return [...items];
+  const result: HomeworkItem[] = [];
+  for (const item of items) {
+    const labels = item.manual_labels.filter((label) => !hidden.has(labelKey(item.uid, label.id)));
+    if (labels.length === item.manual_labels.length) {
+      result.push(item);
+    } else if (item.info_type !== null || labels.length > 0) {
+      result.push({ ...item, manual_labels: labels });
+    }
+  }
+  return result;
+}
+
+/** The first and last date the add-label dialog offers: today, the dates of the items and the days ahead. */
+export function dateBounds(
+  items: readonly HomeworkItem[],
+  today: string,
+  daysAhead: number,
+): { min: string; max: string } {
+  let min = today;
+  let max = addDays(today, daysAhead);
+  for (const item of items) {
+    if (item.date < min) min = item.date;
+    if (item.date > max) max = item.date;
+  }
+  return { min, max };
+}
+
+/** "09:10" from a local ISO datetime (read from the text, so no time zone can shift it). */
+export function clockTime(iso: string): string {
+  const match = /T(\d{2}:\d{2})/.exec(iso);
+  return match?.[1] ?? "";
+}
+
+/** "09:10-10:00" of an appointment; empty for an all-day appointment. */
+export function timeRange(appointment: Appointment): string {
+  if (appointment.all_day) return "";
+  const start = clockTime(appointment.start);
+  const end = clockTime(appointment.end);
+  return start && end ? `${start}\u2013${end}` : start;
+}
+
+// -- remembering the switches per card --
+
+export interface Switches {
+  show_completed: boolean;
+  show_past: boolean;
+}
+
+/** FNV-1a, 32 bit, as 8 hex digits. */
+export function hashString(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index++) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+/** A short random id for `card_id`. */
+export function generateCardId(): string {
+  try {
+    const bytes = crypto.getRandomValues(new Uint8Array(6));
+    return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return Math.random().toString(36).slice(2, 14).padEnd(12, "0");
+  }
+}
+
+/**
+ * The localStorage key of one card: the entity, the card id (the config's `card_id`, or a
+ * hash of entity and title) and a hash of the config values, so saving a changed config
+ * starts from the configured switches again.
+ */
+export function storageKey(config: NormalizedConfig): string {
+  const id = config.card_id || hashString(`${config.entity}\u0000${config.title}`);
+  const settings = hashString(
+    JSON.stringify([
+      config.entity,
+      config.title,
+      config.card_id,
+      config.language,
+      config.show_completed,
+      config.show_past,
+      config.days_ahead,
+      config.show_progress_tomorrow,
+      config.show_progress_week,
+      config.show_progress_next_week,
+    ]),
+  );
+  return `magister-homework-card:${config.entity}:${id}:${settings}`;
+}
+
+/** The remembered switches, or undefined without storage or a valid value. Never throws. */
+export function loadSwitches(key: string): Switches | undefined {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw === null) return undefined;
+    const value = JSON.parse(raw) as Partial<Record<keyof Switches, unknown>> | null;
+    if (
+      typeof value?.show_completed === "boolean" &&
+      typeof value.show_past === "boolean"
+    ) {
+      return { show_completed: value.show_completed, show_past: value.show_past };
+    }
+  } catch {
+    // no storage, or garbage in it
+  }
+  return undefined;
+}
+
+/** Remember the switches; silently does nothing without storage. */
+export function saveSwitches(key: string, switches: Switches): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(switches));
+  } catch {
+    // no storage, or full
+  }
 }

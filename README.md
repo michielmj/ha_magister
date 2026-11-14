@@ -228,10 +228,12 @@ and tests of the child's Homework to-do list, grouped per day, with a progress c
 |---|---|---|
 | `entity` | (required) | The child's Homework to-do list (a `todo.` entity of Magister) |
 | `title` | none | Card title |
-| `show_completed` | `false` | Also show completed items (they can be unticked) |
-| `show_past` | `false` | Also show days before today, in an "Earlier" section |
+| `language` | `auto` | Card language: `auto` (the Home Assistant language), `nl` or `en`. All texts and dates follow it |
+| `show_completed` | `false` | Start position of the "Done" switch: also show completed items (they can be unticked) |
+| `show_past` | `false` | Start position of the "Earlier" switch: also show days before today, in an "Earlier" section |
+| `card_id` | generated | Made once by the visual editor; keeps the remembered switches of this card apart (see below) |
 | `days_ahead` | `7` | Show items up to this many days after today (that day included) |
-| `show_progress_tomorrow` | `false` | Bar with the progress for the next school day above the homework |
+| `show_progress_tomorrow` | `false` | Bar with the progress for the next school day above the homework (the key keeps its old name) |
 | `show_progress_week` | `false` | Bar with the progress for this week (Saturday to Friday) |
 | `show_progress_next_week` | `false` | Bar with the progress for next week |
 
@@ -259,7 +261,22 @@ show_progress_next_week: false
 - The card updates by itself. When Magister has been unreachable for more than 24 hours the last
   items are greyed out and cannot be changed. If saving fails, the change is rolled back and a
   message appears.
-- Texts follow your Home Assistant language (Dutch or English), colours follow your theme.
+- Texts follow your Home Assistant language (Dutch or English) unless you set `language`; colours
+  follow your theme.
+- **Switches.** The header has two toggle buttons, **Done** and **Earlier**, that show or hide
+  completed items and earlier days. The config sets where they start; what you choose on the card is
+  remembered **per browser** (localStorage, per card). Saving a changed card configuration resets
+  them to the configured values. Without browser storage (a private window, for example) the
+  switches still work but are not remembered.
+- **Adding a label.** The **+** button in the header (shown when the child has label options and
+  Magister is available) opens a dialog: pick a day, pick one of its lessons, pick a label (set
+  under *Configure > Labels*, with its kind shown) and optionally type a note, then *Save*. The
+  dialog works with the keyboard (Escape closes it) and on a phone. Days outside the fetched window
+  are refused with a message.
+- **Manual labels on the card.** Next to Magister's label an item shows its manual labels as
+  outlined chips, with the note as text under the homework text. Only manual chips have an **×**;
+  it asks for confirmation and then removes the label (Magister's labels cannot be removed). If
+  saving fails, the change is rolled back and a message appears.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
 
 ## How it behaves

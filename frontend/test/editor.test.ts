@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import "../src/index";
 import { configFromForm, editorSchema, formData } from "../src/editor";
 import type { MagisterHomeworkCardEditor } from "../src/editor";
+import { textsFor } from "../src/translations";
 
 describe("editor schema", () => {
   it("restricts the entity to Magister to-do lists and offers the card options", () => {
@@ -9,6 +10,7 @@ describe("editor schema", () => {
     expect(schema.map((field) => field.name)).toEqual([
       "entity",
       "title",
+      "language",
       "show_completed",
       "show_past",
       "days_ahead",
@@ -21,10 +23,27 @@ describe("editor schema", () => {
       selector: { entity: { filter: { domain: "todo", integration: "magister" } } },
     });
     expect(schema[1]?.selector).toHaveProperty("text");
-    expect(schema[2]?.selector).toHaveProperty("boolean");
+    expect(schema[2]?.selector).toEqual({
+      select: {
+        mode: "dropdown",
+        options: [
+          { value: "auto", label: "Automatic (Home Assistant language)" },
+          { value: "nl", label: "Nederlands" },
+          { value: "en", label: "English" },
+        ],
+      },
+    });
+    const nlSelect = editorSchema(textsFor("nl"))[2]?.selector as {
+      select: { options: { value: string; label: string }[] };
+    };
+    expect(nlSelect.select.options[0]).toEqual({
+      value: "auto",
+      label: "Automatisch (taal van Home Assistant)",
+    });
     expect(schema[3]?.selector).toHaveProperty("boolean");
-    expect(schema[4]?.selector).toHaveProperty("number");
-    for (const field of schema.slice(5)) expect(field.selector).toHaveProperty("boolean");
+    expect(schema[4]?.selector).toHaveProperty("boolean");
+    expect(schema[5]?.selector).toHaveProperty("number");
+    for (const field of schema.slice(6)) expect(field.selector).toHaveProperty("boolean");
   });
 });
 
@@ -33,6 +52,7 @@ describe("form <-> config", () => {
     expect(formData({ entity: "todo.a" })).toEqual({
       entity: "todo.a",
       title: "",
+      language: "auto",
       show_completed: false,
       show_past: false,
       days_ahead: 7,
@@ -107,6 +127,22 @@ describe("form <-> config", () => {
     });
   });
 
+  it("stores the language, drops auto, and keeps card_id and unknown keys", () => {
+    const previous = {
+      type: "custom:magister-homework-card",
+      entity: "todo.a",
+      card_id: "abc123",
+      card_mod: { style: "x" },
+      future_option: 5,
+    };
+    const nl = configFromForm(previous, { entity: "todo.a", language: "nl" });
+    expect(nl).toEqual({ ...previous, language: "nl" });
+    expect(configFromForm(nl, { entity: "todo.a", language: "en" }).language).toBe("en");
+    const auto = configFromForm(nl, { entity: "todo.a", language: "auto" });
+    expect(auto).toEqual(previous);
+    expect(formData(nl).language).toBe("nl");
+  });
+
   it("stores changed options", () => {
     const config = configFromForm(
       { type: "custom:magister-homework-card", entity: "todo.a" },
@@ -147,12 +183,16 @@ describe("editor element", () => {
       | (HTMLElement & { schema: unknown; data: unknown; computeLabel: (s: { name: string }) => string })
       | null;
     expect(form).not.toBeNull();
-    expect(form?.schema).toEqual(editorSchema());
+    expect(form?.schema).toEqual(editorSchema(textsFor("nl")));
     expect(form?.data).toMatchObject({ entity: "todo.a", days_ahead: 7 });
     expect(form?.computeLabel({ name: "show_past" })).toBe("Toon eerdere dagen");
     expect(form?.computeLabel({ name: "show_progress_next_week" })).toBe(
       "Toon voortgang van volgende week",
     );
+    expect(form?.computeLabel({ name: "show_progress_tomorrow" })).toBe(
+      "Toon voortgang volgende schooldag",
+    );
+    expect(form?.computeLabel({ name: "language" })).toBe("Taal van de kaart");
 
     const changes: unknown[] = [];
     editor.addEventListener("config-changed", (event) => {
@@ -162,8 +202,36 @@ describe("editor element", () => {
       new CustomEvent("value-changed", { detail: { value: { entity: "todo.a", show_past: true } } }),
     );
     expect(changes).toEqual([
-      { config: { type: "custom:magister-homework-card", entity: "todo.a", show_past: true } },
+      {
+        config: {
+          type: "custom:magister-homework-card",
+          entity: "todo.a",
+          show_past: true,
+          card_id: expect.stringMatching(/^[0-9a-z]{8,}$/) as unknown,
+        },
+      },
     ]);
+    // the id is made once and then kept
+    const first = (changes[0] as { config: { card_id: string } }).config.card_id;
+    form?.dispatchEvent(
+      new CustomEvent("value-changed", { detail: { value: { entity: "todo.a", show_past: false } } }),
+    );
+    expect((changes[1] as { config: { card_id: string } }).config.card_id).toBe(first);
+  });
+
+  it("the editor in English labels the language option in English", async () => {
+    const editor = document.createElement("magister-homework-card-editor") as MagisterHomeworkCardEditor;
+    document.body.append(editor);
+    editor.hass = { language: "en", connection: {} as never, callWS: () => Promise.resolve({} as never) };
+    editor.setConfig({ type: "custom:magister-homework-card", entity: "todo.a" });
+    await editor.updateComplete;
+    const form = editor.shadowRoot?.querySelector("ha-form") as
+      | (HTMLElement & { computeLabel: (s: { name: string }) => string })
+      | null;
+    expect(form?.computeLabel({ name: "language" })).toBe("Card language");
+    expect(form?.computeLabel({ name: "show_progress_tomorrow" })).toBe(
+      "Show next school day progress",
+    );
   });
 
   it("renders nothing until it has a config", async () => {

@@ -243,10 +243,12 @@ het kind.
 |---|---|---|
 | `entity` | (verplicht) | De Huiswerklijst van het kind (een `todo.`-entiteit van Magister) |
 | `title` | geen | Titel van de kaart |
-| `show_completed` | `false` | Toon ook afgerond huiswerk (je kunt het weer openzetten) |
-| `show_past` | `false` | Toon ook dagen vóór vandaag, onder "Eerder" |
+| `language` | `auto` | Taal van de kaart: `auto` (de taal van Home Assistant), `nl` of `en`. Alle teksten en datums volgen deze taal |
+| `show_completed` | `false` | Beginstand van de schakelaar "Afgerond": toon ook afgerond huiswerk (je kunt het weer openzetten) |
+| `show_past` | `false` | Beginstand van de schakelaar "Eerder": toon ook dagen vóór vandaag, onder "Eerder" |
+| `card_id` | gegenereerd | Wordt één keer door de visuele editor gemaakt; houdt de onthouden schakelaars van deze kaart apart (zie hieronder) |
 | `days_ahead` | `7` | Toon items tot zoveel dagen na vandaag (die dag inbegrepen) |
-| `show_progress_tomorrow` | `false` | Balk met de voortgang van de volgende schooldag boven het huiswerk |
+| `show_progress_tomorrow` | `false` | Balk met de voortgang van de volgende schooldag boven het huiswerk (de sleutel houdt zijn oude naam) |
 | `show_progress_week` | `false` | Balk met de voortgang van deze week (zaterdag tot vrijdag) |
 | `show_progress_next_week` | `false` | Balk met de voortgang van volgende week |
 
@@ -276,7 +278,23 @@ show_progress_next_week: false
 - De kaart werkt zichzelf bij. Is Magister langer dan 24 uur onbereikbaar, dan worden de laatste
   items grijs en zijn ze niet te wijzigen. Mislukt het opslaan, dan wordt de wijziging teruggedraaid
   en verschijnt een melding.
-- De teksten volgen de taal van Home Assistant (Nederlands of Engels), de kleuren je thema.
+- De teksten volgen de taal van Home Assistant (Nederlands of Engels), tenzij je `language` instelt;
+  de kleuren volgen je thema.
+- **Schakelaars.** In de kop staan twee knoppen, **Afgerond** en **Eerder**, die afgerond huiswerk
+  en eerdere dagen tonen of verbergen. De configuratie bepaalt de beginstand; wat je op de kaart
+  kiest wordt **per browser** onthouden (localStorage, per kaart). Sla je een gewijzigde
+  kaartconfiguratie op, dan gaan ze terug naar de ingestelde waarden. Zonder browseropslag (bijvoorbeeld
+  in een privévenster) werken de schakelaars wel, maar worden ze niet onthouden.
+- **Label toevoegen.** De **+**-knop in de kop (zichtbaar als het kind labelopties heeft en Magister
+  beschikbaar is) opent een venster: kies een dag, een les van die dag, een label (in te stellen
+  onder *Configureren > Labels*, met de soort erbij) en typ eventueel een notitie; kies dan
+  *Opslaan*. Het venster werkt met het toetsenbord (Escape sluit het) en op een telefoon. Dagen
+  buiten het opgehaalde venster worden met een melding geweigerd.
+- **Handmatige labels op de kaart.** Naast het label van Magister toont een item zijn handmatige
+  labels als omrande chips, met de notitie als tekst onder de huiswerktekst. Alleen handmatige chips
+  hebben een **×**; die vraagt om bevestiging en verwijdert dan het label (labels van Magister
+  kunnen niet worden verwijderd). Mislukt het opslaan, dan wordt de wijziging teruggedraaid en
+  verschijnt een melding.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
 

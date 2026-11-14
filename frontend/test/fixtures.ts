@@ -10,6 +10,7 @@ export function item(overrides: Partial<HomeworkItem> = {}): HomeworkItem {
     lesson_hour: 2,
     subject: "Wiskunde",
     info_type: 1,
+    manual_labels: [],
     label: "Huiswerk",
     is_test: false,
     text: "Maak opdracht 1 t/m 5",

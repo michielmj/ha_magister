@@ -1,5 +1,32 @@
 /** Shapes shared by the card, the editor and the logic (see docs/reference/homework-websocket.md). */
 
+export type LabelKind = "homework" | "test";
+
+/** A label option configured for the child (since 1.3.0). */
+export interface LabelOption {
+  id: string;
+  name: string;
+  kind: LabelKind;
+}
+
+export interface ManualLabel extends LabelOption {
+  note: string;
+}
+
+/** One appointment of the add-label dialog (since 1.3.0). */
+export interface Appointment {
+  uid: string;
+  /** Local ISO datetime with offset, or a date for all-day appointments. */
+  start: string;
+  end: string;
+  all_day: boolean;
+  lesson_hour: number | null;
+  subject: string;
+  cancelled: boolean;
+  info_type: number | null;
+  manual_labels: ManualLabel[];
+}
+
 export interface HomeworkItem {
   uid: string;
   due: string;
@@ -8,10 +35,12 @@ export interface HomeworkItem {
   all_day: boolean;
   lesson_hour: number | null;
   subject: string;
-  /** 1 Huiswerk, 2 Proefwerk, 3 Tentamen, 4 SO, 5 MO */
-  info_type: number;
+  /** 1 Huiswerk, 2 Proefwerk, 3 Tentamen, 4 SO, 5 MO; null when only manual labels put it in the planner. */
+  info_type: number | null;
   /** The Dutch label; only a fallback for unknown info types. */
-  label: string;
+  label: string | null;
+  /** Labels added in the card (since 1.3.0); only these can be removed. */
+  manual_labels: ManualLabel[];
   is_test: boolean;
   text: string;
   cancelled: boolean;
@@ -38,6 +67,8 @@ export type ProgressMap = Record<ProgressPeriod, PeriodProgress | null>;
 export interface HomeworkPayload {
   available: boolean;
   items: HomeworkItem[];
+  /** The label options of this child (since 1.3.0); absent or empty: no adding. */
+  labels?: LabelOption[];
   /** Absent when the backend predates 1.2.0. */
   progress?: ProgressMap;
 }
@@ -46,6 +77,8 @@ export interface SetProgressResult {
   progress: number;
   completed: boolean;
 }
+
+export type CardLanguage = "auto" | "nl" | "en";
 
 export interface CardConfig {
   type: string;
@@ -57,6 +90,9 @@ export interface CardConfig {
   show_progress_week?: boolean;
   show_progress_next_week?: boolean;
   title?: string;
+  language?: CardLanguage;
+  /** Generated once by the visual editor; keeps the remembered switches per card. */
+  card_id?: string;
 }
 
 export type Unsubscribe = () => Promise<void> | void;
