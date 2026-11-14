@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval of the parent guidelines (§4) and the scope** |
+| Status | **Approved by PM (2026-11-14)** |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | M10 · `docs/reference/homework-websocket.md` · `custom_components/magister/coach.py` |
 
