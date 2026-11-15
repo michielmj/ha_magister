@@ -97,6 +97,7 @@ COACH_API_NAME: Final = "Magister huiswerkcoach"
 _UNREGISTER: Final = f"{DOMAIN}_coach_api"
 
 ERR_NOT_LINKED: Final = "not_linked"
+ERR_COACH_NOT_ENABLED: Final = "coach_not_enabled"
 ERR_CHILD_REQUIRED: Final = "child_required"
 ERR_CHILD_NOT_FOUND: Final = "child_not_found"
 ERR_INTERNAL: Final = "internal_error"
@@ -115,6 +116,15 @@ NOT_LINKED_HELP: Final = (
     "This Home Assistant user is not linked to a child. An administrator can link the "
     "user in Settings > Devices & services > Magister > Configure > AI-coach."
 )
+
+COACH_NOT_ENABLED_HELP: Final = (
+    "You are linked, but the AI coach is not enabled for this child. An administrator "
+    "can enable it in Settings > Devices & services > Magister > Configure > AI coach "
+    "> Settings per child."
+)
+
+OVERDUE_DAYS_DEFAULT: Final = 7
+OVERDUE_DAYS_MAX: Final = 35
 
 
 @dataclass(frozen=True, slots=True)
@@ -293,6 +303,49 @@ def async_accessible_children(
     ]
 
 
+@callback
+def async_linked_not_enabled(hass: HomeAssistant, user_id: str | None) -> bool:
+    """Whether the user is linked to a child whose coach is not enabled."""
+    if not user_id:
+        return False
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state is not ConfigEntryState.LOADED:
+            continue
+        for child in entry.data[CONF_CHILDREN]:
+            settings = coach_settings(entry, int(child[CHILD_ID]))
+            if role_of(settings, user_id) is not None and (
+                settings.get(COACH_ENABLED) is not True
+            ):
+                return True
+    return False
+
+
+async def async_not_linked_help(
+    hass: HomeAssistant, context: Context | None
+) -> tuple[str, str]:
+    """The error code and message for a user without an accessible child.
+
+    ``coach_not_enabled`` when the user is linked to a child whose coach is off; the
+    message names no child.
+    """
+    children = await async_user_children(hass, context)
+    if children:
+        return "", ""
+    user_id = context.user_id if context else None
+    if (
+        user_id
+        and await _active_user(hass, user_id)
+        and async_linked_not_enabled(hass, user_id)
+    ):
+        return ERR_COACH_NOT_ENABLED, COACH_NOT_ENABLED_HELP
+    return ERR_NOT_LINKED, NOT_LINKED_HELP
+
+
+async def _active_user(hass: HomeAssistant, user_id: str) -> bool:
+    user = await hass.auth.async_get_user(user_id)
+    return user is not None and user.is_active and not user.system_generated
+
+
 async def async_user_children(
     hass: HomeAssistant, context: Context | None
 ) -> list[CoachChild]:
@@ -300,16 +353,19 @@ async def async_user_children(
     user_id = context.user_id if context else None
     if not user_id:
         return []
-    user = await hass.auth.async_get_user(user_id)
-    if user is None or not user.is_active or user.system_generated:
+    if not await _active_user(hass, user_id):
         return []
     return async_accessible_children(hass, user_id)
 
 
-def pick_child(children: list[CoachChild], reference: Any) -> CoachChild:
+def pick_child(
+    children: list[CoachChild],
+    reference: Any,
+    unlinked: tuple[str, str] = (ERR_NOT_LINKED, NOT_LINKED_HELP),
+) -> CoachChild:
     """The child a tool call is about (``CoachError`` when it is not allowed)."""
     if not children:
-        raise CoachError(ERR_NOT_LINKED, NOT_LINKED_HELP)
+        raise CoachError(*unlinked)
     if reference is None or str(reference).strip() == "":
         if len(children) == 1:
             return children[0]
@@ -580,6 +636,19 @@ def _minutes(value: int | None) -> Any:
     return value
 
 
+def _overdue_days(value: Any) -> int:
+    """An integer from 1 to 35 (a bool, a float or a string is invalid)."""
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or not 1 <= value <= OVERDUE_DAYS_MAX
+    ):
+        raise probatio.Invalid(
+            f"overdue_days is a whole number of 1 to {OVERDUE_DAYS_MAX}"
+        )
+    return value
+
+
 _MINUTES: Final = _minutes
 _MINUTES_HELP: Final = "Estimated time in minutes: 5 to 240 in steps of 5."
 
@@ -617,9 +686,14 @@ class CoachTool(llm.Tool):
             return error_result(ERR_INVALID_FORMAT, str(err))
         try:
             children = await async_user_children(hass, llm_context.context)
+            unlinked = (
+                (ERR_NOT_LINKED, NOT_LINKED_HELP)
+                if children
+                else await async_not_linked_help(hass, llm_context.context)
+            )
             if not self.needs_child:
-                return llm.ToolResult(data=self.run_children(children, args))
-            child = pick_child(children, args.get("child"))
+                return llm.ToolResult(data=self.run_children(children, args, unlinked))
+            child = pick_child(children, args.get("child"), unlinked)
             return llm.ToolResult(
                 data=self.run(CoachCall(hass, child, args, llm_context.context))
             )
@@ -650,7 +724,12 @@ class CoachTool(llm.Tool):
         """Do the work for an accessible child."""
         raise NotImplementedError  # pragma: no cover
 
-    def run_children(self, children: list[CoachChild], args: dict[str, Any]) -> Payload:
+    def run_children(
+        self,
+        children: list[CoachChild],
+        args: dict[str, Any],
+        unlinked: tuple[str, str],
+    ) -> Payload:
         """Do the work for tools that need no child."""
         raise NotImplementedError  # pragma: no cover
 
@@ -671,10 +750,15 @@ class ListChildrenTool(CoachTool):
     annotations = READ_ONLY
     needs_child = False
 
-    def run_children(self, children: list[CoachChild], args: dict[str, Any]) -> Payload:
+    def run_children(
+        self,
+        children: list[CoachChild],
+        args: dict[str, Any],
+        unlinked: tuple[str, str],
+    ) -> Payload:
         """The accessible children, or the explanation how to get linked."""
         if not children:
-            return {"children": [], "message": NOT_LINKED_HELP}
+            return {"children": [], "message": unlinked[1]}
         return {
             "children": [
                 {
@@ -752,10 +836,15 @@ class GetOverviewTool(CoachTool):
     annotations = READ_ONLY
     needs_child = False
 
-    def run_children(self, children: list[CoachChild], args: dict[str, Any]) -> Payload:
+    def run_children(
+        self,
+        children: list[CoachChild],
+        args: dict[str, Any],
+        unlinked: tuple[str, str],
+    ) -> Payload:
         """The days of every accessible child (never another child)."""
         if not children:
-            raise CoachError(ERR_NOT_LINKED, NOT_LINKED_HELP)
+            raise CoachError(*unlinked)
         start, end = _date_arg(args["start"]), _date_arg(args["end"])
         if end < start or (end - start).days >= MAX_SCHEDULE_DAYS:
             raise CoachError(
@@ -778,7 +867,10 @@ class ListHomeworkTool(CoachTool):
         "labels, text, due date, progress, whether the progress is derived from "
         "subtasks, and the subtasks (current date, overdue, minutes, created_by). By "
         "default from today on and without completed items, plus the open items that "
-        "are overdue (due before today; see include_overdue)."
+        "are overdue (due before today, cancelled items excluded): by default only "
+        f"the last {OVERDUE_DAYS_DEFAULT} days; pass overdue_days (1 to "
+        f"{OVERDUE_DAYS_MAX}) to look further back, or include_overdue false for "
+        "none."
     )
     parameters = _schema(
         {
@@ -799,6 +891,14 @@ class ListHomeworkTool(CoachTool):
                     "given)"
                 ),
             ): bool,
+            probatio.Optional(
+                "overdue_days",
+                default=OVERDUE_DAYS_DEFAULT,
+                description=(
+                    f"How many days back overdue items are listed (1 to "
+                    f"{OVERDUE_DAYS_MAX}, default {OVERDUE_DAYS_DEFAULT})"
+                ),
+            ): _overdue_days,
         }
     )
     annotations = READ_ONLY
@@ -811,6 +911,7 @@ class ListHomeworkTool(CoachTool):
         today = manager.today()
         overdue = call.args["include_overdue"] and start is None
         first = start or today
+        oldest = today - timedelta(days=call.args["overdue_days"])
 
         def wanted(item: Any) -> bool:
             if end is not None and item.due_date > end:
@@ -818,7 +919,12 @@ class ListHomeworkTool(CoachTool):
             done = manager.is_completed(item)
             if item.due_date >= first:
                 return call.args["include_completed"] or not done
-            return bool(overdue) and item.due_date < today and not done
+            return (
+                bool(overdue)
+                and oldest <= item.due_date < today
+                and not done
+                and not item.cancelled
+            )
 
         items = [
             item_to_dict(manager, item)
@@ -1158,7 +1264,12 @@ def coach_tools() -> list[llm.Tool]:
 # -- the API ------------------------------------------------------------------------
 
 
-def build_prompt(today: date, children: list[CoachChild], time_zone: str) -> str:
+def build_prompt(
+    today: date,
+    children: list[CoachChild],
+    time_zone: str,
+    not_enabled: bool = False,
+) -> str:
     """The prompt sent with the tools: date, rules and the children's guidelines."""
     lines = [
         f"Today is {today.isoformat()} ({today.strftime('%A')}). School time zone: "
@@ -1168,7 +1279,8 @@ def build_prompt(today: date, children: list[CoachChild], time_zone: str) -> str
         "",
     ]
     if not children:
-        lines.append(NOT_LINKED_HELP + " Until then, no data is available.")
+        help_text = COACH_NOT_ENABLED_HELP if not_enabled else NOT_LINKED_HELP
+        lines.append(help_text + " Until then, no data is available.")
         return "\n".join(lines)
     lines.append(
         "You may coach: " + ", ".join(f"{c.name} (id {c.id})" for c in children) + "."
@@ -1213,10 +1325,20 @@ class MagisterCoachAPI(llm.API):
     ) -> llm.APIInstance:
         """The tools and the prompt for the user behind the request."""
         children = await async_user_children(self.hass, llm_context.context)
+        code = (
+            ""
+            if children
+            else (await async_not_linked_help(self.hass, llm_context.context))[0]
+        )
         today = dt_util.now(LOCAL_TZ).date()
         return llm.APIInstance(
             api=self,
-            api_prompt=build_prompt(today, children, self.hass.config.time_zone),
+            api_prompt=build_prompt(
+                today,
+                children,
+                self.hass.config.time_zone,
+                code == ERR_COACH_NOT_ENABLED,
+            ),
             llm_context=llm_context,
             tools=coach_tools(),
         )

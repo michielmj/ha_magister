@@ -254,3 +254,16 @@ tool errors are `{"error": <code>, "message": ...}`. Changes in 1.7.0:
 - `set_progress` fails with `not_allowed_for_role` for a child where the caller has the Ouder role: nothing is written or
   logged. Parents read progress only; ticking in the card stays possible for any Home Assistant user.
 - Logbook: writes by a parent read "Ouder via AI: …", by a student "AI-coach: …".
+
+### Changes in 1.7.1
+- `list_homework` without `start` lists the open overdue items (due before today, not completed, not disabled) of the
+  last 7 days only: due date >= today - `overdue_days`. `overdue_days` is a new integer argument, 1 to 35, default 7;
+  anything else (0, 36, a float, a string, a bool) is `invalid_format`. `include_overdue: false` still switches the
+  overdue part off, and with a `start` there is no overdue part.
+- Items with `cancelled: true` are never overdue. They are still listed, marked `cancelled: true`, when they fall
+  inside the requested `start`-`end` window.
+- New error `coach_not_enabled` for every tool (and `list_children`, as its `message`, and the prompt): the user is
+  linked (as student or parent) to at least one child whose coach is not enabled and to no enabled child. The message
+  is "You are linked, but the AI coach is not enabled for this child. An administrator can enable it in Settings >
+  Devices & services > Magister > Configure > AI coach > Settings per child." It names no child and reveals nothing
+  but the linking. `not_linked` stays for a user without any link (and for an unknown, inactive or system user).

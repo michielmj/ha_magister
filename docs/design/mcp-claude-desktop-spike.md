@@ -74,10 +74,30 @@ Security of (b):
 2. Integration "Model Context Protocol Server" (HA 2026.10.4): adding it exposes all LLM APIs with require admin on. Change it under **Configure**: turn **Expose all LLM APIs** off and press Submit (the form reopens with the API list), select only "Magister huiswerkcoach" in the API picker (label "Control Home Assistant", nl "Beheer Home Assistant", shown only when "Expose all" is off), turn **Require an administrator account** off, and press Submit again. Leaving "Expose all LLM APIs" on gives students Assist via /api/mcp. Turning it off does not remove Assist fully: `/api/mcp/assist` stays open to every HA user (non-admin included) for the entities exposed to Assist (Settings, Voice assistants, Expose).
 3. Magister, Configure, AI-coach: enable per child and link the user.
 
+## Live test outcome (2026-11-15, M12)
+The PM connected Claude to the coach through the remote connector (option a) and the Architect ran a read and write
+test as a parent. Everything worked.
+- **Remote connector, Authentication "Sign in now", OAuth client "Use Claude's published identity"** (the default, no
+  headers): works once the reverse-proxy settings are correct (`http: use_x_forwarded_for: true` and `trusted_proxies`
+  with the proxy network, e.g. `172.30.33.0/24` for the NGINX add-on). **Before that it failed with "Couldn't
+  register"**: HA built its login metadata (`/.well-known/oauth-authorization-server`) from the internal address of the
+  proxy instead of the public one.
+- **Fallback:** "Use your own OAuth client" with Client ID `https://claude.ai/` and no secret. HA accepts a client ID on
+  the same host as the return address.
+- Also needed: the user must not be "Can only log in from the local network", and "Require an administrator account"
+  must be off in the MCP Server (saved with the last Submit); otherwise Claude shows "Couldn't reload tools from the
+  server".
+- With several Magister logins, the coach must be enabled and linked in each one.
+- Restoring a label a parent's AI had disabled works (M11 decision 1 stays).
+- Not tested: the bearer-header connector and the local bridge (option b).
+- Rough edges found, fixed in 1.7.1 (M12): too many old overdue items, cancelled lessons counted as overdue, and an
+  unclear `not_linked` for a linked user whose coach is off (now `coach_not_enabled`).
+
 ## Open points for the PM test
-1. Does Claude desktop's remote connector complete HA's OAuth (CIMD) or fail for lack of registration?
+1. Does Claude desktop's remote connector complete HA's OAuth (CIMD) or fail for lack of registration? **Answered:** it works with the published identity once the proxy settings are right (see above).
 2. Does the bearer-header connector work and is a long-lived token acceptable?
 3. `mcp-proxy` flags and token handling in the installed version.
 4. Do tool annotations (destructive on delete/remove) trigger a confirmation in Claude?
 
-Recommendation: document (b) first (works on the home network, only needs a token), (a) as "if HA is reachable over HTTPS".
+Recommendation (updated after the live test): document (a), the remote connector, first, and (b) as the alternative for
+a HA that is not reachable over HTTPS from the internet.

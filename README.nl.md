@@ -450,13 +450,70 @@ De MCP Server is één enkele invoer: door alleen de coach te kiezen verdwijnt A
 Assist zijn blootgesteld. Beperk die onder Instellingen, Spraakassistenten, **Ontsluit**. De
 coachtools werken ook met de eigen gespreksagenten van Home Assistant.
 
-### De Claude desktop-app verbinden
+### Claude verbinden
 
-Maak een **langlevend toegangstoken** aan op het eigen Home Assistant-profiel van de leerling (profiel,
-Beveiliging, Toegangstokens met lange levensduur). Welke methode werkt hangt af van hoe Home Assistant bereikbaar is.
+Welke methode werkt hangt af van hoe Home Assistant bereikbaar is. Gebruik de **externe connector** als Home
+Assistant via HTTPS vanaf internet bereikbaar is; anders de **lokale brug** (hieronder).
 
-**A. Lokale brug (werkt op je thuisnetwerk; probeer dit eerst).** Claude desktop start lokale MCP-servers vanuit
-`claude_desktop_config.json` (in de app: Instellingen [Settings], Ontwikkelaar [Developer], Configuratie
+#### Externe connector (aanbevolen)
+
+Claude verbindt vanuit de cloud van Anthropic, dus Home Assistant moet vanaf internet bereikbaar zijn op de
+standaard HTTPS-poort **443** (bijvoorbeeld Home Assistant Cloud of een reverse proxy). Dit is end-to-end getest met
+Claude.
+
+1. **Controleer eerst de instellingen van Home Assistant.**
+   - Zet bij de Home Assistant-gebruiker van de leerling (of ouder) (Instellingen, Personen, de persoon,
+     **Gebruiker bewerken**) **Kan alleen inloggen vanaf het lokale netwerk** **uit**. Claude komt via internet
+     binnen, dus een gebruiker die alleen lokaal mag inloggen kan niet verbinden.
+   - Zet in de MCP Server **Require an administrator account** (Engels in de interface) **uit**, en druk voor
+     de **laatste** keer op **Verzenden** met deze instelling uit: een latere keer verzenden (bijvoorbeeld na het
+     kiezen van de API) kan hem weer aanzetten.
+   - **Achter een reverse proxy** (bijvoorbeeld de add-on NGINX Home Assistant SSL proxy) zet je dit in
+     `configuration.yaml` en start je opnieuw op. Beide instellingen zijn **verplicht**:
+
+     ```yaml
+     http:
+       use_x_forwarded_for: true
+       trusted_proxies:
+         - 172.30.33.0/24   # het netwerk van de NGINX Home Assistant SSL proxy-add-on
+     ```
+
+     Zonder deze instellingen ziet Home Assistant het interne adres van de proxy en bouwt het zijn inlogadressen
+     daarop, waardoor de registratie van Claude mislukt met "Couldn't register". `172.30.33.0/24` is het netwerk van
+     de NGINX-add-on; gebruik anders het adres van je eigen proxy. Zet alleen proxy's op de lijst die je vertrouwt.
+2. **Voeg de connector toe in Claude:** Instellingen [Settings], Connectors, **Aangepaste connector toevoegen** [Add
+   custom connector]. Geef een naam en gebruik als URL `https://<jouw HA>/api/mcp` (je openbare `https://`-adres,
+   niet het adres thuis).
+3. **Log in.** Zet Authenticatie op **Sign in now**. Laat bij de geavanceerde instellingen de
+   OAuth-client op **Use Claude's published identity** (de standaard) staan en voeg geen headers toe. De
+   inlogpagina van Home Assistant opent: log in als de eigen gebruiker van de leerling of ouder.
+   - **Terugvaloptie:** werkt dat niet, kies dan **Use your own OAuth client** met Client ID `https://claude.ai/` en
+     **zonder geheim**. Home Assistant accepteert een client-ID op dezelfde host als het terugkeeradres.
+4. **Schakel de coach in en koppel hem bij elke Magister-login.** Heb je meerdere Magister-logins, open dan bij
+   **elke** login **Configureer**, **AI-coach**, **Instellingen per kind**, schakel de coach in en koppel de gebruiker
+   aan de kinderen daar. Een login waar dat niet is gedaan is onzichtbaar voor de AI.
+
+**Problemen met de connector oplossen**
+
+- **"Couldn't reload tools from the server"**: de gebruiker wordt waarschijnlijk geweigerd. Controleer of **Require
+  an administrator account** uit staat in de MCP Server (bewaard met de laatste keer **Verzenden**) en of **Kan alleen
+  inloggen vanaf het lokale netwerk** uit staat bij de gebruiker.
+- **"Not linked" of "coach not enabled"** (`not_linked`, `coach_not_enabled` in de tools): de gebruiker is niet aan
+  een kind gekoppeld, of alleen aan kinderen waarvoor de coach uit staat. Koppel de gebruiker en zet **AI-coach
+  ingeschakeld** aan onder Magister, Configureer, AI-coach, Instellingen per kind, bij elke Magister-login met dat
+  kind.
+- **"Couldn't register"**: controleer eerst de reverse-proxy-instellingen. Open
+  `https://<jouw HA>/.well-known/oauth-authorization-server` van **buiten** je netwerk (bijvoorbeeld op een telefoon
+  zonder wifi). Alle adressen daarin moeten beginnen met je openbare `https://`-adres. Zie je een intern adres,
+  herstel dan `use_x_forwarded_for` en `trusted_proxies` en start opnieuw op. Probeer het daarna opnieuw en gebruik
+  zo nodig het client-ID uit de terugvaloptie.
+
+#### Alternatief: lokale brug
+
+Gebruik dit als Home Assistant alleen thuis bereikbaar is. Maak een **langlevend toegangstoken** aan op het
+eigen Home Assistant-profiel van de leerling (profiel, Beveiliging, Toegangstokens met lange levensduur).
+
+Claude desktop start lokale MCP-servers vanuit`claude_desktop_config.json` (in de app: Instellingen [Settings], Ontwikkelaar [Developer], Configuratie
 bewerken [Edit config]; op macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, op Windows
 `%APPDATA%\Claude\claude_desktop_config.json`). Een kleine brug,
 [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy), verbindt die met Home Assistant. Installeer die met
@@ -503,17 +560,6 @@ volledige pad nodig als Claude desktop het niet vindt.)
 > gebruiker zonder beheerdersrechten ziet de tools en wijzigt deelstappen via `/api/mcp`), maar niet met een echte
 > Claude desktop-app of de brug. Controleer de opties met `mcp-proxy --help` (of `npx mcp-remote --help`); die kunnen per
 > versie verschillen. Gebruik het hoofdadres `/api/mcp`, niet `/api/mcp/magister_coach`: dat vraagt een beheerder.
-
-**B. Externe connector (alleen als Home Assistant via HTTPS bereikbaar is).** Gebruik in Claude
-(Instellingen [Settings], Connectors, aangepaste connector toevoegen [Add custom connector]) `https://<jouw-home-assistant>/api/mcp`. Claude
-verbindt vanuit de cloud van Anthropic, dus het adres moet vanaf internet bereikbaar zijn op de standaard
-HTTPS-poort 443 (bijvoorbeeld Home Assistant Cloud of een reverse proxy); voor een Home Assistant die alleen thuis
-bereikbaar is werkt dit niet. Log in met het Home Assistant-account van de leerling, of geef de connector, als
-inloggen mislukt, de aanvraagheader `Authorization: Bearer <langlevend token>`.
-
-> **Niet getest.** Home Assistant kent geen dynamische clientregistratie, dus inloggen werkt alleen als Claude
-> dat via zijn gepubliceerde clientidentiteit ondersteunt; de headervariant is niet getest. Zie deze methode als
-> experimenteel.
 
 ### Privacy en leeftijd
 
@@ -568,7 +614,7 @@ dezelfde MCP Server-opzet als hierboven (hoofdadres `/api/mcp`); alleen de rol v
 2. **Stel het dagmaximum in** per kind: Configureer, **Dagmaximum studietijd**, kies het kind en vul de
    studieminuten per schooldag in (15 tot 480 in stappen van 15, standaard 90). De AI plant daarbinnen en de kaart
    vergelijkt de geplande tijd per dag ermee.
-3. **Verbind de AI-app** met je eigen langlevende token, zoals beschreven bij *De Claude desktop-app verbinden*.
+3. **Verbind de AI-app** met je eigen langlevende token, zoals beschreven bij *Claude verbinden* (de externe connector logt in als je eigen gebruiker; de lokale brug gebruikt je eigen langlevende token).
 
 **Wat de AI van de ouder kan.** Ze ziet dezelfde gegevens als de coach van de leerling (geen namen of codes van
 docenten), alleen voor de kinderen waaraan jouw gebruiker is gekoppeld. Ze kan:
