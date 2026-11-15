@@ -35,11 +35,13 @@ test as a parent. Everything worked. The test also showed three rough edges and 
    - Connector URL: `https://<your HA>/api/mcp`.
    - In Claude:
      - Authentication "Sign in now";
-     - OAuth client **"Use your own OAuth client"** with Client ID `https://claude.ai/`, no secret, no headers.
-     - Explain why: "Use Claude's published identity" failed in the test ("couldn't register"), and HA accepts a
-       client ID on the same host as the return address.
+     - OAuth client **"Use Claude's published identity"** (the default), no headers. Verified by the PM once the
+       reverse-proxy settings below were correct; before that it failed with "couldn't register", because HA built
+       its login metadata from the wrong (internal) address.
+     - Fallback: "Use your own OAuth client" with Client ID `https://claude.ai/` and no secret. HA accepts a client ID
+       on the same host as the return address.
    - HA must be reachable from the internet on port 443.
-   - Behind a reverse proxy (e.g. the NGINX add-on), `use_x_forwarded_for: true` and `trusted_proxies` are needed,
+   - Behind a reverse proxy (e.g. the NGINX add-on), `use_x_forwarded_for: true` and `trusted_proxies` are **required**,
      with the example for the add-on network `172.30.33.0/24` and a short explanation.
    - Settings for the student's or parent's HA user:
      - "Can only log in from the local network" must be **off**;
@@ -48,7 +50,8 @@ test as a parent. Everything worked. The test also showed three rough edges and 
    - Troubleshooting:
      - "Couldn't reload tools from the server" (check the admin requirement and local-only login);
      - "not linked" / "coach not enabled";
-     - "Couldn't register" (use the client ID above).
+     - "Couldn't register": check the reverse-proxy settings first (open `https://<your HA>/.well-known/oauth-authorization-server`
+       from outside; the addresses must start with your public `https://` address), then try the fallback client ID.
    - Don't include the PM's address or any names.
 5. **Spike doc** `docs/design/mcp-claude-desktop-spike.md`: record the outcome of the live test (which option worked, which failed).
 

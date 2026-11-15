@@ -84,8 +84,8 @@ CHANGELOG, version tagging, GitHub release, HACS validation green.
   ("linked, but the AI coach is not enabled for this child").
 - README, connecting Claude (verified by the PM with a remote connector):
   - the connector URL is `https://<ha>/api/mcp`;
-  - "Use Claude's published identity" failed ("couldn't register"); "Use your own OAuth client" with client ID
-    `https://claude.ai/` works, because HA accepts a client ID on the same host as the redirect URI;
+  - "Use Claude's published identity" works once the reverse-proxy settings are right (before that: "couldn't
+    register"); "Use your own OAuth client" with client ID `https://claude.ai/` also works, as a fallback;
   - behind the NGINX add-on, `use_x_forwarded_for` and `trusted_proxies` (172.30.33.0/24) are needed;
   - "Require an administrator account" off, saved with the last Submit;
   - "Can only log in from the local network" must be off for the user;
