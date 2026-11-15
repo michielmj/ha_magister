@@ -58,10 +58,49 @@ MAX_SUBTASKS: Final = 20
 SUBTASK_SEPARATOR: Final = ":sub:"
 
 
-# Who created a subtask (since 1.6.0): the user (card, service) or the AI coach.
+# Who created a subtask: the user (card, service), the AI coach of a student (since
+# 1.6.0) or the AI of a parent (since 1.7.0).
 CREATED_BY_USER: Final = "user"
 CREATED_BY_AI: Final = "ai"
-CREATED_BY: Final = (CREATED_BY_USER, CREATED_BY_AI)
+CREATED_BY_PARENT: Final = "parent"
+CREATED_BY: Final = (CREATED_BY_USER, CREATED_BY_AI, CREATED_BY_PARENT)
+
+# Estimated time of a subtask in minutes (since 1.7.0): 5 to 240 in steps of 5.
+MINUTES_MIN: Final = 5
+MINUTES_MAX: Final = 240
+MINUTES_STEP: Final = 5
+
+# Study minutes per school day of a child (since 1.7.0): the daily maximum.
+DAILY_MAX_DEFAULT: Final = 90
+DAILY_MAX_MIN: Final = 15
+DAILY_MAX_MAX: Final = 480
+DAILY_MAX_STEP: Final = 15
+
+
+def valid_minutes(value: Any) -> int | None:
+    """The estimated time of a subtask as int; ``None`` when it is not allowed.
+
+    Booleans and non-integers are refused; a whole float (a number selector) is fine.
+    """
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    if isinstance(value, float) and not value.is_integer():
+        return None
+    minutes = int(value)
+    if not MINUTES_MIN <= minutes <= MINUTES_MAX or minutes % MINUTES_STEP:
+        return None
+    return minutes
+
+
+def clean_daily_max(value: Any) -> int:
+    """A stored daily maximum, leniently: rounded to the step, clamped, else default."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return DAILY_MAX_DEFAULT
+    if isinstance(value, float) and not value.is_integer():
+        return DAILY_MAX_DEFAULT
+    # Integer arithmetic: a huge value must not overflow (no float division).
+    stepped = (int(value) + DAILY_MAX_STEP // 2) // DAILY_MAX_STEP * DAILY_MAX_STEP
+    return min(max(stepped, DAILY_MAX_MIN), DAILY_MAX_MAX)
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +117,7 @@ class Subtask:
     last_partial: int = 0
     completed_on: date | None = None
     created_by: str = "user"
+    minutes: int | None = None
 
     @property
     def done(self) -> bool:
@@ -370,12 +410,14 @@ class Weights:
 
     ``types`` is keyed by the names in ``TYPE_KEYS``; ``labels`` by label option id;
     ``subjects`` by the subject as it was stored. Subject matching is exact and
-    case-insensitive.
+    case-insensitive. ``daily_max_minutes`` (since 1.7.0) is the study time per school
+    day, stored with the weights of the child.
     """
 
     types: Mapping[str, float] = field(default_factory=dict)
     subjects: Mapping[str, float] = field(default_factory=dict)
     labels: Mapping[str, float] = field(default_factory=dict)
+    daily_max_minutes: int = DAILY_MAX_DEFAULT
 
     @classmethod
     def from_options(cls, raw: Any) -> Weights:
@@ -400,7 +442,9 @@ class Weights:
                 weight = _clean_weight(value)
                 if isinstance(label_id, str) and label_id and weight is not None:
                     labels[label_id] = weight
-        return cls(types, subjects, labels)
+        return cls(
+            types, subjects, labels, clean_daily_max(raw.get("daily_max_minutes"))
+        )
 
     def type_weight(self, info_type: int) -> float:
         """Weight of an InfoType."""

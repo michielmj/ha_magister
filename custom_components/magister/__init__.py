@@ -27,6 +27,7 @@ from .const import (
     CONF_COACH,
     CONF_HOST,
     CONF_LABELS,
+    CONF_PARENT_GUIDELINES,
     CONF_TOTP_SECRET,
     CONF_WEIGHTS,
     DOMAIN,
@@ -180,7 +181,8 @@ def config_snapshot(entry: MagisterConfigEntry) -> str:
     """The parts of an entry that need a reload when they change.
 
     Credentials are left out: reauth and reconfigure schedule their own reload. So are
-    the homework weights, label options and AI coach settings, which are applied
+    the homework weights, label options and AI coach settings (with the parent
+    guidelines), which are applied
     without a reload.
     """
     return json.dumps(
@@ -188,7 +190,8 @@ def config_snapshot(entry: MagisterConfigEntry) -> str:
             "options": {
                 key: value
                 for key, value in entry.options.items()
-                if key not in (CONF_WEIGHTS, CONF_LABELS, CONF_COACH)
+                if key
+                not in (CONF_WEIGHTS, CONF_LABELS, CONF_COACH, CONF_PARENT_GUIDELINES)
             },
             "children": [child[CHILD_ID] for child in entry.data[CONF_CHILDREN]],
             "subentries": {

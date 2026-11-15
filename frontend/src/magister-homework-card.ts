@@ -7,6 +7,7 @@ import {
   applySubtaskEdits,
   dateBounds,
   formatDay,
+  formatMinutes,
   formatShortDay,
   groupEntries,
   isDerived,
@@ -14,6 +15,7 @@ import {
   labelKey,
   loadSwitches,
   menuActions,
+  minuteChoices,
   PROGRESS_PERIODS,
   barPercent,
   normalizeConfig,
@@ -21,6 +23,7 @@ import {
   optimisticOverride,
   overrideFieldsOf,
   parentUid,
+  plannedMinutes,
   reflectsEdit,
   saveSwitches,
   snapToStep,
@@ -80,6 +83,10 @@ interface SubForm {
   subUid?: string;
   title: string;
   date: string;
+  /** The estimated time; null when unknown (none chosen). */
+  minutes: number | null;
+  /** Edit only: the stored estimate, which stays selectable after it is changed. */
+  storedMinutes?: number | null;
   error: string;
   busy: boolean;
 }
@@ -802,6 +809,7 @@ export class MagisterHomeworkCard extends LitElement {
         : html`${banners}`;
     }
     const firstPast = groups.findIndex((group) => group.kind === "past");
+    const planned = plannedMinutes(this._items());
     return html`${banners}<div class="days ${available ? "" : "stale"}">
         ${groups.map(
           (group, index) => html`
@@ -809,7 +817,10 @@ export class MagisterHomeworkCard extends LitElement {
               ? html`<h3 class="section">${texts.earlier}</h3>`
               : nothing}
             <section class="day" aria-labelledby="day-${group.date}">
-              <h4 id="day-${group.date}" class=${group.kind}>${this._dayTitle(group, texts)}</h4>
+              <div class="day-head">
+                <h4 id="day-${group.date}" class=${group.kind}>${this._dayTitle(group, texts)}</h4>
+                ${this._renderPlanned(group, planned, texts)}
+              </div>
               <ul>
                 ${group.entries.map((entry) => this._renderEntry(entry, texts, enabled))}
               </ul>
@@ -817,6 +828,29 @@ export class MagisterHomeworkCard extends LitElement {
           `,
         )}
       </div>`;
+  }
+
+  /** The planned time of a day, with a warning when it is above the child's daily maximum. */
+  private _renderPlanned(
+    group: EntryGroup,
+    planned: ReadonlyMap<string, number>,
+    texts: Texts,
+  ): TemplateResult | typeof nothing {
+    if (group.kind === "overdue") return nothing;
+    const total = planned.get(group.date) ?? 0;
+    if (total <= 0) return nothing;
+    const lang = this._language() === "nl" ? "nl" : "en";
+    const max = this._payload?.daily_max_minutes;
+    const text = format(texts.sub.planned, { time: formatMinutes(total, lang) });
+    if (typeof max !== "number" || total <= max) {
+      return html`<span class="planned">${text}</span>`;
+    }
+    const warning = format(texts.sub.over_max, { max: formatMinutes(max, lang) });
+    return html`<span class="planned over" title=${warning}
+      ><span aria-hidden="true">⚠ </span>${text}<span aria-hidden="true">
+        ${format(texts.sub.max_short, { max: formatMinutes(max, lang) })}</span
+      ><span class="sr-only">, ${warning}</span></span
+    >`;
   }
 
   private _renderToolbar(texts: Texts, enabled: boolean): TemplateResult {
@@ -1157,6 +1191,21 @@ export class MagisterHomeworkCard extends LitElement {
                     title=${texts.sub.ai_label}
                     aria-label=${texts.sub.ai_label}
                   ><span aria-hidden="true">${texts.sub.ai}</span></span>`
+                : subtask.created_by === "parent"
+                  ? html`<span
+                      class="ai-badge parent-badge"
+                      role="img"
+                      title=${texts.sub.parent_label}
+                      aria-label=${texts.sub.parent_label}
+                    ><span aria-hidden="true">${texts.sub.parent}</span></span>`
+                  : nothing}
+              ${typeof subtask.minutes === "number"
+                ? html`<span class="sub-minutes"
+                    ><span class="sr-only">${texts.sub.minutes}: </span>${formatMinutes(
+                      subtask.minutes,
+                      this._language() === "nl" ? "nl" : "en",
+                    )}</span
+                  >`
                 : nothing}
               ${enabled
                 ? html`<span class="sub-actions"><button
@@ -1269,6 +1318,26 @@ export class MagisterHomeworkCard extends LitElement {
           }}
         />
       </label>
+      <label>
+        <span>${texts.sub.minutes}</span>
+        <select
+          class="sub-minutes-input"
+          ?disabled=${form.busy}
+          @change=${(event: Event) => {
+            const value = (event.target as HTMLSelectElement).value;
+            this._patchForm({ minutes: value === "" ? null : Number(value), error: "" });
+          }}
+        >
+          <option value="">${texts.sub.minutes_none}</option>
+          ${minuteChoices(form.minutes, form.storedMinutes).map(
+            (value) =>
+              html`<option value=${String(value)} ?selected=${form.minutes === value}>${formatMinutes(
+                value,
+                this._language() === "nl" ? "nl" : "en",
+              )}</option>`,
+          )}
+        </select>
+      </label>
       ${form.error
         ? html`<p class="form-error" id=${errorId} role="alert">${form.error}</p>`
         : nothing}
@@ -1300,6 +1369,8 @@ export class MagisterHomeworkCard extends LitElement {
       ...target,
       title: sub?.title ?? "",
       date: sub ? this._clampDate(sub.planned, bounds) : bounds.fixed ? bounds.max : bounds.min,
+      minutes: sub?.minutes ?? null,
+      storedMinutes: sub?.minutes ?? null,
       error: "",
       busy: false,
     };
@@ -1354,6 +1425,7 @@ export class MagisterHomeworkCard extends LitElement {
           item: item.uid,
           title,
           date,
+          ...(form.minutes !== null ? { minutes: form.minutes } : {}),
         });
         const known = new Set((item.subtasks ?? []).map((sub) => sub.uid));
         const created = (result.subtasks ?? []).filter((sub) => !known.has(sub.uid)).pop();
@@ -1375,7 +1447,8 @@ export class MagisterHomeworkCard extends LitElement {
       }
       edit.planned = form.date;
     }
-    if (edit.title === undefined && edit.planned === undefined) {
+    if (form.minutes !== (subtask.minutes ?? null)) edit.minutes = form.minutes;
+    if (edit.title === undefined && edit.planned === undefined && edit.minutes === undefined) {
       this._cancelForm();
       return;
     }
@@ -1387,6 +1460,7 @@ export class MagisterHomeworkCard extends LitElement {
       subtask: subtask.uid,
       ...(edit.title !== undefined ? { title: edit.title } : {}),
       ...(edit.planned !== undefined ? { date: edit.planned } : {}),
+      ...(edit.minutes !== undefined ? { minutes: edit.minutes } : {}),
     }, form);
   }
 
@@ -1480,6 +1554,10 @@ export class MagisterHomeworkCard extends LitElement {
   }
 
   protected override updated(): void {
+    // The estimate select shows the form's value (the options are rendered before it is set).
+    const select = this.shadowRoot?.querySelector<HTMLSelectElement>(".subform .sub-minutes-input");
+    const wanted = this._form?.minutes === null ? "" : String(this._form?.minutes ?? "");
+    if (select && this._form && select.value !== wanted) select.value = wanted;
     if (this._focusForm && this._form) {
       this._focusForm = false;
       this.shadowRoot?.querySelector<HTMLElement>(".subform .sub-title-input")?.focus();
@@ -2048,6 +2126,34 @@ export class MagisterHomeworkCard extends LitElement {
       color: var(--primary-color);
       border: 1px solid var(--primary-color);
     }
+    .parent-badge {
+      color: var(--secondary-text-color);
+      border-color: var(--secondary-text-color);
+    }
+    .sub-minutes {
+      flex: 0 0 auto;
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+      white-space: nowrap;
+    }
+    .day-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      column-gap: 12px;
+    }
+    .planned {
+      font-size: 0.85em;
+      color: var(--secondary-text-color);
+    }
+    .planned.over {
+      padding: 0 8px;
+      border: 1px solid var(--warning-color, #ffa600);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--warning-color, #ffa600) 15%, transparent);
+      color: var(--primary-text-color);
+      font-weight: 600;
+    }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -2225,7 +2331,8 @@ export class MagisterHomeworkCard extends LitElement {
     .icon-btn:focus-visible,
     button.link:focus-visible,
     .subform button:focus-visible,
-    .subform input:focus-visible {
+    .subform input:focus-visible,
+    .subform select:focus-visible {
       outline: 2px solid var(--primary-color);
       outline-offset: 2px;
     }
@@ -2246,7 +2353,8 @@ export class MagisterHomeworkCard extends LitElement {
       font-size: 0.8em;
       color: var(--secondary-text-color);
     }
-    .subform input {
+    .subform input,
+    .subform select {
       min-height: 36px;
       padding: 0 8px;
       border: 1px solid var(--divider-color);

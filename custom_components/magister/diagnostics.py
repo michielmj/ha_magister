@@ -10,16 +10,17 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from .coach import parent_users, student_users
 from .const import (
     CHILD_ID,
     COACH_ENABLED,
-    COACH_USERS,
     CONF_CHILDREN,
     CONF_COACH,
     CONF_EXCLUDED,
     CONF_HOST,
     CONF_LABELS,
     CONF_OFFSET,
+    CONF_PARENT_GUIDELINES,
     CONF_TOTP_SECRET,
     CONF_WEIGHTS,
 )
@@ -64,8 +65,14 @@ def _coach_counts(entry: MagisterConfigEntry) -> dict[str, int]:
         else []
     )
     enabled = [v for v in settings if v.get(COACH_ENABLED)]
-    users = {u for v in enabled for u in (v.get(COACH_USERS) or [])}
-    return {"enabled_children": len(enabled), "linked_users": len(users)}
+    students = {u for v in enabled for u in student_users(v)}
+    parents = {u for v in enabled for u in parent_users(v)}
+    return {
+        "enabled_children": len(enabled),
+        "student_users": len(students),
+        "parent_users": len(parents),
+        "linked_users": len(students | parents),
+    }
 
 
 async def async_get_config_entry_diagnostics(
@@ -99,7 +106,8 @@ async def async_get_config_entry_diagnostics(
             "options": {
                 k: v
                 for k, v in entry.options.items()
-                if k not in (CONF_WEIGHTS, CONF_LABELS, CONF_COACH)
+                if k
+                not in (CONF_WEIGHTS, CONF_LABELS, CONF_COACH, CONF_PARENT_GUIDELINES)
             },
         },
         "children": children,

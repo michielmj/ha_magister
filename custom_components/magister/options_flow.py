@@ -28,6 +28,10 @@ from homeassistant.helpers.selector import (
 
 from .api import MagisterApiError, MagisterAuthError, MagisterConnectionError, Person
 from .api.homework import (
+    DAILY_MAX_DEFAULT,
+    DAILY_MAX_MAX,
+    DAILY_MAX_MIN,
+    DAILY_MAX_STEP,
     DEFAULT_WEIGHT,
     KIND_HOMEWORK,
     LABEL_KINDS,
@@ -42,21 +46,31 @@ from .api.homework import (
     merge_subject_weights,
     subjects_of,
 )
-from .coach import coach_settings, guidelines_of
-from .coach_text import DEFAULT_GUIDELINES
+from .coach import (
+    coach_settings,
+    guidelines_of,
+    parent_guidelines_of,
+    parent_users,
+    student_users,
+)
+from .coach_text import DEFAULT_GUIDELINES, DEFAULT_PARENT_GUIDELINES
 from .const import (
     CHILD_ID,
     CHILD_NAME,
     CHILD_SHORT_NAME,
     COACH_ENABLED,
     COACH_GUIDELINES,
+    COACH_PARENTS,
     COACH_RESET,
+    COACH_STUDENTS,
     COACH_USERS,
     CONF_CHILDREN,
     CONF_COACH,
+    CONF_DAILY_MAX,
     CONF_HOST,
     CONF_INTERVAL,
     CONF_LABELS,
+    CONF_PARENT_GUIDELINES,
     CONF_WEEKS_AHEAD,
     CONF_WEEKS_BACK,
     CONF_WEIGHTS,
@@ -134,6 +148,7 @@ class MagisterOptionsFlow(OptionsFlow):
         self._labels_child: int | None = None
         self._label_id: str | None = None
         self._coach_child: int | None = None
+        self._daily_max_child: int | None = None
 
     async def _async_fetch_children(self, entry: ConfigEntry) -> str | None:
         """Read the current children list; return an abort reason on failure.
@@ -170,7 +185,8 @@ class MagisterOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """Choose between the general settings, the homework weights and the labels."""
         return self.async_show_menu(
-            step_id="init", menu_options=["general", "weights", "labels", "coach"]
+            step_id="init",
+            menu_options=["general", "weights", "daily_max", "labels", "coach"],
         )
 
     async def async_step_general(
@@ -387,10 +403,109 @@ class MagisterOptionsFlow(OptionsFlow):
             for key, value in (entry.options.get(CONF_WEIGHTS) or {}).items()
         }
         child_key = str(self._weights_child)
-        if types or subjects or labels:
+        daily_max = stored.daily_max_minutes
+        if types or subjects or labels or daily_max != DAILY_MAX_DEFAULT:
             weights[child_key] = {"types": types, "subjects": subjects}
             if labels:
                 weights[child_key]["labels"] = labels
+            if daily_max != DAILY_MAX_DEFAULT:
+                weights[child_key][CONF_DAILY_MAX] = daily_max
+        else:
+            weights.pop(child_key, None)
+        options = dict(entry.options)
+        if weights:
+            options[CONF_WEIGHTS] = weights
+        else:
+            options.pop(CONF_WEIGHTS, None)
+        return self.async_create_entry(data=options)
+
+    # -- daily maximum --------------------------------------------------------
+
+    async def async_step_daily_max(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Choose the child whose daily study maximum is changed."""
+        names = self._child_names()
+        if user_input is not None or len(names) == 1:
+            self._daily_max_child = (
+                int(user_input["child"]) if user_input else next(iter(names))
+            )
+            return await self.async_step_daily_max_settings()
+        return self.async_show_form(
+            step_id="daily_max",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required("child"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(value=str(child_id), label=name)
+                                for child_id, name in names.items()
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def async_step_daily_max_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """The study minutes per school day, used by the AI and the card."""
+        assert self._daily_max_child is not None
+        entry = self.config_entry
+        child_key = str(self._daily_max_child)
+        stored = entry.options.get(CONF_WEIGHTS)
+        current = Weights.from_options(
+            stored.get(child_key) if isinstance(stored, dict) else None
+        ).daily_max_minutes
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            value = float(user_input[CONF_DAILY_MAX])
+            if not DAILY_MAX_MIN <= value <= DAILY_MAX_MAX or value % DAILY_MAX_STEP:
+                errors[CONF_DAILY_MAX] = "invalid_daily_max"
+            else:
+                return self._save_daily_max(int(value))
+        schema = probatio.Schema(
+            {
+                probatio.Required(CONF_DAILY_MAX): NumberSelector(
+                    NumberSelectorConfig(
+                        min=DAILY_MAX_MIN,
+                        max=DAILY_MAX_MAX,
+                        step=DAILY_MAX_STEP,
+                        mode=NumberSelectorMode.BOX,
+                        unit_of_measurement="min",
+                    )
+                )
+            }
+        )
+        return self.async_show_form(
+            step_id="daily_max_settings",
+            data_schema=self.add_suggested_values_to_schema(
+                schema, user_input or {CONF_DAILY_MAX: current}
+            ),
+            errors=errors,
+            description_placeholders={
+                "child": self._child_names()[self._daily_max_child],
+                "default": str(DAILY_MAX_DEFAULT),
+            },
+        )
+
+    def _save_daily_max(self, minutes: int) -> ConfigFlowResult:
+        """Store the maximum with the child's weights (no reload); default = removed."""
+        entry = self.config_entry
+        weights = {
+            key: dict(value)
+            for key, value in (entry.options.get(CONF_WEIGHTS) or {}).items()
+        }
+        child_key = str(self._daily_max_child)
+        child = weights.get(child_key, {})
+        if minutes == DAILY_MAX_DEFAULT:
+            child.pop(CONF_DAILY_MAX, None)
+        else:
+            child[CONF_DAILY_MAX] = minutes
+        if child:
+            weights[child_key] = child
         else:
             weights.pop(child_key, None)
         options = dict(entry.options)
@@ -599,6 +714,14 @@ class MagisterOptionsFlow(OptionsFlow):
     async def async_step_coach(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """The AI coach: settings per child, or the parent guidelines."""
+        return self.async_show_menu(
+            step_id="coach", menu_options=["coach_child", "coach_parent"]
+        )
+
+    async def async_step_coach_child(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Choose the child whose AI coach is set up."""
         names = self._child_names()
         if user_input is not None or len(names) == 1:
@@ -607,7 +730,7 @@ class MagisterOptionsFlow(OptionsFlow):
             )
             return await self.async_step_coach_settings()
         return self.async_show_form(
-            step_id="coach",
+            step_id="coach_child",
             data_schema=probatio.Schema(
                 {
                     probatio.Required("child"): SelectSelector(
@@ -626,7 +749,7 @@ class MagisterOptionsFlow(OptionsFlow):
     async def async_step_coach_settings(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Enable the coach, link HA users and edit the coaching guidelines."""
+        """Enable the coach, link HA users per role and edit the student guidelines."""
         assert self._coach_child is not None
         entry = self.config_entry
         users = {
@@ -636,7 +759,11 @@ class MagisterOptionsFlow(OptionsFlow):
         }
         errors: dict[str, str] = {}
         if user_input is not None:
-            if (
+            if set(user_input.get(COACH_STUDENTS) or []) & set(
+                user_input.get(COACH_PARENTS) or []
+            ):
+                errors[COACH_PARENTS] = "user_in_both_roles"
+            elif (
                 len(str(user_input.get(COACH_GUIDELINES) or "").strip())
                 > GUIDELINES_MAX
             ):
@@ -644,26 +771,28 @@ class MagisterOptionsFlow(OptionsFlow):
             else:
                 return self._save_coach(user_input, set(users))
         settings = coach_settings(entry, self._coach_child)
-        linked = settings.get(COACH_USERS)
         suggested = user_input or {
             COACH_ENABLED: settings.get(COACH_ENABLED) is True,
-            COACH_USERS: [u for u in linked or [] if u in users],
+            COACH_STUDENTS: [u for u in student_users(settings) if u in users],
+            COACH_PARENTS: [u for u in parent_users(settings) if u in users],
             COACH_GUIDELINES: guidelines_of(settings),
             COACH_RESET: False,
         }
+        user_select = SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(value=user_id, label=name)
+                    for user_id, name in users.items()
+                ],
+                multiple=True,
+                mode=SelectSelectorMode.DROPDOWN,
+            )
+        )
         schema = probatio.Schema(
             {
                 probatio.Required(COACH_ENABLED): BooleanSelector(),
-                probatio.Optional(COACH_USERS): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[
-                            SelectOptionDict(value=user_id, label=name)
-                            for user_id, name in users.items()
-                        ],
-                        multiple=True,
-                        mode=SelectSelectorMode.DROPDOWN,
-                    )
-                ),
+                probatio.Optional(COACH_STUDENTS): user_select,
+                probatio.Optional(COACH_PARENTS): user_select,
                 probatio.Optional(COACH_GUIDELINES): TextSelector(
                     TextSelectorConfig(multiline=True)
                 ),
@@ -694,13 +823,26 @@ class MagisterOptionsFlow(OptionsFlow):
         }
         setting: dict[str, Any] = {
             COACH_ENABLED: bool(user_input[COACH_ENABLED]),
-            COACH_USERS: sorted(
-                {u for u in user_input.get(COACH_USERS) or [] if u in valid_users}
+            COACH_STUDENTS: sorted(
+                {u for u in user_input.get(COACH_STUDENTS) or [] if u in valid_users}
+            ),
+            COACH_PARENTS: sorted(
+                {u for u in user_input.get(COACH_PARENTS) or [] if u in valid_users}
             ),
         }
+        # 1.6.0 mirror: the students (a parent-only child has none), so a downgrade
+        # keeps the student links.
+        setting[COACH_USERS] = [
+            u for u in setting[COACH_STUDENTS] if u not in setting[COACH_PARENTS]
+        ]
         if text:
             setting[COACH_GUIDELINES] = text
-        if setting[COACH_ENABLED] or setting[COACH_USERS] or text:
+        if (
+            setting[COACH_ENABLED]
+            or setting[COACH_STUDENTS]
+            or setting[COACH_PARENTS]
+            or text
+        ):
             stored[str(self._coach_child)] = setting
         else:
             stored.pop(str(self._coach_child), None)
@@ -710,3 +852,44 @@ class MagisterOptionsFlow(OptionsFlow):
         else:
             options.pop(CONF_COACH, None)
         return self.async_create_entry(data=options)
+
+    async def async_step_coach_parent(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Edit the parent guidelines (Ouder-richtlijnen): one text per entry."""
+        entry = self.config_entry
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            text = str(user_input.get(CONF_PARENT_GUIDELINES) or "").strip()
+            if len(text) > GUIDELINES_MAX:
+                errors[CONF_PARENT_GUIDELINES] = "guidelines_too_long"
+            else:
+                if user_input.get(COACH_RESET) or text == DEFAULT_PARENT_GUIDELINES:
+                    text = ""
+                options = dict(entry.options)
+                if text:
+                    options[CONF_PARENT_GUIDELINES] = text
+                else:
+                    options.pop(CONF_PARENT_GUIDELINES, None)
+                return self.async_create_entry(data=options)
+        schema = probatio.Schema(
+            {
+                probatio.Optional(CONF_PARENT_GUIDELINES): TextSelector(
+                    TextSelectorConfig(multiline=True)
+                ),
+                probatio.Optional(COACH_RESET): BooleanSelector(),
+            }
+        )
+        return self.async_show_form(
+            step_id="coach_parent",
+            data_schema=self.add_suggested_values_to_schema(
+                schema,
+                user_input
+                or {
+                    CONF_PARENT_GUIDELINES: parent_guidelines_of(entry),
+                    COACH_RESET: False,
+                },
+            ),
+            errors=errors,
+            description_placeholders={"max": str(GUIDELINES_MAX)},
+        )

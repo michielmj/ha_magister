@@ -358,14 +358,25 @@ show_progress_next_week: false
   saving fails. Everything works with the keyboard (Escape closes a form or confirmation) and with a
   screen reader; the focus moves to the new row after adding and to a neighbouring control after
   deleting. A subtask created by the AI coach (see below) shows a small **AI** marker (tooltip and
-  screen reader text "Created by AI coach").
+  screen reader text "Created by AI coach"); one created by a parent's AI shows a **Parent** marker (Dutch
+  card: **Ouder**; "Created by parent via AI").
+- **Estimated time and the day total** (since 1.7.0). A subtask can have an optional **Estimated time**: a
+  select with —, 15, 30, 45, 60, 90, 120, 180 and 240 minutes, in the add and the edit form (a value that is
+  not in the list, set through the AI or a service, is kept and shown; choosing — clears it). The time shows
+  in the subtask row ("30 min"). Each day heading shows the planned time of that day, for example
+  "± 1 h 15 min planned": the sum of the estimates of all subtasks (done or not) whose current day it is,
+  left out when it is 0. When the sum is above the child's **daily maximum** (Configure, Daily study maximum,
+  default 90 minutes) it is shown with a warning icon, highlight and the visible text "/ max 1 h 30 min" (also on touch screens), and
+  screen readers add "over daily maximum (1 h 30 min)". The minutes of overdue subtasks count toward their (past)
+  day; the Overdue group itself shows no total. Changes show at once and are rolled back with a message if saving fails.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
 
 ## AI homework coach
 
-*Since 1.6.0. Optional and off by default.* A student can link an AI assistant (for example the Claude
-desktop app) to **their own** schedule and homework planner, so the assistant can help plan homework and
-tests. It works through Home Assistant's built-in **Model Context Protocol Server** integration.
+*Since 1.6.0 (parents since 1.7.0). Optional and off by default.* A student, or a parent (see *For parents* below),
+can link an AI assistant (for example the Claude desktop app) to **their own** schedule and homework planner, so the
+assistant can help plan homework and tests. It works through Home Assistant's built-in **Model Context Protocol
+Server** integration.
 
 ### What it can and cannot do
 
@@ -385,8 +396,9 @@ tests. It works through Home Assistant's built-in **Model Context Protocol Serve
 1. **Create a Home Assistant user per student**: Settings, People, **Add person**, turn on **Allow login**
    and keep **Administrator** off.
    Use a separate user for each student; a parent may have one user that is linked to several children.
-2. **Link the user to the child:** Settings, Devices & services, Magister, **Configure**, **AI-coach**.
-   Choose the child, turn on **AI coach enabled**, select the user(s) and, if you want, edit the
+2. **Link the user to the child:** Settings, Devices & services, Magister, **Configure**, **AI coach**,
+   **Settings per child**. Choose the child, turn on **AI coach enabled**, select the user(s) under **Students (Leerling)** (a parent
+   goes under **Parents (Ouder)**, see *For parents*) and, if you want, edit the
    **coaching guidelines** (see below). Changes apply at once, without a reload.
 3. **Add the integration "Model Context Protocol Server"** (Settings, Devices & services, Add integration).
    Adding it exposes all LLM APIs and requires an administrator, so change that under **Configure**:
@@ -479,16 +491,18 @@ header `Authorization: Bearer <long-lived token>`.
   child.
 - **What the AI provider receives.** The homework texts, the schedule (subjects, times, locations, labels),
   the subtasks and the progress of the linked child, and what the student types. Teacher names and codes
-  are **not** shared through the coach, and neither is anything about other children. The provider handles
-  this data under its own terms; read them first.
+  are **not** shared through the coach, and neither is anything about other children. A **parent's**
+  assistant receives the homework and schedules of **every child the parent is linked to**, plus what the
+  parent types, and sends them to the parent's own AI provider. The provider handles this data under its own
+  terms; read them first.
 - **The limit of the isolation.** The isolation holds **only for the coach**. The student's Home Assistant
-  user, and so the token in the Claude configuration on their computer, can read **all entity states**
+  user (and a parent's user in the same way), and so the token in the Claude configuration on their computer, can read **all entity states**
   **and control devices**, through the Home Assistant app and its REST/WebSocket API and through Assist
   (see the note under Set up). That includes the other children's calendars with the teachers' names.
   Treat the user and the token as that access: use a dedicated non-admin user, keep the token private,
   revoke it when it is no longer needed, and limit which entities are exposed to Assist (Settings, Voice
   assistants, Expose).
-- **The token.** A long-lived token is stored in plain text in the Claude configuration on that computer.
+- **The token.** The same applies to a parent's Home Assistant user. A long-lived token is stored in plain text in the Claude configuration on that computer.
   Use **HTTPS** wherever you can: with `http://` the token travels unencrypted over your network. Revoke the
   token on the profile when it is no longer needed.
 - Nothing is written to Magister, and the coach cannot change settings or weights.
@@ -518,8 +532,75 @@ The assistant gets guidelines with the tools. Without your own text it uses this
 > language. Briefly explain what you change in the planner and ask permission before deleting subtasks or
 > labels.
 
-You can edit the text **per child** under Configure, AI-coach (empty means the default, and there is a
+You can edit the text **per child** under Configure, AI coach, Settings per child (empty means the default, and there is a
 "reset to default" option).
+
+### For parents (Ouder)
+
+*Since 1.7.0.* A parent can use their own AI assistant to build a **study plan** for each child: subtasks
+with an estimated time, spread over the days before tests and assignments, within a daily maximum. It uses
+the same MCP Server setup as above (main endpoint `/api/mcp`); only the role differs.
+
+1. **Link your user as Ouder.** Create a Home Assistant user for yourself (not an administrator), then go to
+   Settings, Devices & services, Magister, **Configure**, **AI coach**, **Settings per child**, choose the child, turn on **AI coach
+   enabled** and select your user under **Parents (Ouder)**. Repeat for each child (one parent user can be
+   linked to several children). A student's user goes under **Students (Leerling)**; the same user cannot be in
+   both lists for one child. Users that were linked in 1.6.0 are students.
+2. **Set the daily maximum** per child: Configure, **Daily study maximum**, choose the child and enter the study
+   minutes per school day (15 to 480 in steps of 15, default 90). The AI plans within it and the card
+   compares each day's planned time with it.
+3. **Connect the AI app** with your own long-lived token, as described under *Connect the Claude desktop app*.
+
+**What the parent's AI can do.** It sees the same data as the student coach (no teacher names or codes), only for
+the children your user is linked to. It can:
+
+- give an **overview** across all your children for a period (`get_overview`, at most 31 days): the tests and
+  assignments due, the open homework count, the planned minutes and the daily maximum for every day;
+- read the schedule, the homework with its subtasks and the progress;
+- **plan**: add, change and delete subtasks with an estimated time (`minutes`, 5 to 240 in steps of 5), and
+  add or change labels like the student coach.
+
+It **reads progress but cannot set it**: the student reports progress, in the planner or through their own
+coach. Subtasks the parent's AI creates are marked **Parent** in the card (the child can still edit and tick
+them) and the logbook says "Ouder via AI: ...". It cannot change settings, weights or label options.
+
+**Parent guidelines.** One text for all your children, under Configure, **AI coach**, **Parent guidelines
+(Ouder-richtlijnen)** (empty means the default; there is a reset option). The default is in Dutch:
+
+> Je helpt een ouder om voor een kind een haalbare studieplanning te maken. Je praat met de ouder, niet met het kind.
+> - Geef eerst een overzicht van toetsen, grote opdrachten en huiswerk in de gevraagde periode, en wijs op drukke dagen.
+> - Stel een planning voor met deelstappen van 15–45 minuten, elk met een geschatte tijd, verspreid over de dagen vóór de deadline.
+> - Houd je aan het dagmaximum van het kind en laat de dag vóór een toets ruimte voor herhalen.
+> - Leg de planning eerst voor en voer wijzigingen pas door als de ouder akkoord geeft.
+> - Voortgang geeft het kind zelf aan; jij past die niet aan. Gebruik de voortgang om te zien wat af is en de planning bij te stellen.
+> - Maak geen huiswerk of opdrachten; de planning is bedoeld om het kind zelfstandig te laten werken.
+> - Spreek Nederlands, tenzij de ouder een andere taal gebruikt.
+>
+> *Translation, for reference only (the assistant gets the Dutch text above):* You help a parent make a
+> feasible study plan for a child. You talk to the parent, not to the child. First give an overview of the
+> tests, big assignments and homework in the requested period, and point out busy days. Propose a plan with
+> steps of 15 to 45 minutes, each with an estimated time, spread over the days before the deadline. Keep to the
+> child's daily maximum and leave room for revision on the day before a test. Present the plan first and only
+> make changes once the parent agrees. The child reports progress themselves; you do not change it. Use the
+> progress to see what is done and to adjust the plan. Do not do homework or assignments; the plan is meant to
+> let the child work independently. Speak Dutch unless the parent uses another language.
+
+**Example conversation** (the assistant speaks Dutch by default):
+
+> **You:** Maak een studieplanning voor de toets Engels van volgende week dinsdag.
+>
+> **Assistant:** *(looks at the overview of next week)* Volgende week dinsdag staat het proefwerk Engels
+> (hoofdstuk 4). Maandag is er alleen huiswerk Duits (30 van de 90 minuten). Mijn voorstel:
+> donderdag woordjes leren (30 min), vrijdag grammatica oefenen (30 min), maandag een oefentoets (45 min,
+> dan blijft ze binnen het maximum) en dinsdagochtend de samenvatting herhalen (15 min). Zal ik dit zo
+> toevoegen?
+>
+> **You:** Ja, graag.
+>
+> **Assistant:** Ik heb vier deelstappen toegevoegd aan Proefwerk Engels, elk met een geschatte tijd.
+
+In the card, the subtasks show their time and the **Parent** marker, and each day heading shows the planned
+time, with a warning when it goes above the daily maximum.
 
 ## How it behaves
 
@@ -576,7 +657,9 @@ first; the password is asked with hidden input.
 - They are never written to logs; diagnostics redact them.
 - Data goes only between your Home Assistant and Magister (your school's Magister server and
   login service). There is no other server, no analytics. The exception: if you turn on the optional AI homework coach, the
-  AI provider of the student's assistant sees the homework texts and the schedule (without teacher data); see
+  AI provider of the student's assistant sees the homework texts and the schedule (without teacher data), and a parent's
+  assistant sends the homework and schedules of all linked children, plus what the parent types, to the parent's own
+  AI provider; see
   [AI homework coach](#ai-homework-coach) for what is and is not isolated.
 - Lockout protection: after a failed login or repeated server errors the integration waits and
   does not retry with the password; it stops completely when it could count towards a lockout,

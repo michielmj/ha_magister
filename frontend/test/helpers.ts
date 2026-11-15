@@ -81,12 +81,13 @@ export function manual(overrides: Partial<ManualLabel> = {}): ManualLabel {
 
 export function payload(
   items: HomeworkItem[],
-  options: { available?: boolean; labels?: LabelOption[] } = {},
+  options: { available?: boolean; labels?: LabelOption[]; dailyMax?: number } = {},
 ): HomeworkPayload {
   return {
     available: options.available ?? true,
     items,
     ...(options.labels ? { labels: options.labels } : {}),
+    ...(options.dailyMax === undefined ? {} : { daily_max_minutes: options.dailyMax }),
   };
 }
 

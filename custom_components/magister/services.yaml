@@ -107,6 +107,15 @@ add_homework_subtask:
       example: "2026-11-15"
       selector:
         date:
+    minutes:
+      required: false
+      example: 30
+      selector:
+        number:
+          min: 5
+          max: 240
+          step: 5
+          unit_of_measurement: min
 
 update_homework_subtask:
   target:
@@ -129,6 +138,15 @@ update_homework_subtask:
       example: "2026-11-16"
       selector:
         date:
+    minutes:
+      required: false
+      example: 45
+      selector:
+        number:
+          min: 5
+          max: 240
+          step: 5
+          unit_of_measurement: min
 
 delete_homework_subtask:
   target:

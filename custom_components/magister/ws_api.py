@@ -10,8 +10,10 @@ Commands (any authenticated user, like HA's own ``todo/item/*``):
 * ``magister/homework/remove_label``: ``{"entity_id", "appointment", "label"}``.
 * ``magister/homework/set_override``: ``{"entity_id", "appointment", "mode", "label"?}``
   with mode ``replace`` (needs a label), ``disable`` or ``clear``.
-* ``magister/homework/add_subtask``: ``{"entity_id", "item", "title", "date"?}``.
-* ``magister/homework/update_subtask``: ``{"entity_id", "subtask", "title"?, "date"?}``.
+* ``magister/homework/add_subtask``: ``{"entity_id", "item", "title", "date"?,
+  "minutes"?}``.
+* ``magister/homework/update_subtask``: ``{"entity_id", "subtask", "title"?, "date"?,
+  "minutes"?}`` (``minutes`` null clears the estimate).
 * ``magister/homework/delete_subtask``: ``{"entity_id", "subtask"}``.
 
 The label, override and subtask commands need control permission.
@@ -43,7 +45,9 @@ from .homework import (
     ERR_LABEL_IS_ORIGINAL,
     ERR_LABEL_REQUIRED,
     ERR_NOTHING_TO_UPDATE,
+    UNSET,
     LabelError,
+    any_value,
     async_subscribe,
     note_text,
     strict_progress,
@@ -285,6 +289,7 @@ def _subtask_error(
         probatio.Required("item"): cv.string,
         probatio.Required("title"): subtask_title,
         probatio.Optional("date"): cv.date,
+        probatio.Optional("minutes"): any_value,
     }
 )
 @callback
@@ -297,7 +302,9 @@ def websocket_add_subtask(
         return
     planned: Date | None = msg.get("date")
     try:
-        item = entity.add_subtask(msg["item"], msg["title"], planned)
+        item = entity.add_subtask(
+            msg["item"], msg["title"], planned, minutes=msg.get("minutes")
+        )
     except LabelError as err:
         _subtask_error(connection, msg, err)
         return
@@ -311,18 +318,24 @@ def websocket_add_subtask(
         probatio.Required("subtask"): cv.string,
         probatio.Optional("title"): subtask_title,
         probatio.Optional("date"): cv.date,
+        probatio.Optional("minutes"): any_value,
     }
 )
 @callback
 def websocket_update_subtask(
     hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
 ) -> None:
-    """Change the title and/or the planned date of a subtask."""
+    """Change the title, the planned date and/or the estimated time of a subtask."""
     entity = _controlled_entity(hass, connection, msg)
     if entity is None:
         return
     try:
-        item = entity.update_subtask(msg["subtask"], msg.get("title"), msg.get("date"))
+        item = entity.update_subtask(
+            msg["subtask"],
+            msg.get("title"),
+            msg.get("date"),
+            msg.get("minutes", UNSET),
+        )
     except LabelError as err:
         _subtask_error(connection, msg, err)
         return

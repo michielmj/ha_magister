@@ -147,7 +147,10 @@
       "message": "The date must be today or later and not after the date of the item (or exactly the date of the item when that is today or in the past)."
     },
     "homework_nothing_to_update": {
-      "message": "Give a new title, a new date, or both."
+      "message": "Give a new title, a new date, a new estimated time, or a combination."
+    },
+    "homework_invalid_minutes": {
+      "message": "The estimated time must be a whole number of minutes from 5 to 240 in steps of 5, or empty."
     }
   },
   "options": {
@@ -158,6 +161,7 @@
         "menu_options": {
           "general": "General settings",
           "weights": "Homework weights",
+          "daily_max": "Daily study maximum",
           "labels": "Labels",
           "coach": "AI coach"
         }
@@ -202,6 +206,20 @@
       "weights_subjects": {
         "title": "Weights per subject",
         "description": "How much each subject counts. 1 is normal, 0 leaves it out of the average. Subjects that are not in the data now keep their saved weight."
+      },
+      "daily_max": {
+        "title": "Daily study maximum",
+        "description": "Choose the child. The daily maximum is the number of study minutes per school day that the AI plans within and that the card compares the planned time against.",
+        "data": {
+          "child": "Child"
+        }
+      },
+      "daily_max_settings": {
+        "title": "Daily maximum of {child}",
+        "description": "Study minutes per school day, from 15 to 480 in steps of 15 (default {default}). Changes apply immediately.",
+        "data": {
+          "daily_max_minutes": "Minutes per school day"
+        }
       },
       "labels": {
         "title": "Labels",
@@ -251,23 +269,44 @@
       },
       "coach": {
         "title": "AI coach",
-        "description": "Choose the child. The AI coach lets a student use an AI assistant (through Home Assistant's MCP Server) to plan homework in this planner.",
+        "description": "Set up the AI coach for a child, or edit the parent guidelines.",
+        "menu_options": {
+          "coach_child": "Settings per child",
+          "coach_parent": "Parent guidelines (Ouder-richtlijnen)"
+        }
+      },
+      "coach_child": {
+        "title": "AI coach",
+        "description": "Choose the child. The AI coach lets a student or a parent use an AI assistant (through Home Assistant's MCP Server) to plan homework in this planner.",
         "data": {
           "child": "Child"
         }
       },
       "coach_settings": {
         "title": "AI coach of {child}",
-        "description": "Turn the coach on, choose which Home Assistant users may use it for this child, and adjust the coaching guidelines. Leave the guidelines empty (or reset them) to use the default text. At most {max} characters. Changes apply immediately.",
+        "description": "Turn the coach on, link Home Assistant users to this child as student (Leerling) or parent (Ouder), and adjust the student coaching guidelines. A user cannot have both roles for the same child. Leave the guidelines empty (or reset them) to use the default text. At most {max} characters. Changes apply immediately.",
         "data": {
           "enabled": "AI coach enabled",
-          "users": "Linked Home Assistant users",
+          "students": "Students (Leerling)",
+          "parents": "Parents (Ouder)",
           "guidelines": "Coaching guidelines",
           "reset_guidelines": "Reset the guidelines to the default"
         },
         "data_description": {
-          "users": "Only these users can see this child's schedule and homework through the AI coach, and change subtasks, progress and labels. Use a separate non-admin user for each student.",
+          "students": "These users can see this child's schedule and homework through the AI coach, and change subtasks, progress and labels. Subtasks they add are marked \"AI\". Use a separate non-admin user for each student. Users linked in version 1.6.0 are students.",
+          "parents": "These users can see this child's schedule and homework through the AI coach and plan subtasks with an estimated time, but cannot set progress (the student reports that). Subtasks they add are marked \"Ouder\".",
           "guidelines": "Instructions for the AI. Homework texts are shared with the AI provider; teacher names and codes are never shared."
+        }
+      },
+      "coach_parent": {
+        "title": "Parent guidelines (Ouder-richtlijnen)",
+        "description": "Instructions for the AI of a parent. One text for all children of this login. Leave it empty (or reset it) to use the default text. At most {max} characters. Changes apply immediately.",
+        "data": {
+          "parent_guidelines": "Parent guidelines",
+          "reset_guidelines": "Reset the guidelines to the default"
+        },
+        "data_description": {
+          "parent_guidelines": "Homework texts are shared with the AI provider; teacher names and codes are never shared."
         }
       }
     },
@@ -279,7 +318,9 @@
       "name_too_long": "The name can be at most 40 characters.",
       "name_exists": "This child already has a label with this name.",
       "name_invalid_chars": "The name cannot contain [ or ].",
-      "guidelines_too_long": "The guidelines are too long (at most 4000 characters)."
+      "guidelines_too_long": "The guidelines are too long (at most 4000 characters).",
+      "user_in_both_roles": "A user cannot be both student and parent of the same child. Remove the user from one of the lists.",
+      "invalid_daily_max": "Enter a number from 15 to 480 in steps of 15."
     },
     "abort": {
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",
@@ -431,12 +472,16 @@
         "date": {
           "name": "Date",
           "description": "The planned day: today or later, not after the date of the item. Today by default."
+        },
+        "minutes": {
+          "name": "Estimated time",
+          "description": "The estimated time in minutes: 5 to 240 in steps of 5. Leave it out when unknown."
         }
       }
     },
     "update_homework_subtask": {
       "name": "Update homework subtask",
-      "description": "Changes the title and/or the planned date of a subtask.",
+      "description": "Changes the title, the planned date and/or the estimated time of a subtask.",
       "fields": {
         "subtask": {
           "name": "Subtask",
@@ -449,6 +494,10 @@
         "date": {
           "name": "Date",
           "description": "The new planned day: today or later, not after the date of the item."
+        },
+        "minutes": {
+          "name": "Estimated time",
+          "description": "The new estimated time in minutes: 5 to 240 in steps of 5. Leave it out to keep it; empty (null) removes it."
         }
       }
     },

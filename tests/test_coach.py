@@ -9,6 +9,7 @@ import re
 from types import MappingProxyType
 from typing import Any
 
+import probatio
 import pytest
 from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
@@ -174,6 +175,7 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
     assert set(tools) == {
         "list_children",
         "get_schedule",
+        "get_overview",
         "list_homework",
         "get_progress",
         "list_label_options",
@@ -188,7 +190,8 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
     for name in tools.values():
         assert name.description
         assert name.annotations.open_world is False
-    read = {"list_children", "get_schedule", "list_homework", "get_progress"}
+    read = {"list_children", "get_schedule", "get_overview", "list_homework"}
+    read.add("get_progress")
     read.add("list_label_options")
     for name, tool in tools.items():
         assert tool.annotations.read_only is (name in read)
@@ -198,6 +201,18 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
     assert tools["remove_label"].annotations.destructive
     assert not tools["add_subtask"].annotations.idempotent
     assert tools["set_progress"].annotations.idempotent
+
+
+async def test_minutes_schema_is_integer_or_null(hass: HomeAssistant) -> None:
+    """MCP shows ``minutes`` as integer or null; the shared check decides at runtime."""
+    tools = {t.name: t for t in coach_tools()}
+    for name in ("add_subtask", "update_subtask"):
+        # As the MCP server of Home Assistant converts it.
+        schema = probatio.to_openapi(tools[name].parameters, openapi_version="3.1.0")
+        minutes = dict(schema["properties"]["minutes"])
+        minutes.pop("description")
+        assert minutes == {"anyOf": [{"type": "integer"}, {"type": "null"}]}, name
+        assert "minutes" not in schema.get("required", [])
 
 
 # -- access -----------------------------------------------------------------------
@@ -249,7 +264,7 @@ async def test_disabled_coach_and_inactive_user_have_no_access(
     await hass.async_block_till_done()
     assert entry.runtime_data is runtime
     assert (await ok(hass, user.id, "list_children"))["children"] == [
-        {"id": "1001", "name": "Kind"}
+        {"id": "1001", "name": "Kind", "role": "student", "daily_max_minutes": 90}
     ]
     await hass.auth.async_update_user(user, is_active=False)
     assert (await ok(hass, user.id, "list_children"))["children"] == []
@@ -278,7 +293,9 @@ async def test_user_of_child_a_cannot_touch_child_b(
         two=True,
     )
     children = (await ok(hass, anna.id, "list_children"))["children"]
-    assert children == [{"id": "1001", "name": "Anna"}]
+    assert children == [
+        {"id": "1001", "name": "Anna", "role": "student", "daily_max_minutes": 90}
+    ]
     # The only child is implied; Bram's id (or name) is refused like an unknown one.
     for wrong in ("1002", "Bram", "9999", 1002):
         for tool, args in (
@@ -302,7 +319,7 @@ async def test_user_of_child_a_cannot_touch_child_b(
     )
     # Bram's own user sees Bram.
     assert (await ok(hass, bram.id, "list_children"))["children"] == [
-        {"id": "1002", "name": "Bram"}
+        {"id": "1002", "name": "Bram", "role": "student", "daily_max_minutes": 90}
     ]
 
 
@@ -715,6 +732,9 @@ async def test_no_teacher_or_school_data_in_any_output(
         await ok(hass, student.id, "get_progress"),
         await ok(hass, student.id, "list_label_options"),
         await ok(hass, student.id, "add_subtask", item=PROEFWERK, title="x"),
+        await ok(
+            hass, student.id, "get_overview", start="2026-11-02", end="2026-11-30"
+        ),
     ]
     api = await llm.async_get_api(hass, COACH_API_ID, llm_context(student.id))
     text = json.dumps(outputs, ensure_ascii=False) + api.api_prompt
@@ -753,6 +773,35 @@ async def test_children_of_other_users_are_not_in_the_prompt(
     assert DEFAULT_GUIDELINES not in api.api_prompt
 
 
+async def test_shared_default_guidelines_do_not_name_other_users_children(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Two users, both children on the default text: each prompt names only its own."""
+    anna, bram = await make_user(hass, "Anna"), await make_user(hass, "Bram")
+    both = await make_user(hass, "Beide")
+    await setup_coach(
+        hass,
+        mocked,
+        coach_options(
+            **{
+                "1001": {"enabled": True, "users": [anna.id, both.id]},
+                "1002": {"enabled": True, "users": [bram.id, both.id]},
+            }
+        ),
+        two=True,
+    )
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(anna.id))
+    assert f"Coaching guidelines (for Anna (id 1001)):\n{DEFAULT_GUIDELINES}" in (
+        api.api_prompt
+    )
+    assert "Bram" not in api.api_prompt
+    assert "1002" not in api.api_prompt
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(both.id))
+    title = "Coaching guidelines (for Anna (id 1001), Bram (id 1002)):"
+    assert f"{title}\n{DEFAULT_GUIDELINES}" in api.api_prompt
+    assert api.api_prompt.count(DEFAULT_GUIDELINES) == 1
+
+
 # -- prompt -----------------------------------------------------------------------
 
 
@@ -773,7 +822,7 @@ async def test_prompt_contents(hass: HomeAssistant, student: Any) -> None:
     )
     assert "15\u201345 minuten" in prompt
     assert "Always pass `child`" not in prompt
-    assert len(api.tools) == 12
+    assert len(api.tools) == 13
 
 
 async def test_prompt_for_unlinked_user(hass: HomeAssistant, student: Any) -> None:
@@ -802,9 +851,10 @@ async def test_custom_guidelines_and_two_children(
         two=True,
     )
     api = await llm.async_get_api(hass, COACH_API_ID, llm_context(parent.id))
-    assert "Coaching guidelines for Anna (id 1001):\nKort." in api.api_prompt
-    assert f"Coaching guidelines for Bram (id 1002):\n{DEFAULT_GUIDELINES}" in (
-        api.api_prompt
+    assert "Coaching guidelines (for Anna (id 1001)):\nKort." in api.api_prompt
+    assert (
+        f"Coaching guidelines (for Bram (id 1002)):\n{DEFAULT_GUIDELINES}"
+        in api.api_prompt
     )
     assert "Always pass `child`" in api.api_prompt
 
@@ -1219,7 +1269,9 @@ async def test_short_name_equal_to_a_single_word_full_name_is_not_used(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     children = (await ok(hass, user.id, "list_children"))["children"]
-    assert children == [{"id": "1001", "name": "Kind 1"}]
+    assert children == [
+        {"id": "1001", "name": "Kind 1", "role": "student", "daily_max_minutes": 90}
+    ]
 
 
 async def test_kind_number_counts_within_the_users_children(
@@ -1258,7 +1310,7 @@ async def test_kind_number_counts_within_the_users_children(
     ]
     assert names == ["Kind 1", "Kind 2"]
     assert (await ok(hass, only_second.id, "list_children"))["children"] == [
-        {"id": "1002", "name": "Kind 1"}
+        {"id": "1002", "name": "Kind 1", "role": "student", "daily_max_minutes": 90}
     ]
 
 

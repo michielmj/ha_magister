@@ -31,13 +31,23 @@ WEEKS_BACK: Final = 1
 # of the options but not of the reload snapshot.
 CONF_LABELS: Final = "labels"
 
-# AI coach settings: ``{child_id: {"enabled", "users", "guidelines"}}``. Part of
-# the options but not of the reload snapshot, like the weights and labels.
+# AI coach settings: ``{child_id: {"enabled", "students", "parents", "guidelines"}}``.
+# Part of the options but not of the reload snapshot, like the weights and labels.
+# ``users`` is the 1.6.0 key of the (student) users: read as ``students`` while that is
+# missing, and kept as a mirror of ``students`` on every save so a downgrade to 1.6.0
+# keeps the student links.
 CONF_COACH: Final = "coach"
 COACH_ENABLED: Final = "enabled"
 COACH_USERS: Final = "users"
+COACH_STUDENTS: Final = "students"
+COACH_PARENTS: Final = "parents"
 COACH_GUIDELINES: Final = "guidelines"
 COACH_RESET: Final = "reset_guidelines"
+
+# The parent guidelines: one text per config entry (also outside the reload snapshot).
+CONF_PARENT_GUIDELINES: Final = "parent_guidelines"
+# The daily maximum of study minutes of a child is stored in the child's weights.
+CONF_DAILY_MAX: Final = "daily_max_minutes"
 
 GUIDELINES_MAX: Final = 4000
 WEEKS_AHEAD: Final = 3
@@ -72,6 +82,7 @@ SERVICE_DELETE_HOMEWORK_SUBTASK: Final = "delete_homework_subtask"
 ATTR_SUBTASK: Final = "subtask"
 ATTR_TITLE: Final = "title"
 ATTR_DATE: Final = "date"
+ATTR_MINUTES: Final = "minutes"
 
 MANUFACTURER: Final = "Magister"
 
