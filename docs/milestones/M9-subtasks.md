@@ -73,7 +73,7 @@ Unfinished subtasks roll forward day by day, but never past the lesson.
 - [ ] Both phases reviewed; CI green; version 1.5.0; CHANGELOG (incl. downgrade note: 1.4.0 ignores subtasks and keeps its own progress); README NL/EN.
 - [ ] **PM test on HAOS:**
   - add 3 subtasks to a Proefwerk (today, tomorrow, the day before the test);
-  - leave one undone overnight and check that it moves to the next day;
+  - leave one undone overnight and check that it moves to the next day (**confirmed by PM, 2026-11-15**);
   - check the derived percentage and the bars;
   - check the subtasks in HA's to-do list;
   - delete all subtasks and check that the item's own progress returns.
