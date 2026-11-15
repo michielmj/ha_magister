@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-15)** |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | M10, M11 · `docs/plan/implementation-plan.md` (follow-ups 2026-11-15) · `custom_components/magister/coach.py` |
 
