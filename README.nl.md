@@ -433,11 +433,11 @@ Home Assistant-integratie **Model Context Protocol Server**.
    dat aan onder **Configureer**:
    1. Open de integratie en kies **Configureer**.
    2. Zet **Expose all LLM APIs** uit (Home Assistant toont deze optie in het Engels) en druk op
-      **Verzenden**. Het formulier opent opnieuw met de API-lijst.
+      **Verzend**. Het formulier opent opnieuw met de API-lijst.
    3. Kies in de lijst (**Beheer Home Assistant**) **alleen "Magister huiswerkcoach"**.
    4. Zet **Require an administrator account** uit (ook Engels), zodat leerlingen zonder beheerdersrechten
       kunnen verbinden.
-   5. Druk nogmaals op **Verzenden**.
+   5. Druk nogmaals op **Verzend**.
 
    > **Let op:** laat je **Expose all LLM APIs** aanstaan, dan krijgen de leerlingen via `/api/mcp` ook
    > Assist, dat elke entiteit kan bedienen die je aan Assist blootstelt. Uitzetten haalt Assist niet
@@ -462,25 +462,21 @@ standaard HTTPS-poort **443** (bijvoorbeeld Home Assistant Cloud of een reverse 
 Claude.
 
 1. **Controleer eerst de instellingen van Home Assistant.**
-   - Zet bij de Home Assistant-gebruiker van de leerling (of ouder) (Instellingen, Personen, de persoon,
-     **Gebruiker bewerken**) **Kan alleen inloggen vanaf het lokale netwerk** **uit**. Claude komt via internet
-     binnen, dus een gebruiker die alleen lokaal mag inloggen kan niet verbinden.
+   - Zet bij de Home Assistant-gebruiker van de leerling (of ouder) (Instellingen, Personen, de persoon) **Alleen lokale toegang** ("Kan alleen aanmelden vanaf het lokale netwerk") **uit** en druk op **Bijwerken**. Claude komt via internet binnen, dus een gebruiker die alleen lokaal mag aanmelden kan niet verbinden.
    - Zet in de MCP Server **Require an administrator account** (Engels in de interface) **uit**, en druk voor
-     de **laatste** keer op **Verzenden** met deze instelling uit: een latere keer verzenden (bijvoorbeeld na het
+     de **laatste** keer op **Verzend** met deze instelling uit: een latere keer verzenden (bijvoorbeeld na het
      kiezen van de API) kan hem weer aanzetten.
-   - **Achter een reverse proxy** (bijvoorbeeld de add-on NGINX Home Assistant SSL proxy) zet je dit in
+   - **Achter een reverse proxy** (bijvoorbeeld de NGINX Home Assistant SSL proxy-app (add-on)) zet je dit in
      `configuration.yaml` en start je opnieuw op. Beide instellingen zijn **verplicht**:
 
      ```yaml
      http:
        use_x_forwarded_for: true
        trusted_proxies:
-         - 172.30.33.0/24   # het netwerk van de NGINX Home Assistant SSL proxy-add-on
+         - 172.30.33.0/24   # het netwerk van de NGINX Home Assistant SSL proxy-app (add-on)
      ```
 
-     Zonder deze instellingen ziet Home Assistant het interne adres van de proxy en bouwt het zijn inlogadressen
-     daarop, waardoor de registratie van Claude mislukt met "Couldn't register". `172.30.33.0/24` is het netwerk van
-     de NGINX-add-on; gebruik anders het adres van je eigen proxy. Zet alleen proxy's op de lijst die je vertrouwt.
+     Zonder deze instellingen vertrouwt Home Assistant de doorstuurheaders van de proxy niet: het weigert het verzoek of weet niet dat het via https:// binnenkwam, dus wijzen de inlogadressen niet naar je openbare adres en mislukt de registratie van Claude met "Couldn't register". 172.30.33.0/24 is het netwerk van de NGINX-app (add-on); gebruik anders het adres van je eigen proxy. Zet alleen proxy's op de lijst die je vertrouwt. Vul ook je openbare https://-adres in onder Instellingen, Systeem, Netwerk, **Home Assistant URL**, **Internet**: Home Assistant gebruikt het alleen voor de inlogadressen als het overeenkomt met het verzoek.
 2. **Voeg de connector toe in Claude:** Instellingen [Settings], Connectors, **Aangepaste connector toevoegen** [Add
    custom connector]. Geef een naam en gebruik als URL `https://<jouw HA>/api/mcp` (je openbare `https://`-adres,
    niet het adres thuis).
@@ -496,8 +492,7 @@ Claude.
 **Problemen met de connector oplossen**
 
 - **"Couldn't reload tools from the server"**: de gebruiker wordt waarschijnlijk geweigerd. Controleer of **Require
-  an administrator account** uit staat in de MCP Server (bewaard met de laatste keer **Verzenden**) en of **Kan alleen
-  inloggen vanaf het lokale netwerk** uit staat bij de gebruiker.
+  an administrator account** uit staat in de MCP Server (bewaard met de laatste keer **Verzend**) en of **Alleen lokale toegang** uit staat bij de gebruiker.
 - **"Not linked" of "coach not enabled"** (`not_linked`, `coach_not_enabled` in de tools): de gebruiker is niet aan
   een kind gekoppeld, of alleen aan kinderen waarvoor de coach uit staat. Koppel de gebruiker en zet **AI-coach
   ingeschakeld** aan onder Magister, Configureer, AI-coach, Instellingen per kind, bij elke Magister-login met dat
@@ -505,7 +500,7 @@ Claude.
 - **"Couldn't register"**: controleer eerst de reverse-proxy-instellingen. Open
   `https://<jouw HA>/.well-known/oauth-authorization-server` van **buiten** je netwerk (bijvoorbeeld op een telefoon
   zonder wifi). Alle adressen daarin moeten beginnen met je openbare `https://`-adres. Zie je een intern adres,
-  herstel dan `use_x_forwarded_for` en `trusted_proxies` en start opnieuw op. Probeer het daarna opnieuw en gebruik
+  herstel dan `use_x_forwarded_for` en `trusted_proxies` (en controleer Home Assistant URL, Internet) en start opnieuw op. Probeer het daarna opnieuw en gebruik
   zo nodig het client-ID uit de terugvaloptie.
 
 #### Alternatief: lokale brug
@@ -513,7 +508,7 @@ Claude.
 Gebruik dit als Home Assistant alleen thuis bereikbaar is. Maak een **langlevend toegangstoken** aan op het
 eigen Home Assistant-profiel van de leerling (profiel, Beveiliging, Toegangstokens met lange levensduur).
 
-Claude desktop start lokale MCP-servers vanuit`claude_desktop_config.json` (in de app: Instellingen [Settings], Ontwikkelaar [Developer], Configuratie
+Claude desktop start lokale MCP-servers vanuit `claude_desktop_config.json` (in de app: Instellingen [Settings], Ontwikkelaar [Developer], Configuratie
 bewerken [Edit config]; op macOS `~/Library/Application Support/Claude/claude_desktop_config.json`, op Windows
 `%APPDATA%\Claude\claude_desktop_config.json`). Een kleine brug,
 [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy), verbindt die met Home Assistant. Installeer die met
@@ -581,6 +576,7 @@ volledige pad nodig als Claude desktop het niet vindt.)
 - **Het token.** Hetzelfde geldt voor de Home Assistant-gebruiker van een ouder. Een langlevend token staat leesbaar (platte tekst) in de Claude-configuratie op die computer.
   Gebruik waar mogelijk **HTTPS**: met `http://` gaat het token onversleuteld over je netwerk. Trek het token in op
   het profiel als het niet meer nodig is.
+- **De externe connector.** Claude (de cloud van Anthropic) bewaart een aanmelding van de gebruiker met dezelfde toegang als die gebruiker, en met **Alleen lokale toegang** uit kan die gebruiker vanaf internet aanmelden. Gebruik een sterk wachtwoord en trek de aanmelding in op het profiel van de gebruiker (Beveiliging, **Verversingstokens**) als die niet meer nodig is.
 - Er wordt niets naar Magister geschreven, en de coach kan geen instellingen of gewichten wijzigen.
 
 ### Coachrichtlijnen
@@ -614,7 +610,7 @@ dezelfde MCP Server-opzet als hierboven (hoofdadres `/api/mcp`); alleen de rol v
 2. **Stel het dagmaximum in** per kind: Configureer, **Dagmaximum studietijd**, kies het kind en vul de
    studieminuten per schooldag in (15 tot 480 in stappen van 15, standaard 90). De AI plant daarbinnen en de kaart
    vergelijkt de geplande tijd per dag ermee.
-3. **Verbind de AI-app** met je eigen langlevende token, zoals beschreven bij *Claude verbinden* (de externe connector logt in als je eigen gebruiker; de lokale brug gebruikt je eigen langlevende token).
+3. **Verbind de AI-app** zoals beschreven bij *Claude verbinden* (de externe connector logt in als je eigen gebruiker; de lokale brug gebruikt je eigen langlevende token).
 
 **Wat de AI van de ouder kan.** Ze ziet dezelfde gegevens als de coach van de leerling (geen namen of codes van
 docenten), alleen voor de kinderen waaraan jouw gebruiker is gekoppeld. Ze kan:

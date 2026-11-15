@@ -84,7 +84,7 @@ test as a parent. Everything worked.
   proxy instead of the public one.
 - **Fallback:** "Use your own OAuth client" with Client ID `https://claude.ai/` and no secret. HA accepts a client ID on
   the same host as the return address.
-- Also needed: the user must not be "Can only log in from the local network", and "Require an administrator account"
+- Also needed: the user must not have "Local access only" on, and "Require an administrator account"
   must be off in the MCP Server (saved with the last Submit); otherwise Claude shows "Couldn't reload tools from the
   server".
 - With several Magister logins, the coach must be enabled and linked in each one.

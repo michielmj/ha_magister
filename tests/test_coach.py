@@ -14,6 +14,7 @@ import pytest
 from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.auth.const import GROUP_ID_USER
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import llm
@@ -215,6 +216,16 @@ async def test_minutes_schema_is_integer_or_null(hass: HomeAssistant) -> None:
         assert "minutes" not in schema.get("required", [])
 
 
+async def test_overdue_days_schema_is_integer(hass: HomeAssistant) -> None:
+    """MCP shows ``overdue_days`` as an integer; the shared check decides the range."""
+    tools = {t.name: t for t in coach_tools()}
+    schema = probatio.to_openapi(
+        tools["list_homework"].parameters, openapi_version="3.1.0"
+    )
+    assert schema["properties"]["overdue_days"]["type"] == "integer"
+    assert "overdue_days" not in schema.get("required", [])
+
+
 # -- access -----------------------------------------------------------------------
 
 
@@ -282,6 +293,48 @@ async def test_disabled_coach_and_inactive_user_have_no_access(
     )
     await hass.auth.async_update_user(user, is_active=False)
     assert await fails(hass, user.id, "get_progress") == "not_linked"
+
+
+async def test_not_enabled_only_for_loaded_active_users(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Not loaded entry, system user, inactive user: `not_linked`, nothing announced."""
+    unloaded = await make_user(hass, "Ontladen")
+    other = await make_user(hass, "Ander")
+    system = await hass.auth.async_create_system_user("Systeem")
+    inactive = await make_user(hass, "Inactief")
+    await setup_coach(
+        hass,
+        mocked,
+        coach_options(
+            **{
+                "1001": {
+                    "enabled": False,
+                    "users": [system.id, inactive.id],
+                    "parents": [other.id],
+                }
+            }
+        ),
+    )
+    # A second entry that is not loaded, with a disabled child linked to `unloaded`.
+    idle = make_entry(
+        children=[(2001, "Cas C")],
+        unique_id="idle",
+        options=coach_options(**{"2001": {"enabled": False, "users": [unloaded.id]}}),
+    )
+    idle.add_to_hass(hass)
+    assert idle.state is not ConfigEntryState.LOADED
+    # Linked to a disabled child: announced while active and loaded.
+    assert await fails(hass, inactive.id, "get_progress") == "coach_not_enabled"
+    # An inactive user's prompt does not say "not enabled".
+    await hass.auth.async_update_user(inactive, is_active=False)
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(inactive.id))
+    assert "not enabled" not in api.api_prompt
+    assert await fails(hass, inactive.id, "get_progress") == "not_linked"
+    # A system user is never told anything about the linking.
+    assert await fails(hass, system.id, "get_progress") == "not_linked"
+    # An entry that is not loaded does not count.
+    assert await fails(hass, unloaded.id, "get_progress") == "not_linked"
 
 
 async def test_user_of_child_a_cannot_touch_child_b(
@@ -507,6 +560,16 @@ async def test_overdue_window(hass: HomeAssistant, student: Any) -> None:
     assert await dates(include_overdue=False) == []
     assert await dates(overdue_days=35, include_overdue=False) == []
     assert await dates(start="2026-11-13", overdue_days=35) == []
+
+
+async def test_overdue_minimum_uses_the_local_date(
+    hass: HomeAssistant, student: Any, freezer: FrozenDateTimeFactory
+) -> None:
+    """23:30 UTC on 12 Nov is 13 Nov in Amsterdam: overdue starts 7 days before that."""
+    freezer.move_to("2026-11-12T23:30:00+00:00")
+    data = await ok(hass, student.id, "list_homework")
+    dates = [i["date"] for i in data["items"] if i["date"] < "2026-11-13"]
+    assert min(dates) == "2026-11-06"
 
 
 @pytest.mark.parametrize("value", [0, 36, -1, 7.5, "7", True, None])

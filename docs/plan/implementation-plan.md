@@ -88,7 +88,7 @@ CHANGELOG, version tagging, GitHub release, HACS validation green.
     register"); "Use your own OAuth client" with client ID `https://claude.ai/` also works, as a fallback;
   - behind the NGINX add-on, `use_x_forwarded_for` and `trusted_proxies` (172.30.33.0/24) are needed;
   - "Require an administrator account" off, saved with the last Submit;
-  - "Can only log in from the local network" must be off for the user;
+  - "Local access only" must be off for the user;
   - with several Magister logins, enable and link the coach in each entry.
 - Verified live: parent role, subtasks with minutes and `created_by: parent`, refused `set_progress`,
   `invalid_minutes`, cross-child refusal, over-maximum, labels and overrides, and their cleanup.

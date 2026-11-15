@@ -304,10 +304,8 @@ def async_accessible_children(
 
 
 @callback
-def async_linked_not_enabled(hass: HomeAssistant, user_id: str | None) -> bool:
+def async_linked_not_enabled(hass: HomeAssistant, user_id: str) -> bool:
     """Whether the user is linked to a child whose coach is not enabled."""
-    if not user_id:
-        return False
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.state is not ConfigEntryState.LOADED:
             continue
@@ -328,9 +326,6 @@ async def async_not_linked_help(
     ``coach_not_enabled`` when the user is linked to a child whose coach is off; the
     message names no child.
     """
-    children = await async_user_children(hass, context)
-    if children:
-        return "", ""
     user_id = context.user_id if context else None
     if (
         user_id
@@ -636,7 +631,7 @@ def _minutes(value: int | None) -> Any:
     return value
 
 
-def _overdue_days(value: Any) -> int:
+def _overdue_days(value: int) -> int:
     """An integer from 1 to 35 (a bool, a float or a string is invalid)."""
     if (
         not isinstance(value, int)
@@ -887,8 +882,8 @@ class ListHomeworkTool(CoachTool):
                 "include_overdue",
                 default=True,
                 description=(
-                    "Also list open items due before today (only when `start` is not "
-                    "given)"
+                    "Also list open items due before today, within `overdue_days` "
+                    "(only when `start` is not given)"
                 ),
             ): bool,
             probatio.Optional(

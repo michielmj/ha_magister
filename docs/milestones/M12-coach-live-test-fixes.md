@@ -44,7 +44,7 @@ test as a parent. Everything worked. The test also showed three rough edges and 
    - Behind a reverse proxy (e.g. the NGINX add-on), `use_x_forwarded_for: true` and `trusted_proxies` are **required**,
      with the example for the add-on network `172.30.33.0/24` and a short explanation.
    - Settings for the student's or parent's HA user:
-     - "Can only log in from the local network" must be **off**;
+     - "Local access only" must be **off**;
      - "Require an administrator account" off in the MCP Server, saved with the **last** Submit.
    - With several Magister logins, enable and link the coach in **each** of them.
    - Troubleshooting:

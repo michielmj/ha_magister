@@ -430,24 +430,20 @@ Claude connects from Anthropic's cloud, so Home Assistant must be reachable from
 HTTPS port **443** (for example Home Assistant Cloud or a reverse proxy). This was tested end to end with Claude.
 
 1. **Check the Home Assistant settings first.**
-   - On the student's (or parent's) Home Assistant user (Settings, People, the person, **Edit user**), turn
-     **Can only log in from the local network** **off**. Claude arrives from the internet, so a local-only user
-     cannot sign in.
+   - On the student's (or parent's) Home Assistant user (Settings, People, the person), turn **Local access only** ("Can only log in from the local network") **off** and press **Update**. Claude arrives from the internet, so a local-only user cannot sign in.
    - In the MCP Server, **Require an administrator account** must be **off**. Press **Submit** for the **last**
      time with this setting off: a later Submit (for example after choosing the API) can set it back.
-   - **Behind a reverse proxy** (for example the NGINX Home Assistant SSL proxy add-on) add this to
+   - **Behind a reverse proxy** (for example the NGINX Home Assistant SSL proxy app (add-on)) add this to
      `configuration.yaml` and restart. Both settings are **required**:
 
      ```yaml
      http:
        use_x_forwarded_for: true
        trusted_proxies:
-         - 172.30.33.0/24   # the NGINX Home Assistant SSL proxy add-on network
+         - 172.30.33.0/24   # the NGINX Home Assistant SSL proxy app (add-on) network
      ```
 
-     Without them Home Assistant sees the internal address of the proxy and builds its sign-in addresses from it, so
-     Claude's registration fails with "Couldn't register". `172.30.33.0/24` is the network of the NGINX add-on;
-     use the address of your own proxy otherwise. Only list proxies you trust.
+     Without them Home Assistant does not trust the proxy's forwarding headers: it refuses the request or does not know it came in over https://, so its sign-in addresses do not point to your public address and Claude's registration fails with "Couldn't register". 172.30.33.0/24 is the network of the NGINX app (add-on); use the address of your own proxy otherwise. Only list proxies you trust. Also enter your public https:// address under Settings, System, Network, **Home Assistant URL**, **Internet**: Home Assistant only uses it for the sign-in addresses when it matches the request.
 2. **Add the connector in Claude:** Settings, Connectors, **Add custom connector**. Name it, and as URL use
    `https://<your HA>/api/mcp` (your public `https://` address, not the one at home).
 3. **Sign in.** Set Authentication to **Sign in now**. In the advanced settings keep the OAuth client on
@@ -462,15 +458,14 @@ HTTPS port **443** (for example Home Assistant Cloud or a reverse proxy). This w
 **Troubleshooting the connector**
 
 - **"Couldn't reload tools from the server"**: the user is probably refused. Check that **Require an
-  administrator account** is off in the MCP Server (saved with the last Submit) and that **Can only log in from the
-  local network** is off for the user.
+  administrator account** is off in the MCP Server (saved with the last Submit) and that **Local access only** is off for the user.
 - **"Not linked" or "coach not enabled"** (`not_linked`, `coach_not_enabled` in the tools): the user is not linked to
   any child, or only to children whose coach is off. Link the user, and turn **AI coach enabled** on, under Magister,
   Configure, AI coach, Settings per child, in every Magister login that has the child.
 - **"Couldn't register"**: check the reverse-proxy settings first. Open
   `https://<your HA>/.well-known/oauth-authorization-server` from **outside** your network (for example on a phone
   without Wi-Fi). All addresses in it must start with your public `https://` address. If they show an internal
-  address, fix `use_x_forwarded_for` and `trusted_proxies` and restart. Then try again, and if needed use the
+  address, fix `use_x_forwarded_for` and `trusted_proxies` (and check Home Assistant URL, Internet) and restart. Then try again, and if needed use the
   fallback client ID above.
 
 #### Alternative: local bridge
@@ -547,6 +542,7 @@ mishandles. Keep `--allow-http` only for a plain `http://` address; remove it fo
 - **The token.** The same applies to a parent's Home Assistant user. A long-lived token is stored in plain text in the Claude configuration on that computer.
   Use **HTTPS** wherever you can: with `http://` the token travels unencrypted over your network. Revoke the
   token on the profile when it is no longer needed.
+- **The remote connector.** Claude (Anthropic's cloud) keeps a sign-in of the user with the same access as the user, and turning **Local access only** off lets that user sign in from the internet. Use a strong password, and revoke the sign-in on the user's profile (Security, **Refresh tokens**) when it is no longer needed.
 - Nothing is written to Magister, and the coach cannot change settings or weights.
 
 ### Coaching guidelines
