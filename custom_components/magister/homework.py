@@ -67,13 +67,15 @@ from .api.homework import (
 from .api.mapping import CANCELLED_STATUSES, LOCAL_TZ
 from .api.models import Appointment
 from .const import CONF_HOST, CONF_LABELS, CONF_WEIGHTS, DOMAIN
+from .context import STORE_KEY as CONTEXT_KEY
+from .context import ContextBook
 from .coordinator import fetch_window
 
 if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
 
 STORE_VERSION: Final = 1
-STORE_MINOR_VERSION: Final = 6
+STORE_MINOR_VERSION: Final = 7
 SAVE_DELAY: Final = 5.0
 PRUNE_AFTER: Final = timedelta(days=14)
 
@@ -206,7 +208,9 @@ class _HomeworkStore(Store[dict[str, Any]]):
         1.2 to 1.3 adds the optional ``override`` per item, 1.3 to 1.4 the optional
         ``subtasks`` list, 1.4 to 1.5 the optional ``created_by`` of a subtask (a
         missing value reads as ``"user"``) and 1.5 to 1.6 the optional ``minutes`` of
-        a subtask (missing reads as unknown): none of these needs a migration.
+        a subtask (missing reads as unknown) and 1.6 to 1.7 the optional ``context`` key
+        (the coach's context notes): none of these needs a migration. A release before
+        1.8.0 ignores ``context`` and drops it when it saves again.
         The major version stays 1 so that an older release can still read the file.
         """
         if old_major_version == 1:
@@ -261,10 +265,13 @@ class HomeworkManager:
         self._by_uid: dict[str, HomeworkItem] = {}
         self._effective: dict[str, EffectiveState] = {}
         self._dirty = False
+        self.context = ContextBook(self, self._changed)
 
     async def async_load(self) -> None:
-        """Read the stored progress."""
+        """Read the stored progress and the context notes."""
         stored = await self._store.async_load()
+        if isinstance(stored, dict):
+            self.context.load(stored.get(CONTEXT_KEY), self.today())
         raw = stored.get("items") if isinstance(stored, dict) else None
         if isinstance(raw, dict):
             for uid, entry in raw.items():
@@ -462,6 +469,10 @@ class HomeworkManager:
 
     def _appointments(self, child_id: int) -> list[Appointment]:
         return list((self._coordinator.data or {}).get(child_id, []))
+
+    def appointments(self, child_id: int) -> list[Appointment]:
+        """The appointments of a child in the fetch window."""
+        return self._appointments(child_id)
 
     @callback
     def drop_label_references(self, child_id: int, label_id: str) -> None:
@@ -863,14 +874,20 @@ class HomeworkManager:
     def async_prune(self) -> None:
         """Drop progress, labels and overrides of appointments gone over 14 days."""
         data = self._coordinator.data
-        if data is None:
-            return
-        present = {
-            self.uid_of(child, appointment.id)
-            for child, appointments in data.items()
-            for appointment in appointments
-        }
         today = dt_util.now(LOCAL_TZ).date()
+        present = (
+            None
+            if data is None
+            else {
+                self.uid_of(child, appointment.id)
+                for child, appointments in data.items()
+                for appointment in appointments
+            }
+        )
+        if self.context.prune(today, self.window_dates()[0], present):
+            self._schedule_save()
+        if present is None:
+            return
         changed = False
         for uid in list(self._progress):
             entry = self._progress[uid]
@@ -947,7 +964,12 @@ class HomeworkManager:
     # -- storage ------------------------------------------------------------
 
     def _data(self) -> dict[str, Any]:
-        return {"items": {uid: dict(entry) for uid, entry in self._progress.items()}}
+        data: dict[str, Any] = {
+            "items": {uid: dict(entry) for uid, entry in self._progress.items()}
+        }
+        if context := self.context.to_stored():
+            data[CONTEXT_KEY] = context
+        return data
 
     @callback
     def _schedule_save(self) -> None:
@@ -1256,6 +1278,7 @@ def build_payload(
         ],
         "progress": progress_payload(manager, child_id, available=available),
         "daily_max_minutes": manager.daily_max(child_id),
+        "daily_max_overrides": manager.context.daily_max_overrides(child_id),
     }
 
 

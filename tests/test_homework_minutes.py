@@ -215,7 +215,7 @@ async def test_store_1_5_file_loads_and_saves_minutes(
     manager.update_subtask(CHILD_ID, f"{uid(HOMEWORK)}:sub:a1", None, None, 35)
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 6)
+    assert (saved["version"], saved["minor_version"]) == (1, 7)
     (stored,) = saved["data"]["items"][uid(HOMEWORK)]["subtasks"]
     # 1.6.0 reads this by key and ignores `minutes`: the fields it knows are all there.
     assert stored["minutes"] == 35

@@ -151,6 +151,12 @@
     },
     "homework_invalid_minutes": {
       "message": "The estimated time must be a whole number of minutes from 5 to 240 in steps of 5, or empty."
+    },
+    "entry_not_loaded": {
+      "message": "This Magister login is not loaded."
+    },
+    "child_not_found": {
+      "message": "This child does not belong to this Magister login."
     }
   },
   "options": {
@@ -269,10 +275,11 @@
       },
       "coach": {
         "title": "AI coach",
-        "description": "Set up the AI coach for a child, or edit the parent guidelines.",
+        "description": "Set up the AI coach for a child, edit the parent guidelines, or clear the context notes the AI stored.",
         "menu_options": {
           "coach_child": "Settings per child",
-          "coach_parent": "Parent guidelines (Ouder-richtlijnen)"
+          "coach_parent": "Parent guidelines (Ouder-richtlijnen)",
+          "coach_context": "Clear context"
         }
       },
       "coach_child": {
@@ -308,6 +315,24 @@
         "data_description": {
           "parent_guidelines": "Homework texts are shared with the AI provider; teacher names and codes are never shared."
         }
+      },
+      "coach_context": {
+        "title": "Clear context",
+        "description": "Choose the child. The AI coach stores short context notes (books, agreements, circumstances). You can delete them here.",
+        "data": {
+          "child": "Child"
+        }
+      },
+      "coach_context_scope": {
+        "title": "Clear context of {child}",
+        "description": "Choose a subject to delete only the notes of that subject (including its lesson notes), or leave it empty to delete all context of the child.",
+        "data": {
+          "subject": "Subject"
+        }
+      },
+      "coach_context_confirm": {
+        "title": "Delete context of {child}?",
+        "description": "{count} notes will be deleted. This cannot be undone. Subject: {subject} (– means all context). Select Submit to delete them."
       }
     },
     "error": {
@@ -326,7 +351,9 @@
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",
       "cannot_connect": "Could not read the children from Magister. Try again later.",
       "not_loaded": "The integration is not loaded. Wait until it is running and try again.",
-      "label_gone": "This label no longer exists."
+      "label_gone": "This label no longer exists.",
+      "no_context": "This child has no context notes.",
+      "context_cleared": "{count} notes were deleted."
     }
   },
   "config_subentries": {
@@ -508,6 +535,24 @@
         "subtask": {
           "name": "Subtask",
           "description": "The id (uid) of the subtask."
+        }
+      }
+    },
+    "clear_coach_context": {
+      "name": "Clear AI coach context",
+      "description": "Deletes all context notes of the AI coach for a child, or only those of one subject, and returns the number of deleted notes. This cannot be undone.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Magister login",
+          "description": "The config entry of the child."
+        },
+        "child": {
+          "name": "Child",
+          "description": "The id or the name of the child."
+        },
+        "subject": {
+          "name": "Subject",
+          "description": "Only delete the notes of this subject (including its lesson notes). Leave empty to delete all context."
         }
       }
     }
