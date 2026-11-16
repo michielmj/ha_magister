@@ -155,6 +155,9 @@
     "entry_not_loaded": {
       "message": "This Magister login is not loaded."
     },
+    "child_ambiguous": {
+      "message": "This child name or id matches more than one child; use the child's id."
+    },
     "child_not_found": {
       "message": "This child does not belong to this Magister login."
     }

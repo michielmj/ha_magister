@@ -155,6 +155,9 @@
     "entry_not_loaded": {
       "message": "Deze Magister-login is niet geladen."
     },
+    "child_ambiguous": {
+      "message": "Deze naam of dit id hoort bij meer dan één kind; gebruik het id van het kind."
+    },
     "child_not_found": {
       "message": "Dit kind hoort niet bij deze Magister-login."
     }

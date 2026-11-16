@@ -290,9 +290,17 @@ Note (as returned by the tools):
 - `subject` is the subject as in the schedule, matched case-insensitively and stored in the spelling of the schedule;
   an unknown subject is `unknown_subject` (the schedule of the sync window and the notes the caller may see are checked).
 - `text`: one line (whitespace is collapsed), 1 to 500 characters (`text_too_long`). At most 50 notes per child that are not
-  expired (`too_many_notes`); a circumstance is expired when its `end` is before today.
+  expired (`too_many_notes`); a circumstance is expired when its `end` is before today. The limit counts all of the
+  child's active notes, also the `parents`-only notes a student cannot see (so a student can hit `too_many_notes` with a
+  list that looks shorter than 50).
+- `id`: 8 lowercase hex characters. A stored note with any other id is dropped when the store is loaded (it is not given a
+  new id: a random id would change on every load).
 - `period`: `start` <= `end`, both inside the sync window, else `invalid_period`; `daily_max_minutes` is 0 to 480 in
-  steps of 15 (`invalid_daily_max`). It applies to every day of the period, also after it has ended (past days stay
+  steps of 15 (`invalid_daily_max`). When a period is changed, only the days that are given are held to the window
+  (a new `start` is not before its first day, a new `end` not after its last day) and `start` <= `end` always holds, with
+  the stored day for the one that is not given; a circumstance that began before the window can still get a new text,
+  end or maximum. `invalid_period` then says which given day is wrong. With neither `start` nor `end` the days are not
+  checked. It applies to every day of the period, also after it has ended (past days stay
   visible in the card). A period is deleted when its `end` is before the first day of the sync window.
 - Item notes are deleted 14 days after their appointment left the sync window, like the other planner data of the item.
   `item_not_found` when an appointment is not in the window.
@@ -306,7 +314,7 @@ Tools (all take the optional `child`, as before):
 | Tool | Annotations | Notes |
 |---|---|---|
 | `list_context(scope?, subject?, item?, include_expired?)` | read-only | Returns `{"child", "today", "notes": [...]}`; expired circumstances only with `include_expired` |
-| `add_context(scope, text, subject?, item?, start?, end?, daily_max_minutes?, visibility?)` | write | Fields that do not belong to the scope are `invalid_format` |
+| `add_context(scope, text, subject?, item?, start?, end?, daily_max_minutes?, visibility?)` | write | Fields that do not belong to the scope are `invalid_format`; `daily_max_minutes: null` means "not given" |
 | `update_context(id, text?, start?, end?, daily_max_minutes?, visibility?)` | write, idempotent | At least one field (`invalid_format` otherwise); `daily_max_minutes: null` removes the maximum |
 | `delete_context(id)` | destructive | |
 | `clear_context(subject?)` | destructive | Parents only (`not_allowed_for_role`); a subject takes its subject and item notes; returns `{"child", "deleted"}` |
@@ -318,18 +326,21 @@ Errors: `text_too_long`, `too_many_notes`, `unknown_subject`, `item_not_found`, 
 - `list_homework` items have `context`: the item's notes and its subject's notes the caller may see.
 - `get_overview` days: `daily_max_minutes` is the **effective** maximum (the lowest `daily_max_minutes` of the periods that
   cover the day, else the child's daily maximum; a period can also raise it). `daily_max_period` is `null` or
-  `{"id", "text"?}`: the period that sets it, without `text` when it is `parents`-only and the caller is a student. The
+  `{"id", "text"?}`: the period that sets it (on equal maximums the one the caller may see), without `text` when it is `parents`-only and the caller is a student. The
   child-level `daily_max_minutes` of the overview is the normal maximum.
-- Prompt: per child the `child` notes, the periods that have not ended and the days with another maximum, only what the
-  caller may see (the maximums of parents-only periods are shown as numbers, without text), then the rules for context.
+- Prompt: first the rules for context (once, before the children), then per child the `child` notes, the periods that have
+  not ended and the days with another maximum, only what the caller may see (the maximums of parents-only periods are
+  shown as numbers, without text).
 - Logbook (no note text): "AI-coach: context toegevoegd (Engelse taal)", "... gewijzigd", "... verwijderd", and "Ouder via AI:
-  context gewist (Engelse taal)" / "alle context gewist"; the subject is named when the note has one. A write that changes
+  context gewist (Engelse taal)" / "alle context gewist"; the subject is named when the note has one, except for a `parents`-only note (also one that was `parents`-only before
+  an update, and a clear that deleted only such notes). A write that changes
   nothing is not logged.
 
 Outside the AI:
 - Options flow: Configure > AI coach > Context wissen (child; all context or a subject that has notes; confirmation with the
   number of notes).
 - Service `magister.clear_coach_context` (`config_entry_id`, `child` (id or name), `subject`?; administrators only) with a
-  response `{"deleted": <number>}`. `ServiceValidationError` keys: `entry_not_loaded`, `child_not_found`.
+  response `{"deleted": <number>}`. `ServiceValidationError` keys: `entry_not_loaded`, `child_not_found`, `child_ambiguous` (a name or id that matches
+  more than one child).
 - Removing a child from the integration, or the config entry, removes its notes. Diagnostics: counts per scope and the
   number of parents-only notes.

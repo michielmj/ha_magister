@@ -57,6 +57,7 @@ from .coach_text import (
     CONTEXT_RULES_SHORT,
     DEFAULT_GUIDELINES,
     DEFAULT_PARENT_GUIDELINES,
+    NOTE_TEXT_WARNING,
     PLANNER_RULES,
 )
 from .const import (
@@ -76,12 +77,14 @@ from .const import (
 )
 from .context import (
     NOT_SET,
+    NOTE_ID,
     NOTES_MAX,
     SCOPE_CHILD,
     SCOPE_PERIOD,
     SCOPES,
     TEXT_MAX,
     VISIBILITIES,
+    VISIBILITY_PARENTS,
     ContextError,
     Note,
     day_ranges,
@@ -518,7 +521,9 @@ def _overview_of(child: CoachChild, days: list[date]) -> Payload:
     result = []
     book = manager.context
     for day in days:
-        effective = book.effective_daily_max(child.child_id, day)
+        effective = book.effective_daily_max(
+            child.child_id, day, parent=child.is_parent
+        )
         day_items = [item for item in items if item.due_date == day]
         # Cancelled items are listed apart, not in tests, assignments or open_items.
         cancelled = [i for i in day_items if i.cancelled]
@@ -899,7 +904,7 @@ class ListHomeworkTool(CoachTool):
         "are overdue (due before today, cancelled items excluded): by default only "
         f"the last {OVERDUE_DAYS_DEFAULT} days; pass overdue_days (1 to "
         f"{OVERDUE_DAYS_MAX}) to look further back, or include_overdue false for "
-        "none."
+        f"none. {NOTE_TEXT_WARNING}"
     )
     parameters = _schema(
         {
@@ -969,7 +974,7 @@ class ListHomeworkTool(CoachTool):
                 for note in manager.context.for_item(
                     call.child.child_id,
                     view["id"],
-                    str(view["subject"]),
+                    view.get("subject") or "",
                     parent=call.child.is_parent,
                 )
             ]
@@ -1283,18 +1288,18 @@ class SetLabelOverrideTool(CoachTool):
 
 # -- context tools ------------------------------------------------------------------
 
-_NOTE_ID = re.compile(r"[0-9a-f]{8}")
 _PASS_THROUGH: Final = _minutes  # any value: the book answers `invalid_daily_max`
 
 
 def _note_id(value: Any) -> str:
-    if not isinstance(value, str) or not _NOTE_ID.fullmatch(value):
+    if not isinstance(value, str) or not NOTE_ID.fullmatch(value):
         raise CoachError(ERR_INVALID_FORMAT, "The id is not the id of a note")
     return value
 
 
-def _subject_suffix(subject: str | None) -> str:
-    return f" ({subject})" if subject else ""
+def _subject_suffix(subject: str | None, *, hidden: bool = False) -> str:
+    """The subject for a logbook line; never for a note that is for parents only."""
+    return f" ({subject})" if subject and not hidden else ""
 
 
 class ListContextTool(CoachTool):
@@ -1306,7 +1311,7 @@ class ListContextTool(CoachTool):
         "`subject`, per lesson or homework `item`, and circumstances (`period`, with "
         "start, end and an optional daily maximum). Filter by scope, subject or item. "
         "Expired circumstances are left out unless include_expired is true. Notes that "
-        "are for parents only are never shown to a student."
+        f"are for parents only are never shown to a student. {NOTE_TEXT_WARNING}"
     )
     parameters = _schema(
         {
@@ -1372,7 +1377,8 @@ class AddContextTool(CoachTool):
         "planner covers; optional `daily_max_minutes`, 0 to 480 in steps of 15, the "
         "daily maximum of study minutes on those days). Only a parent can set "
         "`visibility` to `parents` (the student's AI never sees such a note). "
-        + CONTEXT_RULES_SHORT
+        "`daily_max_minutes: null` means the same as not given. "
+        f"{NOTE_TEXT_WARNING} " + CONTEXT_RULES_SHORT
     )
     parameters = _schema(
         {
@@ -1410,7 +1416,8 @@ class AddContextTool(CoachTool):
             daily_max_minutes=args.get("daily_max_minutes"),
             visibility=args.get("visibility", "all"),
         )
-        call.log(f"context toegevoegd{_subject_suffix(note.subject)}")
+        hidden = note.visibility == VISIBILITY_PARENTS
+        call.log(f"context toegevoegd{_subject_suffix(note.subject, hidden=hidden)}")
         return {
             "child": call.child.id,
             "note": note.view(call.manager.today()),
@@ -1425,7 +1432,8 @@ class UpdateContextTool(CoachTool):
         "Change a context note: its text, the days of a circumstance (`start`, "
         "`end`), its `daily_max_minutes` (null removes it) or its `visibility`. Give "
         "at least one. A student cannot change a note made by a parent, and only a "
-        "parent can make a note `parents`-only. " + CONTEXT_RULES_SHORT
+        "parent can make a note `parents`-only. "
+        f"{NOTE_TEXT_WARNING} " + CONTEXT_RULES_SHORT
     )
     parameters = _schema(
         {
@@ -1447,9 +1455,13 @@ class UpdateContextTool(CoachTool):
     def run(self, call: CoachCall) -> Payload:
         """Change the note; a change that changes nothing is not logged."""
         args = call.args
-        note, changed = call.manager.context.update(
+        book, note_id = call.manager.context, _note_id(args["id"])
+        was_hidden = (
+            book.find(call.child.child_id, note_id, parent=call.child.is_parent)
+        ).visibility == VISIBILITY_PARENTS
+        note, changed = book.update(
             call.child.child_id,
-            _note_id(args["id"]),
+            note_id,
             parent=call.child.is_parent,
             text=args.get("text", NOT_SET),
             start=_date_arg(args["start"]) if "start" in args else None,
@@ -1458,7 +1470,8 @@ class UpdateContextTool(CoachTool):
             visibility=args.get("visibility"),
         )
         if changed:
-            call.log(f"context gewijzigd{_subject_suffix(note.subject)}")
+            hidden = was_hidden or note.visibility == VISIBILITY_PARENTS
+            call.log(f"context gewijzigd{_subject_suffix(note.subject, hidden=hidden)}")
         return {
             "child": call.child.id,
             "note": note.view(call.manager.today()),
@@ -1483,7 +1496,8 @@ class DeleteContextTool(CoachTool):
             _note_id(call.args["id"]),
             parent=call.child.is_parent,
         )
-        call.log(f"context verwijderd{_subject_suffix(note.subject)}")
+        hidden = note.visibility == VISIBILITY_PARENTS
+        call.log(f"context verwijderd{_subject_suffix(note.subject, hidden=hidden)}")
         return {"child": call.child.id, "deleted": note.id}
 
 
@@ -1515,10 +1529,12 @@ class ClearContextTool(CoachTool):
             if "subject" in call.args
             else None
         )
+        doomed = book.matching(call.child.child_id, subject)
+        hidden = all(n.visibility == VISIBILITY_PARENTS for n in doomed)
         deleted = book.clear(call.child.child_id, subject)
         if deleted:
             call.log(
-                f"context gewist{_subject_suffix(subject)}"
+                f"context gewist{_subject_suffix(subject, hidden=hidden)}"
                 if subject
                 else "alle context gewist"
             )

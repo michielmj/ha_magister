@@ -12,6 +12,7 @@ rights, the limits and the validation are the rules of milestone M13.
 
 from __future__ import annotations
 
+import re
 import uuid
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, replace
@@ -51,6 +52,7 @@ VISIBILITIES: Final = (VISIBILITY_ALL, VISIBILITY_PARENTS)
 CREATED_BY_STUDENT: Final = "student"
 CREATED_BY_PARENT: Final = "parent"
 
+NOTE_ID: Final = re.compile(r"[0-9a-f]{8}")
 TEXT_MAX: Final = 500
 NOTES_MAX: Final = 50
 PERIOD_MAX_MINUTES: Final = DAILY_MAX_MAX
@@ -202,13 +204,18 @@ def _parse_date(value: Any) -> date | None:
 
 
 def note_from_stored(raw: Any, today: date) -> Note | None:
-    """A note from the store; ``None`` when it is not a valid note (it is dropped)."""
+    """A note from the store; ``None`` when it is not a valid note (it is dropped).
+
+    A note whose id is not 8 lowercase hex characters (the form of the ids this module
+    makes, and the only form the tools accept) is dropped, not given a new id: a new
+    random id on every load would not be stable.
+    """
     if not isinstance(raw, dict):
         return None
     note_id, scope, text = raw.get("id"), raw.get("scope"), raw.get("text")
     if (
         not isinstance(note_id, str)
-        or not note_id
+        or not NOTE_ID.fullmatch(note_id)
         or scope not in SCOPES
         or not isinstance(text, str)
         or not text.strip()
@@ -388,14 +395,24 @@ class ContextBook:
 
     # -- the daily maximum ---------------------------------------------------------
 
-    def effective_daily_max(self, child_id: int, day: date) -> EffectiveMax:
+    def effective_daily_max(
+        self, child_id: int, day: date, *, parent: bool = True
+    ) -> EffectiveMax:
         """The daily maximum of a day: the lowest circumstance, else the child's.
 
         This is the one function the overview, the prompt and the card use. A
-        circumstance applies to its days also after it has ended (past days).
+        circumstance applies to its days also after it has ended (past days). On a
+        tie the circumstance that ``parent`` (the role) may see wins, so a student is
+        not pointed at a parents-only period when a visible one explains the day.
         """
         candidates = [
-            (note.daily_max_minutes, note.start, note.id, note)
+            (
+                note.daily_max_minutes,
+                not note.visible_to(parent=parent),
+                note.start,
+                note.id,
+                note,
+            )
             for note in self._notes.get(child_id, [])
             if note.daily_max_minutes is not None
             and note.start is not None
@@ -404,7 +421,7 @@ class ContextBook:
         ]
         if not candidates:
             return EffectiveMax(self._manager.daily_max(child_id), None)
-        minutes, _, _, note = min(candidates, key=lambda c: c[:3])
+        minutes, _, _, _, note = min(candidates, key=lambda c: c[:4])
         return EffectiveMax(minutes, note)
 
     def daily_max_overrides(self, child_id: int) -> dict[str, int]:
@@ -462,6 +479,47 @@ class ContextBook:
                 f"{last.isoformat()}",
             )
         return start, end
+
+    def _check_period_change(
+        self, note: Note, start: date | None, end: date | None
+    ) -> tuple[date, date]:
+        """The days after a change: only a given value is held to the window.
+
+        A circumstance may have begun before the window (it moves along): a stored
+        ``start`` is not checked again when only the end or the text changes.
+        """
+        first, after_last = self._manager.window_dates()
+        last = after_last - timedelta(days=1)
+        if start is not None and start < first:
+            raise ContextError(
+                ERR_INVALID_PERIOD,
+                f"A new `start` is {first.isoformat()} or later; leave `start` out to "
+                "keep the current first day.",
+            )
+        if end is not None and end > last:
+            raise ContextError(
+                ERR_INVALID_PERIOD,
+                f"A new `end` is {last.isoformat()} or earlier.",
+            )
+        # A circumstance always has both days; the stored one stands for the other.
+        new_start = start or note.start
+        new_end = end or note.end
+        assert new_start is not None and new_end is not None
+        if new_end < new_start:
+            if end is None:
+                message = (
+                    f"`start` must not be after the current last day "
+                    f"({new_end.isoformat()}); give a later `end` as well."
+                )
+            elif start is None:
+                message = (
+                    f"`end` must not be before the current first day "
+                    f"({new_start.isoformat()})."
+                )
+            else:
+                message = "`start` must not be after `end`."
+            raise ContextError(ERR_INVALID_PERIOD, message)
+        return new_start, new_end
 
     # -- writing --------------------------------------------------------------------
 
@@ -616,8 +674,10 @@ class ContextBook:
         if visibility is not None:
             changes["visibility"] = visibility
         if note.is_period:
-            new_start, new_end = self.check_period(start or note.start, end or note.end)
-            changes["start"], changes["end"] = new_start, new_end
+            if start is not None or end is not None:
+                changes["start"], changes["end"] = self._check_period_change(
+                    note, start, end
+                )
             if daily_max_minutes is not NOT_SET:
                 changes["daily_max_minutes"] = (
                     None
@@ -658,17 +718,21 @@ class ContextBook:
 
     def clear(self, child_id: int, subject: str | None = None) -> int:
         """Delete all notes of a child, or of one subject; the number deleted."""
-        notes = self._notes.get(child_id, [])
+        doomed = {n.id for n in self.matching(child_id, subject)}
+        if doomed:
+            self._store(
+                child_id, [n for n in self._notes[child_id] if n.id not in doomed]
+            )
+        return len(doomed)
+
+    def matching(self, child_id: int, subject: str | None = None) -> list[Note]:
+        """The notes ``clear`` deletes: all of the child, or those of one subject."""
         wanted = subject.casefold() if subject else None
-        keep = (
-            []
-            if wanted is None
-            else [n for n in notes if (n.subject or "").casefold() != wanted]
-        )
-        deleted = len(notes) - len(keep)
-        if deleted:
-            self._store(child_id, keep)
-        return deleted
+        return [
+            n
+            for n in self._notes.get(child_id, [])
+            if wanted is None or (n.subject or "").casefold() == wanted
+        ]
 
     def drop_children(self, keep: Iterable[int]) -> None:
         """Forget the notes of children that are no longer part of the entry."""
@@ -758,23 +822,25 @@ async def _async_clear_coach_context(call: ServiceCall) -> ServiceResponse:
             translation_domain=DOMAIN, translation_key="entry_not_loaded"
         )
     wanted = str(call.data[ATTR_CHILD]).strip().casefold()
-    child_id = next(
-        (
-            int(c[CHILD_ID])
-            for c in entry.data[CONF_CHILDREN]
-            if wanted
-            in (
-                str(c[CHILD_ID]),
-                str(c[CHILD_NAME]).casefold(),
-                str(c[CHILD_SHORT_NAME]).casefold(),
-            )
-        ),
-        None,
-    )
-    if child_id is None:
+    matches = {
+        int(c[CHILD_ID])
+        for c in entry.data[CONF_CHILDREN]
+        if wanted
+        in (
+            str(c[CHILD_ID]),
+            str(c[CHILD_NAME]).casefold(),
+            str(c[CHILD_SHORT_NAME]).casefold(),
+        )
+    }
+    if len(matches) > 1:
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="child_ambiguous"
+        )
+    if not matches:
         raise ServiceValidationError(
             translation_domain=DOMAIN, translation_key="child_not_found"
         )
+    (child_id,) = matches
     book = entry.runtime_data.homework.context
     subject = (call.data.get(ATTR_SUBJECT) or "").strip() or None
     return {"deleted": book.clear(child_id, subject)}

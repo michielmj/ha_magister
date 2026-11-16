@@ -263,6 +263,18 @@ async def test_service_checks(hass: HomeAssistant, two: Setup) -> None:
     ):
         with pytest.raises(ServiceValidationError):
             await clear_service(hass, bad)
+    # A name that two children share is not guessed.
+    ambiguous = {"config_entry_id": entry_id, "child": "1001"}
+    children = [dict(c) for c in two.entry.data[CONF_CHILDREN]]
+    children[1]["short_name"] = children[0]["short_name"]
+    hass.config_entries.async_update_entry(
+        two.entry, data={**two.entry.data, CONF_CHILDREN: children}
+    )
+    with pytest.raises(ServiceValidationError) as raised:
+        await clear_service(
+            hass, {**ambiguous, "child": str(children[0]["short_name"]).upper()}
+        )
+    assert raised.value.translation_key == "child_ambiguous"
     # An entry of another integration is not accepted.
     other = make_entry(unique_id="x:1")
     other.add_to_hass(hass)
@@ -285,6 +297,7 @@ async def test_service_is_described() -> None:
         service = data["services"]["clear_coach_context"]
         assert set(service["fields"]) == {"config_entry_id", "child", "subject"}
         assert data["exceptions"]["child_not_found"]["message"]
+        assert data["exceptions"]["child_ambiguous"]["message"]
         assert data["exceptions"]["entry_not_loaded"]["message"]
         step = data["options"]["step"]
         assert step["coach"]["menu_options"]["coach_context"]
@@ -334,7 +347,7 @@ async def test_removing_the_entry_removes_the_store(
 def stored_note(**fields: Any) -> dict[str, Any]:
     """A note as stored."""
     return {
-        "id": "n1",
+        "id": "aaaa0001",
         "scope": "child",
         "text": "Opgeslagen",
         "visibility": "all",
@@ -416,19 +429,23 @@ async def test_store_with_damaged_context_is_read_leniently(
                 "1001": [
                     stored_note(),
                     stored_note(text="dubbel"),  # same id
-                    stored_note(id="n2", scope="nope"),
+                    stored_note(id="aaaa0002", scope="nope"),
+                    stored_note(id="n5"),  # not an 8-hex id: dropped
+                    stored_note(id="AAAA0005"),  # upper case: dropped
                     "kapot",
-                    stored_note(id="n3", text=SECRET, visibility="parents"),
+                    stored_note(id="aaaa0003", text=SECRET, visibility="parents"),
                     stored_note(
-                        id="n4",
+                        id="aaaa0004",
                         scope="period",
                         start="2026-11-16",
                         end="2026-11-17",
                         daily_max_minutes=30,
                     ),
                 ],
-                "9999": [stored_note(id="x")],  # a child that is not in the entry
-                "abc": [stored_note(id="y")],
+                "9999": [
+                    stored_note(id="bbbb0001")
+                ],  # a child that is not in the entry
+                "abc": [stored_note(id="bbbb0002")],
                 "1002": "geen lijst",
             },
         },
@@ -438,8 +455,9 @@ async def test_store_with_damaged_context_is_read_leniently(
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     book = entry.runtime_data.homework.context
-    assert [n.id for n in book.all_notes(1001)] == ["n1", "n3", "n4"]
+    assert [n.id for n in book.all_notes(1001)] == ["aaaa0001", "aaaa0003", "aaaa0004"]
     assert book.count(9999) == 0
+    # (Ids that are not 8 lowercase hex characters are dropped, not renumbered.)
     assert book.daily_max_overrides(1001) == {"2026-11-16": 30, "2026-11-17": 30}
     # Garbage at the top level is ignored as well.
     book.load("niets", date(2026, 11, 13))
@@ -490,4 +508,4 @@ async def test_diagnostics_have_counts_only(hass: HomeAssistant, two: Setup) -> 
     text = json.dumps(data, default=str)
     for secret in (SECRET, "Opgeslagen", "wiskunde", "Duitse taal", "Woordjes", "Boek"):
         assert secret not in text
-    assert "n1" not in data["coach_context"]
+    assert "aaaa0001" not in data["coach_context"]
