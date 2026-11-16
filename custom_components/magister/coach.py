@@ -1370,7 +1370,7 @@ class AddContextTool(CoachTool):
     name = "add_context"
     description = (
         "Store a short context note (at most "
-        f"{TEXT_MAX} characters; at most {NOTES_MAX} notes per child). `scope`: "
+        f"{TEXT_MAX} characters; at most {NOTES_MAX} active notes per child). `scope`: "
         "`child` (general), `subject` (needs `subject`, as in the schedule), `item` "
         "(needs `item`, the id of a lesson in the schedule) or `period` (a "
         "circumstance: needs `start` and `end`, YYYY-MM-DD inside the period the "

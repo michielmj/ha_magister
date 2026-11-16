@@ -422,6 +422,10 @@ class ContextBook:
         if not candidates:
             return EffectiveMax(self._manager.daily_max(child_id), None)
         minutes, _, _, _, note = min(candidates, key=lambda c: c[:4])
+        normal = self._manager.daily_max(child_id)
+        if not note.visible_to(parent=parent) and minutes == normal:
+            # A hidden period that changes nothing is not named to this role.
+            return EffectiveMax(normal, None)
         return EffectiveMax(minutes, note)
 
     def daily_max_overrides(self, child_id: int) -> dict[str, int]:
@@ -500,6 +504,16 @@ class ContextBook:
             raise ContextError(
                 ERR_INVALID_PERIOD,
                 f"A new `end` is {last.isoformat()} or earlier.",
+            )
+        if end is not None and end < first:
+            raise ContextError(
+                ERR_INVALID_PERIOD,
+                f"A new `end` is {first.isoformat()} or later.",
+            )
+        if start is not None and start > last:
+            raise ContextError(
+                ERR_INVALID_PERIOD,
+                f"A new `start` is {last.isoformat()} or earlier.",
             )
         # A circumstance always has both days; the stored one stands for the other.
         new_start = start or note.start

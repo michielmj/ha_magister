@@ -164,7 +164,7 @@ async def test_context_tool_annotations() -> None:
             "family problems or conflicts",
             "other people's grades or personal information",
             "passwords, login data or contact details",
-            "If asked, don't store it",
+            "If asked to store such things, don't",
             "suggest a neutral wording",
             "Ask before storing anything about the student's circumstances",
         ):
@@ -539,13 +539,26 @@ async def test_period_from_before_the_window_can_be_edited(
     for args, hint in (
         ({"start": "2026-11-08"}, "leave `start` out"),  # before the window
         ({"end": "2026-12-09"}, "`end` is 2026-12-08 or earlier"),
-        ({"end": "2026-11-01"}, "before the current first day (2026-11-02)"),
+        ({"end": "2026-11-01"}, "`end` is 2026-11-09 or later"),
         ({"start": "2026-11-30"}, "after the current last day (2026-11-27)"),
         ({"start": "2026-11-20", "end": "2026-11-19"}, "must not be after `end`"),
+        # A given day must also lie in the window on the other side.
+        ({"end": "2026-11-08"}, "`end` is 2026-11-09 or later"),
+        ({"start": "2026-12-09"}, "`start` is 2026-12-08 or earlier"),
     ):
         result = await call(hass, parent.id, "update_context", id=period["id"], **args)
         assert result.error and result.data["error"] == "invalid_period", args
         assert hint in json.dumps(result.data), args
+    # An end inside the window but before the stored first day (now 2026-11-02 stays).
+    inner = await add(
+        hass, parent, scope="period", start="2026-11-17", end="2026-11-18", text="Kort"
+    )
+    result = await call(
+        hass, parent.id, "update_context", id=inner["id"], end="2026-11-12"
+    )
+    assert result.error and "before the current first day (2026-11-17)" in json.dumps(
+        result.data
+    )
     # A start inside the window is fine, and then the window holds for it.
     moved = (
         await ok(hass, parent.id, "update_context", id=period["id"], start="2026-11-09")
@@ -895,6 +908,55 @@ async def test_effective_maximum_tie_prefers_a_note_the_role_may_see(
     assert effective.note is not None and effective.note.id == hidden["id"]
 
 
+async def test_hidden_period_that_changes_nothing_is_not_named(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """A student's overview has no period when the hidden one equals the normal max."""
+    parent, student = home.parent, home.student
+    normal = book(home).effective_daily_max(1001, date(2026, 11, 17)).minutes
+    hidden = await add(
+        hass,
+        parent,
+        scope="period",
+        start="2026-11-17",
+        end="2026-11-17",
+        daily_max_minutes=normal,
+        text=SECRET,
+        visibility="parents",
+    )
+    book_ = book(home)
+    effective = book_.effective_daily_max(1001, date(2026, 11, 17), parent=False)
+    assert (effective.minutes, effective.note) == (normal, None)
+    assert book_.effective_daily_max(1001, date(2026, 11, 17)).note is not None
+    for user, named in (
+        (student, None),
+        (parent, {"id": hidden["id"], "text": SECRET}),
+    ):
+        overview = await ok(
+            hass, user.id, "get_overview", start="2026-11-17", end="2026-11-17"
+        )
+        day = overview["children"][0]["days"][0]
+        assert day["daily_max_minutes"] == normal
+        assert day["daily_max_period"] == named
+    # A visible period with the same minutes is still named (it is no secret).
+    shown = await add(
+        hass,
+        parent,
+        scope="period",
+        start="2026-11-17",
+        end="2026-11-17",
+        daily_max_minutes=normal,
+        text="zichtbaar",
+    )
+    overview = await ok(
+        hass, student.id, "get_overview", start="2026-11-17", end="2026-11-17"
+    )
+    assert overview["children"][0]["days"][0]["daily_max_period"] == {
+        "id": shown["id"],
+        "text": "zichtbaar",
+    }
+
+
 async def test_card_payload_has_daily_max_overrides(
     hass: HomeAssistant, home: Home
 ) -> None:
@@ -1129,7 +1191,9 @@ async def test_student_never_sees_parents_only_notes(
         text = json.dumps(output, ensure_ascii=False)
         assert SECRET not in text, tool
         for note in hidden:
-            assert note["id"] not in text or tool in ("get_overview", "prompt"), tool
+            if tool == "get_overview" and note is hidden[3]:
+                continue  # only the period that decides a day is named, see below
+            assert note["id"] not in text, tool
     assert [n["id"] for n in await notes(hass, student)] == [visible["id"]]
     # The overview names the period that sets the maximum, without its text.
     overview = await ok(
@@ -1138,6 +1202,22 @@ async def test_student_never_sees_parents_only_notes(
     day = overview["children"][0]["days"][0]
     assert day["daily_max_minutes"] == 30
     assert day["daily_max_period"] == {"id": hidden[3]["id"]}
+    # The hidden period is named only on the days it decides.
+    wide = await ok(
+        hass, student.id, "get_overview", start="2026-11-13", end="2026-11-27"
+    )
+    for day in wide["children"][0]["days"]:
+        named = day["daily_max_period"]
+        assert named == (
+            {"id": hidden[3]["id"]}
+            if day["date"] in ("2026-11-16", "2026-11-17")
+            else None
+        ), day["date"]
+        if named is None:
+            assert day["daily_max_minutes"] != 30 or day["date"] not in (
+                "2026-11-16",
+                "2026-11-17",
+            )
     assert "30" in api.api_prompt  # the number is shown, not the text
     # list_homework carries no parents-only notes.
     homework = await ok(hass, student.id, "list_homework", include_completed=True)
@@ -1482,6 +1562,30 @@ async def test_list_homework_has_item_and_subject_context(
     )
     item_ids = {n["id"] for i in data["items"] for n in i["context"]}
     assert item_ids == {item["id"], subject["id"], other["id"]}
+
+
+async def test_list_homework_item_without_subject_has_only_its_own_notes(
+    hass: HomeAssistant, home: Home, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An item with no subject does not get the notes of a subject."""
+    from custom_components.magister import coach
+
+    parent = home.parent
+    item = await add(hass, parent, scope="item", item=HOMEWORK, text="Blz 3")
+    await add(hass, parent, scope="subject", subject="Wiskunde", text="Boek A")
+    real = coach._public_item
+
+    def blank(payload: Any) -> Any:
+        view = real(payload)
+        if view is not None and view["id"] == HOMEWORK:
+            view["subject"] = None
+        return view
+
+    monkeypatch.setattr(coach, "_public_item", blank)
+    data = await ok(hass, parent.id, "list_homework", include_completed=True)
+    by_id = {i["id"]: i for i in data["items"]}
+    assert by_id[HOMEWORK]["subject"] is None
+    assert [n["id"] for n in by_id[HOMEWORK]["context"]] == [item["id"]]
 
 
 # -- the book itself -------------------------------------------------------------------
