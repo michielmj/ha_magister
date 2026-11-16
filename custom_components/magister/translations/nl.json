@@ -151,6 +151,15 @@
     },
     "homework_invalid_minutes": {
       "message": "De geschatte tijd moet een geheel aantal minuten zijn van 5 tot 240 in stappen van 5, of leeg."
+    },
+    "entry_not_loaded": {
+      "message": "Deze Magister-login is niet geladen."
+    },
+    "child_ambiguous": {
+      "message": "Deze naam of dit id hoort bij meer dan één kind; gebruik het id van het kind."
+    },
+    "child_not_found": {
+      "message": "Dit kind hoort niet bij deze Magister-login."
     }
   },
   "options": {
@@ -269,10 +278,11 @@
       },
       "coach": {
         "title": "AI-coach",
-        "description": "Stel de AI-coach in voor een kind, of pas de Ouder-richtlijnen aan.",
+        "description": "Stel de AI-coach in voor een kind, pas de ouder-richtlijnen aan of wis de contextnotities die de AI heeft opgeslagen.",
         "menu_options": {
           "coach_child": "Instellingen per kind",
-          "coach_parent": "Ouder-richtlijnen"
+          "coach_parent": "Ouder-richtlijnen",
+          "coach_context": "Context wissen"
         }
       },
       "coach_child": {
@@ -308,6 +318,24 @@
         "data_description": {
           "parent_guidelines": "Huiswerkteksten worden gedeeld met de AI-aanbieder; namen en afkortingen van docenten worden nooit gedeeld."
         }
+      },
+      "coach_context": {
+        "title": "Context wissen",
+        "description": "Kies het kind. De AI-coach slaat korte contextnotities op (boeken, afspraken, omstandigheden). Hier kun je ze verwijderen.",
+        "data": {
+          "child": "Kind"
+        }
+      },
+      "coach_context_scope": {
+        "title": "Context van {child} wissen",
+        "description": "Kies een vak om alleen de notities van dat vak te verwijderen (inclusief de notities bij lessen), of laat het leeg om alle context van het kind te verwijderen.",
+        "data": {
+          "subject": "Vak"
+        }
+      },
+      "coach_context_confirm": {
+        "title": "Context van {child} verwijderen?",
+        "description": "{count} notities worden verwijderd. Dit kan niet ongedaan worden gemaakt. Vak: {subject} (– betekent alle context). Kies Verzend om ze te verwijderen."
       }
     },
     "error": {
@@ -326,7 +354,9 @@
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",
       "cannot_connect": "De kinderen konden niet bij Magister worden opgehaald. Probeer het later opnieuw.",
       "not_loaded": "De integratie is niet geladen. Wacht tot die draait en probeer het opnieuw.",
-      "label_gone": "Dit label bestaat niet meer."
+      "label_gone": "Dit label bestaat niet meer.",
+      "no_context": "Dit kind heeft geen contextnotities.",
+      "context_cleared": "{count} notities zijn verwijderd."
     }
   },
   "config_subentries": {
@@ -508,6 +538,24 @@
         "subtask": {
           "name": "Deelstap",
           "description": "De id (uid) van de deelstap."
+        }
+      }
+    },
+    "clear_coach_context": {
+      "name": "AI-coachcontext wissen",
+      "description": "Verwijdert alle contextnotities van de AI-coach van een kind, of alleen die van één vak, en geeft het aantal verwijderde notities terug. Dit kan niet ongedaan worden gemaakt.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Magister-login",
+          "description": "De configuratie-invoer van het kind."
+        },
+        "child": {
+          "name": "Kind",
+          "description": "Het id of de naam van het kind."
+        },
+        "subject": {
+          "name": "Vak",
+          "description": "Verwijder alleen de notities van dit vak (inclusief de notities bij lessen). Leeg laten om alle context te verwijderen."
         }
       }
     }

@@ -32,6 +32,7 @@ from .const import (
     CONF_WEIGHTS,
     DOMAIN,
 )
+from .context import async_register_context_service
 from .coordinator import (
     MagisterConfigEntry,
     MagisterCoordinator,
@@ -62,6 +63,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async_register_shutdown(hass)
     async_register_websocket_api(hass)
     async_register_homework_services(hass)
+    async_register_context_service(hass)
     await async_register_card(hass)
     return True
 
@@ -116,6 +118,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
     homework.async_start()
 
     _async_remove_dropped_children(hass, entry)
+    # The coach's context notes of a child that was unselected go with the child.
+    homework.context.drop_children(int(c[CHILD_ID]) for c in entry.data[CONF_CHILDREN])
     entry.runtime_data = MagisterRuntimeData(
         session=login.session,
         auth=login.auth,

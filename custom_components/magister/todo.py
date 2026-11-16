@@ -367,6 +367,11 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
                 "labels": labels,
                 "progress": {"next_day": None, "week": None, "next_week": None},
                 "daily_max_minutes": self._manager.daily_max(self._child_id),
+                "daily_max_overrides": (
+                    self._last_payload["daily_max_overrides"]
+                    if self._last_payload
+                    else {}
+                ),
             },
         )
         await super().async_will_remove_from_hass()

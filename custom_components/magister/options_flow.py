@@ -148,6 +148,8 @@ class MagisterOptionsFlow(OptionsFlow):
         self._labels_child: int | None = None
         self._label_id: str | None = None
         self._coach_child: int | None = None
+        self._context_child: int | None = None
+        self._context_subject: str | None = None
         self._daily_max_child: int | None = None
 
     async def _async_fetch_children(self, entry: ConfigEntry) -> str | None:
@@ -716,7 +718,92 @@ class MagisterOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """The AI coach: settings per child, or the parent guidelines."""
         return self.async_show_menu(
-            step_id="coach", menu_options=["coach_child", "coach_parent"]
+            step_id="coach",
+            menu_options=["coach_child", "coach_parent", "coach_context"],
+        )
+
+    async def async_step_coach_context(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Clear the context notes of the AI coach: choose the child."""
+        names = self._child_names()
+        if user_input is not None or len(names) == 1:
+            self._context_child = (
+                int(user_input["child"]) if user_input else next(iter(names))
+            )
+            return await self.async_step_coach_context_scope()
+        return self.async_show_form(
+            step_id="coach_context",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required("child"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(value=str(child_id), label=name)
+                                for child_id, name in names.items()
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def async_step_coach_context_scope(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """All context of the child, or one subject (only subjects with notes)."""
+        assert self._context_child is not None
+        book = self.config_entry.runtime_data.homework.context
+        if book.count(self._context_child) == 0:
+            return self.async_abort(reason="no_context")
+        subjects = book.subjects_with_notes(self._context_child)
+        if user_input is not None:
+            chosen = user_input.get("subject") or None
+            # Only a subject that has notes (or none: all context); else ask again.
+            if chosen is None or chosen in subjects:
+                self._context_subject = chosen
+                return await self.async_step_coach_context_confirm()
+        return self.async_show_form(
+            step_id="coach_context_scope",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Optional("subject"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(value=name, label=name)
+                                for name in subjects
+                            ],
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    )
+                }
+            ),
+            description_placeholders={
+                "child": self._child_names()[self._context_child],
+            },
+        )
+
+    async def async_step_coach_context_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show how many notes will be deleted; submitting deletes them."""
+        assert self._context_child is not None
+        book = self.config_entry.runtime_data.homework.context
+        if user_input is not None:
+            deleted = book.clear(self._context_child, self._context_subject)
+            return self.async_abort(
+                reason="context_cleared",
+                description_placeholders={"count": str(deleted)},
+            )
+        return self.async_show_form(
+            step_id="coach_context_confirm",
+            data_schema=probatio.Schema({}),
+            description_placeholders={
+                "child": self._child_names()[self._context_child],
+                "count": str(book.count(self._context_child, self._context_subject)),
+                "subject": self._context_subject or "\u2013",
+            },
         )
 
     async def async_step_coach_child(

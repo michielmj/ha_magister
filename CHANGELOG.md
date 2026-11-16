@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+## 1.8.0
+
+Context notes for the AI coach. Released 2026-11-16.
+
+- **Card.** The Homework planner card uses `daily_max_overrides`: the day total, the warning and the "/ max ..." text
+  use the maximum of that day. A day with an adjusted maximum shows "/ max … (aangepast)" / "(adjusted)", a dotted
+  underline, a tooltip and screen reader text "aangepast dagmaximum" / "adjusted daily maximum"; no reason is shown. New screenshots in the README.
+- **README (NL/EN).** New "Context" section under the AI coach: the notes, the daily maximum, parents-only notes, who may
+  do what, what to store and what never, deleting context, retention, privacy, the limits and two example conversations.
+- **Hidden periods.** A parents-only circumstance whose maximum equals the child's normal maximum is not named in a
+  student's overview (`daily_max_period` is `null`). Changing a circumstance checks that a given `end` is not before the
+  sync window and a given `start` not after it.
+- **Context notes.** The AI of a student or a parent can store and read short notes per child (500 characters, at most
+  50 non-expired notes): `child` (general), `subject` (books, tools), `item` (one lesson) and `period` (a circumstance
+  with a start and an end date inside the sync window, optionally with a `daily_max_minutes` of 0 to 480 in steps of
+  15). Item notes go with their lesson, circumstances after their end date or when they end before the sync window,
+  and the rest when someone deletes them. A parent can mark a note "alleen ouders" (`visibility: "parents"`): a
+  student's AI never sees, changes or deletes it, and a student cannot change a parent's notes.
+- **Coach tools.** New tools `list_context`, `add_context`, `update_context`, `delete_context` and `clear_context`
+  (parents only, destructive). `list_homework` items have a `context` list (the item's notes and the subject's notes the
+  caller may see). New errors: `text_too_long`, `too_many_notes`, `unknown_subject`, `invalid_period`,
+  `invalid_daily_max`, `context_not_found`.
+- **Effective daily maximum.** One function for `get_overview`, the prompt and the card: the lowest circumstance maximum
+  of a day, otherwise the child's daily maximum. The overview shows `daily_max_period` (the id of the circumstance, with
+  its text unless it is parents-only and the caller is a student). The WebSocket subscribe payload has the new
+  `daily_max_overrides` (`{"YYYY-MM-DD": minutes}` for the days of the sync window whose maximum differs from the
+  normal one).
+- **Prompt.** Per child the general notes, the circumstances that have not ended and the days with another maximum,
+  plus the rules for context: what to store and what never to store (medical, religion, family problems, other
+  people's data, passwords).
+- **Logbook.** "AI-coach: context toegevoegd (Engelse taal)" and "Ouder via AI: context gewist (Engelse taal)", with
+  no note text. A write that changes nothing is not logged.
+- **Clearing context outside the AI.** Configure > AI coach > Clear context (Context wissen) (child, all context or one subject, then a
+  confirmation with the number of notes), and the service `magister.clear_coach_context` (`config_entry_id`, `child`,
+  optional `subject`; returns `deleted`; administrators only). Removing a child or the integration removes its notes.
+- **Diagnostics.** Counts only: notes per scope and how many are for parents only.
+- **Downgrade.** The homework store is now 1.7 (new `context` key). 1.7.x and older ignore the context notes and the
+  `daily_max_overrides`, and drop the notes the next time they save the store. The major version stays 1.
+
 ## 1.7.1
 
 AI coach fixes from the live test. Released 2026-11-15.

@@ -48,7 +48,7 @@ async def open_coach(hass: HomeAssistant, entry: Any, child: str | None = None) 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "coach"}
     )
-    assert result["menu_options"] == ["coach_child", "coach_parent"]
+    assert result["menu_options"] == ["coach_child", "coach_parent", "coach_context"]
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "coach_child"}
     )
@@ -309,7 +309,7 @@ async def test_created_by_in_payload_and_store(
     )
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 6)
+    assert (saved["version"], saved["minor_version"]) == (1, 7)
     stored = {
         s["title"]: s["created_by"]
         for s in saved["data"]["items"][uid(PROEFWERK)]["subtasks"]

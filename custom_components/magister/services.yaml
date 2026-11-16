@@ -159,3 +159,21 @@ delete_homework_subtask:
       example: "myschool.magister.net:1001:100070:sub:1a2b3c4d"
       selector:
         text:
+
+clear_coach_context:
+  fields:
+    config_entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: magister
+    child:
+      required: true
+      example: "1001"
+      selector:
+        text:
+    subject:
+      required: false
+      example: "Engelse taal"
+      selector:
+        text:

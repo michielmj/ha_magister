@@ -112,6 +112,8 @@ async def async_get_config_entry_diagnostics(
         },
         "children": children,
         "coach": _coach_counts(entry),
+        # Counts only: notes per scope and how many are for parents only.
+        "coach_context": runtime.homework.context.statistics(),
         "homework_store": {"stored_entries": runtime.homework.stored_entries},
         "sensors": [
             {

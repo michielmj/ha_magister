@@ -35,9 +35,17 @@ are not repeated. After an entry reload the new entity pushes its list once to e
     "week":      {"value": 25.0,  "items": 18, "completed": 4},
     "next_week": null
   },
-  "daily_max_minutes": 90
+  "daily_max_minutes": 90,
+  "daily_max_overrides": {"2026-11-18": 30}
 }}
 ```
+
+`daily_max_overrides` (since 1.8.0) maps `YYYY-MM-DD` to the **effective** daily maximum, for every day of the sync window
+(the same period as the calendar and the card: from the weeks back to the weeks ahead in the options, including past
+days) on which a coach circumstance sets a maximum that differs from `daily_max_minutes`. Days that are not listed use
+`daily_max_minutes`: a day whose effective maximum equals the normal one is left out, so a circumstance that changes
+nothing (for example a hidden one) leaves no trace in the card. When circumstances overlap, the lowest maximum wins. The map holds numbers only (no note text) and is present in the final `available: false`
+event too. Clients that predate the field ignore it (and 1.7.x does not send it).
 
 `daily_max_minutes` (since 1.7.0) is the child's daily maximum of study minutes per school day: an integer 15–480 in
 steps of 15, default 90. It is set in the options (Configure > Daily study maximum), stored with the child's homework
@@ -267,3 +275,74 @@ tool errors are `{"error": <code>, "message": ...}`. Changes in 1.7.0:
   is "You are linked, but the AI coach is not enabled for this child. An administrator can enable it in Settings >
   Devices & services > Magister > Configure > AI coach > Settings per child." It names no child and reveals nothing
   but the linking. `not_linked` stays for a user without any link (and for an unknown, inactive or system user).
+
+## Context notes (since 1.8.0)
+The coach can store context per child in the homework store (key `context`, store 1.7; a 1.7.x release ignores the key
+and drops it when it saves again). Notes are reached only through the coach tools and the options flow / service below;
+there is no WebSocket command and no card UI.
+
+Note (as returned by the tools):
+```json
+{"id": "a1b2c3d4", "scope": "period", "start": "2026-11-18", "end": "2026-11-18", "daily_max_minutes": 30,
+ "expired": false, "visibility": "all", "text": "zwemwedstrijd", "created_by": "parent", "updated": "2026-11-16"}
+```
+- `scope`: `child`, `subject` (has `subject`), `item` (has `item`, an appointment id without the host, and the `subject` of
+  that lesson) or `period` (has `start`, `end`, `daily_max_minutes` (or `null`) and `expired`).
+- `subject` is the subject as in the schedule, matched case-insensitively and stored in the spelling of the schedule;
+  an unknown subject is `unknown_subject` (the schedule of the sync window and the notes the caller may see are checked).
+- `text`: one line (whitespace is collapsed), 1 to 500 characters (`text_too_long`). At most 50 notes per child that are not
+  expired (`too_many_notes`); a circumstance is expired when its `end` is before today. The limit counts all of the
+  child's active notes, also the `parents`-only notes a student cannot see (so a student can hit `too_many_notes` with a
+  list that looks shorter than 50).
+- `id`: 8 lowercase hex characters. A stored note with any other id is dropped when the store is loaded (it is not given a
+  new id: a random id would change on every load).
+- `period`: `start` <= `end`, both inside the sync window, else `invalid_period`; `daily_max_minutes` is 0 to 480 in
+  steps of 15 (`invalid_daily_max`). When a period is changed, only the days that are given are held to the window
+  (a new `start` is not before its first day, a new `end` not after its last day nor before its first day, a new `start`
+  not after its last day) and `start` <= `end` always holds, with the stored day for the one that is not given; a circumstance that began before the window can still get a new text,
+  end or maximum. `invalid_period` then says which given day is wrong. With neither `start` nor `end` the days are not
+  checked. It applies to every day of the period, also after it has ended (past days stay
+  visible in the card). A period is deleted when its `end` is before the first day of the sync window.
+- Item notes are deleted 14 days after their appointment left the sync window, like the other planner data of the item.
+  `item_not_found` when an appointment is not in the window.
+- `visibility`: `all` or `parents`. Only the Ouder role can set `parents`; a Leerling gets `not_allowed_for_role`. A student
+  never sees a `parents` note: it is not listed, and update or delete answers `context_not_found`.
+- A student cannot change or delete a note whose `created_by` is `parent` (`not_allowed_for_role`). A change by a parent makes
+  the note the parent's (`created_by` `parent`).
+- `created_by`: `student` (the Leerling role) or `parent`. `updated` is the local date of the last change.
+
+Tools (all take the optional `child`, as before):
+| Tool | Annotations | Notes |
+|---|---|---|
+| `list_context(scope?, subject?, item?, include_expired?)` | read-only | Returns `{"child", "today", "notes": [...]}`; expired circumstances only with `include_expired` |
+| `add_context(scope, text, subject?, item?, start?, end?, daily_max_minutes?, visibility?)` | write | Fields that do not belong to the scope are `invalid_format`; `daily_max_minutes: null` means "not given" |
+| `update_context(id, text?, start?, end?, daily_max_minutes?, visibility?)` | write, idempotent | At least one field (`invalid_format` otherwise); `daily_max_minutes: null` removes the maximum |
+| `delete_context(id)` | destructive | |
+| `clear_context(subject?)` | destructive | Parents only (`not_allowed_for_role`); a subject takes its subject and item notes; returns `{"child", "deleted"}` |
+
+Errors: `text_too_long`, `too_many_notes`, `unknown_subject`, `item_not_found`, `invalid_period`, `invalid_daily_max`,
+`context_not_found` (also for the note of another child, another login, or a `parents` note for a student),
+`not_allowed_for_role`, `invalid_format` (also a malformed id).
+
+- `list_homework` items have `context`: the item's notes and its subject's notes the caller may see.
+- `get_overview` days: `daily_max_minutes` is the **effective** maximum (the lowest `daily_max_minutes` of the periods that
+  cover the day, else the child's daily maximum; a period can also raise it). `daily_max_period` is `null` or
+  `{"id", "text"?}`: the period that sets it (on equal maximums the one the caller may see), without `text` when it is
+  `parents`-only and the caller is a student. It is `null` when the deciding period is `parents`-only, the caller is a
+  student and its maximum equals the normal one. The child-level `daily_max_minutes` of the overview is the normal maximum.
+- Prompt: first the rules for context (once, before the children), then per child the `child` notes, the periods that have
+  not ended and the days with another maximum, only what the caller may see (the maximums of parents-only periods are
+  shown as numbers, without text).
+- Logbook (no note text): "AI-coach: context toegevoegd (Engelse taal)", "... gewijzigd", "... verwijderd", and "Ouder via AI:
+  context gewist (Engelse taal)" / "alle context gewist"; the subject is named when the note has one, except for a `parents`-only note (also one that was `parents`-only before
+  an update, and a clear that deleted only such notes). A write that changes
+  nothing is not logged.
+
+Outside the AI:
+- Options flow: Configure > AI coach > Context wissen (child; all context or a subject that has notes; confirmation with the
+  number of notes).
+- Service `magister.clear_coach_context` (`config_entry_id`, `child` (id or name), `subject`?; administrators only) with a
+  response `{"deleted": <number>}`. `ServiceValidationError` keys: `entry_not_loaded`, `child_not_found`, `child_ambiguous` (a name or id that matches
+  more than one child).
+- Removing a child from the integration, or the config entry, removes its notes. Diagnostics: counts per scope and the
+  number of parents-only notes.

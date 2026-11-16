@@ -187,6 +187,11 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
         "add_label",
         "remove_label",
         "set_label_override",
+        "list_context",
+        "add_context",
+        "update_context",
+        "delete_context",
+        "clear_context",
     }
     for name in tools.values():
         assert name.description
@@ -194,6 +199,7 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
     read = {"list_children", "get_schedule", "get_overview", "list_homework"}
     read.add("get_progress")
     read.add("list_label_options")
+    read.add("list_context")
     for name, tool in tools.items():
         assert tool.annotations.read_only is (name in read)
         if name in read:
@@ -1010,7 +1016,7 @@ async def test_prompt_contents(hass: HomeAssistant, student: Any) -> None:
     )
     assert "15\u201345 minuten" in prompt
     assert "Always pass `child`" not in prompt
-    assert len(api.tools) == 13
+    assert len(api.tools) == 18
 
 
 async def test_prompt_for_unlinked_user(hass: HomeAssistant, student: Any) -> None:

@@ -80,12 +80,21 @@ const choose = (select: HTMLSelectElement, value: string): void => {
 
 async function setup(
   items: HomeworkItem[],
-  options: { callWS?: unknown; language?: string; dailyMax?: number; config?: Record<string, unknown> } = {},
+  options: {
+    callWS?: unknown;
+    language?: string;
+    dailyMax?: number;
+    overrides?: Record<string, number>;
+    config?: Record<string, unknown>;
+  } = {},
 ) {
   const callWS = options.callWS ?? vi.fn().mockResolvedValue({});
   const { card, connection } = await mount(options.config ?? {}, callWS, options.language);
   connection.push(
-    payload(items, options.dailyMax === undefined ? {} : { dailyMax: options.dailyMax }),
+    payload(items, {
+      ...(options.dailyMax === undefined ? {} : { dailyMax: options.dailyMax }),
+      ...(options.overrides === undefined ? {} : { overrides: options.overrides }),
+    }),
   );
   await flush(card);
   return { card, connection, callWS: callWS as ReturnType<typeof vi.fn> };
@@ -240,6 +249,76 @@ describe("day total", () => {
   it("shows no warning when the backend sends no maximum", async () => {
     const { card } = await setup(items());
     expect(head(card, MONDAY)?.classList.contains("over")).toBe(false);
+  });
+
+  it("uses the override of a day as the effective maximum, with an accessible hint", async () => {
+    const { card } = await setup(items(), { dailyMax: 90, overrides: { [MONDAY]: 60 } });
+    const total = head(card, MONDAY);
+    expect(total?.classList.contains("over")).toBe(true);
+    expect(total?.classList.contains("adjusted")).toBe(true);
+    const visible = [...(total?.querySelectorAll("[aria-hidden]") ?? [])].map((e) => e.textContent.trim());
+    expect(visible).toEqual(["⚠", "/ max 1 h (adjusted)"]);
+    expect(total?.querySelector(".sr-only")?.textContent).toBe(", over adjusted daily maximum (1 h)");
+    expect(total?.getAttribute("title")).toBe("over adjusted daily maximum (1 h)");
+    expect(total?.getAttribute("class")).toBe("planned over adjusted");
+    // another day keeps the normal maximum and has no hint
+    const other = head(card, "2026-11-14");
+    expect(other?.classList.contains("adjusted")).toBe(false);
+    expect(other?.querySelector(".sr-only")).toBeNull();
+    expect(other?.textContent).not.toContain("max");
+  });
+
+  it("a raised maximum removes the warning and still says it was adjusted", async () => {
+    const { card } = await setup(items(), { dailyMax: 60, overrides: { [MONDAY]: 120 } });
+    const total = head(card, MONDAY);
+    expect(total?.classList.contains("over")).toBe(false);
+    expect(total?.classList.contains("adjusted")).toBe(true);
+    expect(total?.textContent).toContain("± 1 h 15 min planned");
+    expect(total?.textContent).toContain("/ max 2 h (adjusted)");
+    expect(total?.textContent).not.toContain("⚠");
+    expect(total?.querySelector(".sr-only")?.textContent).toBe(", adjusted daily maximum (2 h)");
+    expect(total?.getAttribute("title")).toBe("adjusted daily maximum (2 h)");
+  });
+
+  it("shows no adjusted marker when the override equals the normal maximum", async () => {
+    const { card } = await setup(items(), { dailyMax: 60, overrides: { [MONDAY]: 60 } });
+    const total = head(card, MONDAY);
+    expect(total?.classList.contains("adjusted")).toBe(false);
+    expect(total?.classList.contains("over")).toBe(true);
+    expect(total?.textContent).not.toContain("adjusted");
+    expect(total?.querySelector(".sr-only")?.textContent).toBe(", over daily maximum (1 h)");
+    const { card: roomy } = await setup(items(), { dailyMax: 120, overrides: { [MONDAY]: 120 } });
+    const plain = head(roomy, MONDAY);
+    expect(plain?.classList.contains("adjusted")).toBe(false);
+    expect(plain?.querySelector(".sr-only")).toBeNull();
+    expect(plain?.getAttribute("title")).toBeNull();
+  });
+
+  it("does not warn at exactly the overridden maximum, and warns above zero", async () => {
+    const { card } = await setup(items(), { dailyMax: 30, overrides: { [MONDAY]: 75, "2026-11-14": 0 } });
+    expect(head(card, MONDAY)?.classList.contains("over")).toBe(false);
+    expect(head(card, "2026-11-14")?.classList.contains("over")).toBe(true);
+    expect(head(card, "2026-11-14")?.textContent).toContain("/ max 0 min");
+  });
+
+  it("words the hint in Dutch and works without a normal maximum", async () => {
+    const { card } = await setup(items(), { overrides: { [MONDAY]: 60 }, language: "nl" });
+    const total = head(card, MONDAY);
+    expect(total?.querySelector(".sr-only")?.textContent).toBe(
+      ", boven aangepast dagmaximum (1 u)",
+    );
+    expect(total?.textContent).toContain("/ max 1 u (aangepast)");
+    expect(head(card, "2026-11-14")?.classList.contains("over")).toBe(false);
+  });
+
+  it("shows no total for an overridden day without planned minutes", async () => {
+    const { card } = await setup(items(), {
+      dailyMax: 90,
+      overrides: { "2026-11-15": 15, "2026-11-17": 30, "2026-12-01": 30 },
+    });
+    expect(head(card, "2026-11-15")).toBeNull();
+    expect(head(card, "2026-11-17")).toBeNull();
+    expect(head(card, MONDAY)?.classList.contains("adjusted")).toBe(false);
   });
 
   it("follows an optimistic change of the estimate", async () => {
