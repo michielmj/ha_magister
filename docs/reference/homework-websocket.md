@@ -297,7 +297,7 @@ Note (as returned by the tools):
   new id: a random id would change on every load).
 - `period`: `start` <= `end`, both inside the sync window, else `invalid_period`; `daily_max_minutes` is 0 to 480 in
   steps of 15 (`invalid_daily_max`). When a period is changed, only the days that are given are held to the window
-  (a new `start` is not before its first day, a new `end` not after its last day) and `start` <= `end` always holds, with
+  (a new `start` is not before its first day, a new `end` not after its last day nor before its first day, a new `start` not after its last day) and `start` <= `end` always holds, with
   the stored day for the one that is not given; a circumstance that began before the window can still get a new text,
   end or maximum. `invalid_period` then says which given day is wrong. With neither `start` nor `end` the days are not
   checked. It applies to every day of the period, also after it has ended (past days stay

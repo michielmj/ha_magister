@@ -111,6 +111,12 @@ export interface HomeworkPayload {
   progress?: ProgressMap;
   /** Since 1.7.0: the child's daily maximum of study minutes per school day; absent on older backends. */
   daily_max_minutes?: number;
+  /**
+   * Since 1.8.0: the effective daily maximum of the days where a coach circumstance sets one
+   * (`YYYY-MM-DD` to minutes, past days included); the other days use `daily_max_minutes`.
+   * Absent on older backends.
+   */
+  daily_max_overrides?: Record<string, number>;
 }
 
 export interface SetProgressResult {

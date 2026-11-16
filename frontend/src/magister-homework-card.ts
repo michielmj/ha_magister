@@ -830,7 +830,10 @@ export class MagisterHomeworkCard extends LitElement {
       </div>`;
   }
 
-  /** The planned time of a day, with a warning when it is above the child's daily maximum. */
+  /**
+   * The planned time of a day, with a warning when it is above the effective daily maximum: the
+   * override of that day (a coach circumstance) when there is one, else the child's maximum.
+   */
   private _renderPlanned(
     group: EntryGroup,
     planned: ReadonlyMap<string, number>,
@@ -840,16 +843,22 @@ export class MagisterHomeworkCard extends LitElement {
     const total = planned.get(group.date) ?? 0;
     if (total <= 0) return nothing;
     const lang = this._language() === "nl" ? "nl" : "en";
-    const max = this._payload?.daily_max_minutes;
+    const override = this._payload?.daily_max_overrides?.[group.date];
+    const adjusted = typeof override === "number";
+    const max = adjusted ? override : this._payload?.daily_max_minutes;
     const text = format(texts.sub.planned, { time: formatMinutes(total, lang) });
-    if (typeof max !== "number" || total <= max) {
-      return html`<span class="planned">${text}</span>`;
-    }
-    const warning = format(texts.sub.over_max, { max: formatMinutes(max, lang) });
-    return html`<span class="planned over" title=${warning}
-      ><span aria-hidden="true">⚠ </span>${text}<span aria-hidden="true">
-        ${format(texts.sub.max_short, { max: formatMinutes(max, lang) })}</span
-      ><span class="sr-only">, ${warning}</span></span
+    if (typeof max !== "number") return html`<span class="planned">${text}</span>`;
+    const over = total > max;
+    if (!over && !adjusted) return html`<span class="planned">${text}</span>`;
+    const maxText = formatMinutes(max, lang);
+    const warning = over ? format(texts.sub.over_max, { max: maxText }) : "";
+    // No reason is shown: the payload has none.
+    const note = adjusted ? format(texts.sub.adjusted_max, { max: maxText }) : "";
+    const tip = [warning, note].filter((part) => part !== "").join(", ");
+    return html`<span class="planned ${over ? "over" : ""} ${adjusted ? "adjusted" : ""}" title=${tip}
+      >${over ? html`<span aria-hidden="true">⚠ </span>` : nothing}${text}<span aria-hidden="true">
+        ${format(texts.sub.max_short, { max: maxText })}</span
+      ><span class="sr-only">, ${tip}</span></span
     >`;
   }
 
@@ -2145,6 +2154,10 @@ export class MagisterHomeworkCard extends LitElement {
     .planned {
       font-size: 0.85em;
       color: var(--secondary-text-color);
+    }
+    .planned.adjusted {
+      text-decoration: underline dotted;
+      text-underline-offset: 3px;
     }
     .planned.over {
       padding: 0 8px;

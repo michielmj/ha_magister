@@ -2,8 +2,18 @@
 
 ## Unreleased
 
-Context notes for the AI coach (M13, phase A: backend). Not released yet; the card and the README follow in phase B.
+## 1.8.0
 
+Context notes for the AI coach. Released 2026-11-16.
+
+- **Card.** The Homework planner card uses `daily_max_overrides`: the day total, the warning and the "/ max ..." text
+  use the maximum of that day. A day with an adjusted maximum shows a dotted underline, a tooltip and screen reader
+  text "aangepast dagmaximum" / "adjusted daily maximum"; no reason is shown. New screenshots in the README.
+- **README (NL/EN).** New "Context" section under the AI coach: the notes, the daily maximum, parents-only notes, who may
+  do what, what to store and what never, deleting context, retention, privacy, the limits and two example conversations.
+- **Hidden periods.** A parents-only circumstance whose maximum equals the child's normal maximum is not named in a
+  student's overview (`daily_max_period` is `null`). Changing a circumstance checks that a given `end` is not before the
+  sync window and a given `start` not after it.
 - **Context notes.** The AI of a student or a parent can store and read short notes per child (500 characters, at most
   50 non-expired notes): `child` (general), `subject` (books, tools), `item` (one lesson) and `period` (a circumstance
   with a start and an end date inside the sync window, optionally with a `daily_max_minutes` of 0 to 480 in steps of
