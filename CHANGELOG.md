@@ -7,8 +7,8 @@
 Context notes for the AI coach. Released 2026-11-16.
 
 - **Card.** The Homework planner card uses `daily_max_overrides`: the day total, the warning and the "/ max ..." text
-  use the maximum of that day. A day with an adjusted maximum shows a dotted underline, a tooltip and screen reader
-  text "aangepast dagmaximum" / "adjusted daily maximum"; no reason is shown. New screenshots in the README.
+  use the maximum of that day. A day with an adjusted maximum shows "/ max … (aangepast)" / "(adjusted)", a dotted
+  underline, a tooltip and screen reader text "aangepast dagmaximum" / "adjusted daily maximum"; no reason is shown. New screenshots in the README.
 - **README (NL/EN).** New "Context" section under the AI coach: the notes, the daily maximum, parents-only notes, who may
   do what, what to store and what never, deleting context, retention, privacy, the limits and two example conversations.
 - **Hidden periods.** A parents-only circumstance whose maximum equals the child's normal maximum is not named in a
@@ -27,7 +27,8 @@ Context notes for the AI coach. Released 2026-11-16.
 - **Effective daily maximum.** One function for `get_overview`, the prompt and the card: the lowest circumstance maximum
   of a day, otherwise the child's daily maximum. The overview shows `daily_max_period` (the id of the circumstance, with
   its text unless it is parents-only and the caller is a student). The WebSocket subscribe payload has the new
-  `daily_max_overrides` (`{"YYYY-MM-DD": minutes}` for the days of the sync window).
+  `daily_max_overrides` (`{"YYYY-MM-DD": minutes}` for the days of the sync window whose maximum differs from the
+  normal one).
 - **Prompt.** Per child the general notes, the circumstances that have not ended and the days with another maximum,
   plus the rules for context: what to store and what never to store (medical, religion, family problems, other
   people's data, passwords).

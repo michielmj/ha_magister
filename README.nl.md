@@ -665,7 +665,7 @@ gesprek hetzelfde hoeft uit te leggen. Notities bereik je alleen via de AI (in d
 bewerken). Er zijn vier soorten:
 
 - **kind**: algemeen ("werkt het liefst 's middags");
-- **vak**: bijvoorbeeld de boeken en hulpmiddelen van een vak ("Engels: Stepping Stones, woordjes in WRTS");
+- **vak**: bijvoorbeeld de boeken en hulpmiddelen van een vak ("Engelse taal: Stepping Stones, woordjes in WRTS");
 - **huiswerkitem**: een notitie bij één les of één huiswerkitem;
 - **omstandigheid**: een notitie voor een **periode**, met een begin- en einddatum binnen de periode die de agenda en
   de kaart beslaan (de weken terug tot de weken vooruit in de opties), bijvoorbeeld "wo 18 nov: zwemwedstrijd".

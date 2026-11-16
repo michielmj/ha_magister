@@ -650,7 +650,7 @@ the same things in every conversation. Notes are reached only through the AI (th
 card). There are four kinds:
 
 - **child**: general ("werkt het liefst 's middags");
-- **subject**: for example the books and tools of a subject ("Engels: Stepping Stones, woordjes in WRTS");
+- **subject**: for example the books and tools of a subject ("Engelse taal: Stepping Stones, woordjes in WRTS");
 - **homework item**: a note on one lesson or homework item;
 - **circumstance**: a note for a **period**, with a start and an end date inside the period the calendar and the
   card cover (the weeks back to the weeks ahead in the options), for example "wo 18 nov: zwemwedstrijd".
