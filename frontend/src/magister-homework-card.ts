@@ -844,20 +844,32 @@ export class MagisterHomeworkCard extends LitElement {
     if (total <= 0) return nothing;
     const lang = this._language() === "nl" ? "nl" : "en";
     const override = this._payload?.daily_max_overrides?.[group.date];
-    const adjusted = typeof override === "number";
-    const max = adjusted ? override : this._payload?.daily_max_minutes;
+    const base = this._payload?.daily_max_minutes;
+    const adjusted = typeof override === "number" && override !== base;
+    const max = typeof override === "number" ? override : base;
     const text = format(texts.sub.planned, { time: formatMinutes(total, lang) });
     if (typeof max !== "number") return html`<span class="planned">${text}</span>`;
     const over = total > max;
     if (!over && !adjusted) return html`<span class="planned">${text}</span>`;
     const maxText = formatMinutes(max, lang);
-    const warning = over ? format(texts.sub.over_max, { max: maxText }) : "";
     // No reason is shown: the payload has none.
-    const note = adjusted ? format(texts.sub.adjusted_max, { max: maxText }) : "";
-    const tip = [warning, note].filter((part) => part !== "").join(", ");
-    return html`<span class="planned ${over ? "over" : ""} ${adjusted ? "adjusted" : ""}" title=${tip}
+    const tip = format(
+      adjusted
+        ? over
+          ? texts.sub.over_adjusted_max
+          : texts.sub.adjusted_max
+        : texts.sub.over_max,
+      { max: maxText },
+    );
+    const short = format(adjusted ? texts.sub.max_short_adjusted : texts.sub.max_short, {
+      max: maxText,
+    });
+    const cls = ["planned", over ? "over" : "", adjusted ? "adjusted" : ""]
+      .filter((c) => c !== "")
+      .join(" ");
+    return html`<span class=${cls} title=${tip}
       >${over ? html`<span aria-hidden="true">⚠ </span>` : nothing}${text}<span aria-hidden="true">
-        ${format(texts.sub.max_short, { max: maxText })}</span
+        ${short}</span
       ><span class="sr-only">, ${tip}</span></span
     >`;
   }

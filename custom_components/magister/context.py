@@ -429,17 +429,19 @@ class ContextBook:
         return EffectiveMax(minutes, note)
 
     def daily_max_overrides(self, child_id: int) -> dict[str, int]:
-        """The effective maximum of every day in the sync window that a period sets."""
+        """The effective maximum of the days a period changes, in the sync window."""
         if not any(
             n.daily_max_minutes is not None for n in self._notes.get(child_id, [])
         ):
             return {}
         first, after_last = self._manager.window_dates()
+        normal = self._manager.daily_max(child_id)
         result: dict[str, int] = {}
         day = first
         while day < after_last:
             effective = self.effective_daily_max(child_id, day)
-            if effective.note is not None:
+            # A period that leaves the maximum as it is changes nothing to show.
+            if effective.note is not None and effective.minutes != normal:
                 result[day.isoformat()] = effective.minutes
             day += timedelta(days=1)
         return result

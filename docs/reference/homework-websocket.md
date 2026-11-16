@@ -42,8 +42,9 @@ are not repeated. After an entry reload the new entity pushes its list once to e
 
 `daily_max_overrides` (since 1.8.0) maps `YYYY-MM-DD` to the **effective** daily maximum, for every day of the sync window
 (the same period as the calendar and the card: from the weeks back to the weeks ahead in the options, including past
-days) on which a coach circumstance sets a maximum. Days that are not listed use `daily_max_minutes`. When circumstances
-overlap, the lowest maximum wins. The map holds numbers only (no note text) and is present in the final `available: false`
+days) on which a coach circumstance sets a maximum that differs from `daily_max_minutes`. Days that are not listed use
+`daily_max_minutes`: a day whose effective maximum equals the normal one is left out, so a circumstance that changes
+nothing (for example a hidden one) leaves no trace in the card. When circumstances overlap, the lowest maximum wins. The map holds numbers only (no note text) and is present in the final `available: false`
 event too. Clients that predate the field ignore it (and 1.7.x does not send it).
 
 `daily_max_minutes` (since 1.7.0) is the child's daily maximum of study minutes per school day: an integer 15–480 in
@@ -297,8 +298,8 @@ Note (as returned by the tools):
   new id: a random id would change on every load).
 - `period`: `start` <= `end`, both inside the sync window, else `invalid_period`; `daily_max_minutes` is 0 to 480 in
   steps of 15 (`invalid_daily_max`). When a period is changed, only the days that are given are held to the window
-  (a new `start` is not before its first day, a new `end` not after its last day nor before its first day, a new `start` not after its last day) and `start` <= `end` always holds, with
-  the stored day for the one that is not given; a circumstance that began before the window can still get a new text,
+  (a new `start` is not before its first day, a new `end` not after its last day nor before its first day, a new `start`
+  not after its last day) and `start` <= `end` always holds, with the stored day for the one that is not given; a circumstance that began before the window can still get a new text,
   end or maximum. `invalid_period` then says which given day is wrong. With neither `start` nor `end` the days are not
   checked. It applies to every day of the period, also after it has ended (past days stay
   visible in the card). A period is deleted when its `end` is before the first day of the sync window.
@@ -326,8 +327,9 @@ Errors: `text_too_long`, `too_many_notes`, `unknown_subject`, `item_not_found`, 
 - `list_homework` items have `context`: the item's notes and its subject's notes the caller may see.
 - `get_overview` days: `daily_max_minutes` is the **effective** maximum (the lowest `daily_max_minutes` of the periods that
   cover the day, else the child's daily maximum; a period can also raise it). `daily_max_period` is `null` or
-  `{"id", "text"?}`: the period that sets it (on equal maximums the one the caller may see), without `text` when it is `parents`-only and the caller is a student. The
-  child-level `daily_max_minutes` of the overview is the normal maximum.
+  `{"id", "text"?}`: the period that sets it (on equal maximums the one the caller may see), without `text` when it is
+  `parents`-only and the caller is a student. It is `null` when the deciding period is `parents`-only, the caller is a
+  student and its maximum equals the normal one. The child-level `daily_max_minutes` of the overview is the normal maximum.
 - Prompt: first the rules for context (once, before the children), then per child the `child` notes, the periods that have
   not ended and the days with another maximum, only what the caller may see (the maximums of parents-only periods are
   shown as numbers, without text).

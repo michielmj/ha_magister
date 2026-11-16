@@ -33,7 +33,7 @@ Context notes for the AI coach. Released 2026-11-16.
   people's data, passwords).
 - **Logbook.** "AI-coach: context toegevoegd (Engelse taal)" and "Ouder via AI: context gewist (Engelse taal)", with
   no note text. A write that changes nothing is not logged.
-- **Clearing context outside the AI.** Configure > AI coach > Context wissen (child, all context or one subject, then a
+- **Clearing context outside the AI.** Configure > AI coach > Clear context (Context wissen) (child, all context or one subject, then a
   confirmation with the number of notes), and the service `magister.clear_coach_context` (`config_entry_id`, `child`,
   optional `subject`; returns `deleted`; administrators only). Removing a child or the integration removes its notes.
 - **Diagnostics.** Counts only: notes per scope and how many are for parents only.

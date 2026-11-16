@@ -390,11 +390,12 @@ show_progress_next_week: false
   kies je — dan wordt de tijd gewist). De tijd staat in de regel van de deelstap ("30 min"). Elke dagkop toont de geplande
   tijd van die dag, bijvoorbeeld "± 1 u 15 min gepland": de som van de schattingen van alle deelstappen (af of niet)
   waarvan dit de huidige dag is; bij 0 blijft het weg. Is de som hoger dan het **dagmaximum** van het kind
-  (Configureer, Dagmaximum studietijd, standaard 90 minuten), dan staat het met een waarschuwingsicoon, markering en de zichtbare tekst "/ max 1 u 30 min" (ook op touchscreens), en
-  lezen schermlezers "boven dagmaximum (1 u 30 min)" voor. Sinds 1.8.0 gebruikt een dag waarop een omstandigheid van de AI-coach
-(zie *Context*) een ander maximum instelt dat maximum: de tekst "/ max ..." is dan met stippellijn onderstreept, met tooltip en
-schermlezertekst "aangepast dagmaximum (1 u)" (een reden wordt niet getoond). De minuten van achterstallige deelstappen tellen mee voor hun
-  (voorbije) dag; de groep Achterstallig zelf toont geen totaal. Wijzigingen zijn direct zichtbaar en worden met een
+  (Configureer, Dagmaximum studietijd, standaard 90 minuten), dan staat het met een waarschuwingsicoon, markering en
+  de zichtbare tekst "/ max 1 u 30 min" (ook op touchscreens), en lezen schermlezers "boven dagmaximum (1 u 30 min)"
+  voor. Sinds 1.8.0 gebruikt een dag waarop een omstandigheid van de AI-coach (zie *Context*) een ander maximum
+  instelt dat maximum: het hele dagtotaal is dan met een stippellijn onderstreept, met tooltip, de zichtbare tekst
+  "/ max 1 u (aangepast)" en schermlezertekst "aangepast dagmaximum (1 u)" (een reden wordt niet getoond). De minuten
+  van achterstallige deelstappen tellen mee voor hun (voorbije) dag; de groep Achterstallig zelf toont geen totaal. Wijzigingen zijn direct zichtbaar en worden met een
   melding teruggedraaid als opslaan mislukt.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
@@ -669,14 +670,14 @@ bewerken). Er zijn vier soorten:
 - **omstandigheid**: een notitie voor een **periode**, met een begin- en einddatum binnen de periode die de agenda en
   de kaart beslaan (de weken terug tot de weken vooruit in de opties), bijvoorbeeld "wo 18 nov: zwemwedstrijd".
 
-**Dagmaximum.** Een omstandigheid kan ook een **dagmaximum** instellen (0 tot 480 minuten in stappen van 15) voor haar
-dagen. De AI plant dan binnen dat maximum, `get_overview` toont het en **de kaart gebruikt het**: de geplande tijd van de dag
-wordt ermee vergeleken, de waarschuwing en de tekst "/ max ..." tonen het, en een onderstreping met tooltip (en
-schermlezertekst "aangepast dagmaximum") laat zien dat het maximum van die dag is aangepast. Een reden toont de kaart niet.
+**Dagmaximum.** Een omstandigheid kan ook een **dagmaximum** instellen, hoger of lager dan het normale (0 tot 480 minuten in stappen van 15), voor
+haar dagen. De AI plant dan binnen dat maximum, `get_overview` toont het en **de kaart gebruikt het**: de geplande tijd van de dag
+wordt ermee vergeleken, de waarschuwing en de tekst "/ max ..." tonen het, en de tekst "(aangepast)", een
+onderstreping en tooltip (en schermlezertekst "aangepast dagmaximum") laten zien dat het maximum van die dag is aangepast. Een reden toont de kaart niet.
 Bij overlappende omstandigheden wint het laagste maximum. Een dag zonder omstandigheid gebruikt het dagmaximum van het kind.
 
 **Notities alleen voor ouders.** Een ouder kan een notitie markeren als **"alleen ouders"**. De AI van de leerling krijgt
-zo'n notitie nooit: niet de tekst, niet het vak, en de notitie komt in geen enkele tool en niet in de prompt voor. Verandert
+zo'n notitie nooit: niet de tekst, niet het vak, en de notitie komt in geen enkele tool en niet in de prompt voor (alleen het id, zonder tekst, in `get_overview` op dagen waarop zo'n omstandigheid het maximum bepaalt). Verandert
 zo'n omstandigheid het maximum van een dag, dan ziet de AI van de leerling wel het aangepaste maximum van die dag, zonder
 de reden (en als het maximum gelijk blijft, hoort de AI er helemaal niets over). Verborgen notities tellen wel mee voor de
 limiet hieronder.
@@ -687,7 +688,7 @@ limiet hieronder.
 |---|---|---|
 | Notities lezen | de notities die niet alleen voor ouders zijn | alle notities |
 | Notities toevoegen, wijzigen en verwijderen | notities die niet alleen voor ouders zijn | alle notities |
-| Een notitie van een ouder wijzigen | nee | ja |
+| Een notitie van een ouder (geschreven of gewijzigd) wijzigen of verwijderen | nee | ja |
 | Een notitie "alleen ouders" maken | nee | ja |
 | Alle notities van een vak of een kind wissen (`clear_context`) | nee | ja, nadat de AI om bevestiging heeft gevraagd |
 
@@ -710,7 +711,7 @@ blijft verantwoordelijk voor wat er staat; kijk er af en toe naar (vraag de AI "
 
 - **In Home Assistant:** Instellingen, Apparaten en diensten, Magister, **Configureer**, **AI-coach**, **Context wissen**.
   Kies het kind en daarna een vak (inclusief de notities bij de lessen van dat vak), of laat het leeg voor alle context van
-  het kind. Het volgende scherm toont hoeveel notities worden verwijderd; kies **Verzenden** om ze te verwijderen.
+  het kind. Het volgende scherm toont hoeveel notities worden verwijderd; kies **Verzend** om ze te verwijderen.
 - **Een service,** bijvoorbeeld aan het einde van het schooljaar. Hij geeft het aantal verwijderde notities terug en kan door
   beheerders worden aangeroepen (een automatisering draait als beheerder):
 
@@ -732,7 +733,7 @@ blijft verantwoordelijk voor wat er staat; kijk er af en toe naar (vraag de AI "
 
 - **Via de AI,** voor ouders: vraag de AI een notitie te verwijderen, of alles van een vak of van het kind
   (`delete_context`, `clear_context`). Hij vraagt eerst om bevestiging. De AI van een leerling kan alleen notities
-  verwijderen die niet alleen voor ouders zijn.
+  verwijderen die niet alleen voor ouders zijn en niet door een ouder zijn geschreven of gewijzigd.
 
 **Hoe lang notities blijven.** Notities bij een les (huiswerkitem) verdwijnen met het item, 14 dagen nadat het uit het
 opgehaalde venster is verdwenen. Een omstandigheid wordt verwijderd zodra haar einddatum vóór de eerste dag van de periode
@@ -752,16 +753,16 @@ omstandigheden tellen niet mee; notities alleen voor ouders wel, ook als een lee
 
 **Voorbeeldgesprekken** (de assistent spreekt standaard Nederlands):
 
-> **Ouder:** Onthoud dat Anna voor Engels Stepping Stones gebruikt en dat de woordjes in WRTS staan.
+> **Ouder:** Onthoud dat mijn kind voor Engelse taal Stepping Stones gebruikt en dat de woordjes in WRTS staan.
 >
-> **Assistent:** Ik sla bij het vak Engels op: "Stepping Stones; woordjes in WRTS". Dat mag ook door Anna's eigen
-> assistent worden gelezen. Zal ik dat doen?
+> **Assistent:** Ik sla bij het vak Engelse taal op: "Stepping Stones; woordjes in WRTS". Dat mag ook door de assistent van het kind
+> zelf worden gelezen. Zal ik dat doen?
 >
 > **Ouder:** Ja.
 >
-> **Assistent:** Opgeslagen. Ik gebruik dit voortaan bij het plannen van Engels.
+> **Assistent:** Opgeslagen. Ik gebruik dit voortaan bij het plannen van Engelse taal.
 
-> **Ouder:** Zet erbij dat Anna volgende week ADHD-medicatie krijgt en daarom moe is.
+> **Ouder:** Zet erbij dat mijn kind volgende week ADHD-medicatie krijgt en daarom moe is.
 >
 > **Assistent:** Dat sla ik niet op: gezondheidsinformatie hoort niet in de notities. Wil je wel dat ik rekening houd met
 > de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, eventueel met een lager

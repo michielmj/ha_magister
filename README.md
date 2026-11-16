@@ -366,10 +366,11 @@ show_progress_next_week: false
   in the subtask row ("30 min"). Each day heading shows the planned time of that day, for example
   "± 1 h 15 min planned": the sum of the estimates of all subtasks (done or not) whose current day it is,
   left out when it is 0. When the sum is above the child's **daily maximum** (Configure, Daily study maximum,
-  default 90 minutes) it is shown with a warning icon, highlight and the visible text "/ max 1 h 30 min" (also on touch screens), and
-  screen readers add "over daily maximum (1 h 30 min)". Since 1.8.0 a day on which an AI-coach circumstance (see *Context*)
-  sets another maximum uses that maximum instead: the "/ max ..." text is dotted underlined with a tooltip and screen
-  reader text "adjusted daily maximum (1 h)" (no reason is shown). The minutes of overdue subtasks count toward their (past)
+  default 90 minutes) it is shown with a warning icon, highlight and the visible text "/ max 1 h 30 min" (also on touch
+  screens), and screen readers add "over daily maximum (1 h 30 min)". Since 1.8.0 a day on which an AI-coach
+  circumstance (see *Context*) sets another maximum uses that maximum instead: the whole day total is dotted
+  underlined, with a tooltip, the visible text "/ max 1 h (adjusted)" and screen reader text "adjusted daily maximum
+  (1 h)" (no reason is shown). The minutes of overdue subtasks count toward their (past)
   day; the Overdue group itself shows no total. Changes show at once and are rolled back with a message if saving fails.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
 
@@ -654,14 +655,13 @@ card). There are four kinds:
 - **circumstance**: a note for a **period**, with a start and an end date inside the period the calendar and the
   card cover (the weeks back to the weeks ahead in the options), for example "wo 18 nov: zwemwedstrijd".
 
-**Daily maximum.** A circumstance can also set a **daily maximum** (0 to 480 minutes in steps of 15) for its days. The
+**Daily maximum.** A circumstance can also set a **daily maximum**, higher or lower than the normal one (0 to 480 minutes in steps of 15), for its days. The
 AI then plans within it, `get_overview` shows it, and the **card uses it**: the day's planned time is compared with it, the
-warning and the text "/ max ..." show it, and an underline with a tooltip (and screen reader text "aangepast dagmaximum" /
-"adjusted daily maximum") tells that the maximum of that day was adjusted. No reason is shown in the card. When circumstances
+warning and the text "/ max ..." show it, and the text "(adjusted)", an underline and a tooltip (and screen reader text "adjusted daily maximum") tell that the maximum of that day was adjusted. No reason is shown in the card. When circumstances
 overlap, the lowest maximum wins. A day without a circumstance uses the child's daily maximum.
 
 **Notes for parents only.** A parent can mark a note **"alleen ouders"**. The student's AI never receives such a note:
-not its text, not its subject, and the note does not show in any tool or in the prompt. If such a circumstance changes
+not its text, not its subject, and the note does not show in any tool or in the prompt (only the id, without text, in `get_overview` on days where such a circumstance decides the maximum). If such a circumstance changes
 the maximum of a day, the student's AI does see the adjusted maximum for that day, without the reason (and it is not told
 about the circumstance at all when the maximum stays the same). Hidden notes do count towards the limit below.
 
@@ -671,7 +671,7 @@ about the circumstance at all when the maximum stays the same). Hidden notes do 
 |---|---|---|
 | Read notes | the notes that are not parents-only | all notes |
 | Add, change and delete notes | notes that are not parents-only | all notes |
-| Change a note a parent wrote | no | yes |
+| Change or delete a note a parent wrote or last changed | no | yes |
 | Make a note "alleen ouders" | no | yes |
 | Delete all notes of a subject or a child (`clear_context`) | no | yes, after the AI has asked you to confirm |
 
@@ -693,15 +693,14 @@ what should not be there.
 
 **Deleting context.**
 
-- **In Home Assistant:** Settings, Devices & services, Magister, **Configureer**, **AI-coach**, **Context wissen**
-  (English UI: Configure, AI coach, Clear context). Choose the child, then a subject (including the notes of its lessons) or
-  leave it empty for all context of the child. The next screen shows how many notes will be deleted; select **Verzenden**
-  (Submit) to delete them.
+- **In Home Assistant:** Settings, Devices & services, Magister, **Configure**, **AI coach**, **Clear context**. Choose the child, then a subject (including the notes of its lessons) or
+  leave it empty for all context of the child. The next screen shows how many notes will be deleted; select **Submit**
+  to delete them.
 - **A service,** for example at the end of the school year. It returns the number of deleted notes and can be called by
   administrators (an automation runs as one):
 
   ```yaml
-  alias: Wis AI-coachcontext aan het einde van het schooljaar
+  alias: Clear AI coach context at the end of the school year
   triggers:
     - trigger: time
       at: "06:00:00"
@@ -718,7 +717,7 @@ what should not be there.
 
 - **Through the AI,** for parents: ask the AI to delete a note, or everything of a subject or the child
   (`delete_context`, `clear_context`). It asks you to confirm first. A student's AI can only delete notes that are not
-  parents-only.
+  parents-only and were not written or last changed by a parent.
 
 **How long notes are kept.** Notes of a lesson (homework item) are removed with the item, 14 days after it left the fetched
 window. A circumstance is removed once its end date lies before the first day of the period the card covers (it stays
@@ -736,16 +735,16 @@ asks you to delete a note first.
 
 **Example conversations** (the assistant speaks Dutch by default):
 
-> **Parent:** Onthoud dat Anna voor Engels Stepping Stones gebruikt en dat de woordjes in WRTS staan.
+> **Parent:** Onthoud dat mijn kind voor Engelse taal Stepping Stones gebruikt en dat de woordjes in WRTS staan.
 >
-> **Assistant:** Ik sla bij het vak Engels op: "Stepping Stones; woordjes in WRTS". Dat mag ook door Anna's eigen
-> assistent worden gelezen. Zal ik dat doen?
+> **Assistant:** Ik sla bij het vak Engelse taal op: "Stepping Stones; woordjes in WRTS". Dat mag ook door de assistent van het kind
+> zelf worden gelezen. Zal ik dat doen?
 >
 > **Parent:** Ja.
 >
-> **Assistant:** Opgeslagen. Ik gebruik dit voortaan bij het plannen van Engels.
+> **Assistant:** Opgeslagen. Ik gebruik dit voortaan bij het plannen van Engelse taal.
 
-> **Parent:** Zet erbij dat Anna volgende week ADHD-medicatie krijgt en daarom moe is.
+> **Parent:** Zet erbij dat mijn kind volgende week ADHD-medicatie krijgt en daarom moe is.
 >
 > **Assistant:** Dat sla ik niet op: gezondheidsinformatie hoort niet in de notities. Wil je wel dat ik rekening houd met
 > de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, eventueel met een lager

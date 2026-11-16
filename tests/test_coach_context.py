@@ -1006,6 +1006,27 @@ async def test_card_payload_has_daily_max_overrides(
     assert build_payload(manager, 1002, available=True)["daily_max_overrides"] == {}
 
 
+async def test_period_equal_to_the_normal_maximum_is_no_override(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """A period that leaves the maximum as it is does not mark the day."""
+    manager = home.entry.runtime_data.homework
+    normal = manager.daily_max(1001)
+    for visibility in ("all", "parents"):
+        await add(
+            hass,
+            home.parent,
+            scope="period",
+            start="2026-11-16",
+            end="2026-11-17",
+            daily_max_minutes=normal,
+            text="Gelijk",
+            visibility=visibility,
+        )
+    assert build_payload(manager, 1001, available=True)["daily_max_overrides"] == {}
+    assert manager.context.daily_max_overrides(1001) == {}
+
+
 async def test_payload_is_pushed_to_subscribers(
     hass: HomeAssistant, home: Home
 ) -> None:
@@ -1203,6 +1224,7 @@ async def test_student_never_sees_parents_only_notes(
     assert day["daily_max_minutes"] == 30
     assert day["daily_max_period"] == {"id": hidden[3]["id"]}
     # The hidden period is named only on the days it decides.
+    normal = home.entry.runtime_data.homework.daily_max(1001)
     wide = await ok(
         hass, student.id, "get_overview", start="2026-11-13", end="2026-11-27"
     )
@@ -1214,10 +1236,7 @@ async def test_student_never_sees_parents_only_notes(
             else None
         ), day["date"]
         if named is None:
-            assert day["daily_max_minutes"] != 30 or day["date"] not in (
-                "2026-11-16",
-                "2026-11-17",
-            )
+            assert day["daily_max_minutes"] == normal, day["date"]
     assert "30" in api.api_prompt  # the number is shown, not the text
     # list_homework carries no parents-only notes.
     homework = await ok(hass, student.id, "list_homework", include_completed=True)

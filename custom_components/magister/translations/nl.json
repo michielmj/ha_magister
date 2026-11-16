@@ -335,7 +335,7 @@
       },
       "coach_context_confirm": {
         "title": "Context van {child} verwijderen?",
-        "description": "{count} notities worden verwijderd. Dit kan niet ongedaan worden gemaakt. Vak: {subject} (– betekent alle context). Kies Verzenden om ze te verwijderen."
+        "description": "{count} notities worden verwijderd. Dit kan niet ongedaan worden gemaakt. Vak: {subject} (– betekent alle context). Kies Verzend om ze te verwijderen."
       }
     },
     "error": {
