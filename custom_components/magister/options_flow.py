@@ -802,7 +802,7 @@ class MagisterOptionsFlow(OptionsFlow):
             description_placeholders={
                 "child": self._child_names()[self._context_child],
                 "count": str(book.count(self._context_child, self._context_subject)),
-                "subject": self._context_subject or "–",
+                "subject": self._context_subject or "\u2013",
             },
         )
 
