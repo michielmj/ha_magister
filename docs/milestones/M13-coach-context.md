@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-16)** |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | M10–M12 · `custom_components/magister/coach.py` · `docs/reference/homework-websocket.md` |
 
@@ -20,6 +20,7 @@ Examples are the books and tools in use ("Engels: Stepping Stones, woordjes in W
 | 4 | Context is reached **only through the AI**, with no card UI in this version. There is also a **function to delete all context of a subject or a child**. |
 | 5 | Privacy: the AI gets clear **instructions on what must not be stored** (below). Item notes are removed with their item, circumstances after their end date, and child and subject notes when someone deletes them. |
 | 6 | Limits: **500 characters** per note, **50 notes** per child. Expired circumstances don't count. |
+| 7 | Circumstances cover the **same period as the calendar and the homework card**: the sync window (weeks back to weeks ahead, from the options). |
 
 ## Data model
 - Context is stored per config entry and child, in the existing homework store under a new `context` key. The store minor
@@ -35,8 +36,10 @@ Examples are the books and tools in use ("Engels: Stepping Stones, woordjes in W
     subject the child doesn't have (`unknown_subject`). They check against the subjects in the fetched window and in
     existing notes.
   - `item` is an appointment id. Item notes are pruned together with the item's other planner data.
-  - `period`: `start` ≤ `end`, each a local date; it can last at most 92 days.
-    - It is pruned when `end` is before today.
+  - `period`: `start` ≤ `end`, each a local date, both inside the **sync window**: the same period as the calendar and
+    the homework card, from the weeks back to the weeks ahead in the options. Otherwise the tools return `invalid_period`.
+    - It is pruned when `end` is before the start of the sync window, so it stays visible on past days the card shows ("Eerder").
+    - It expires, and no longer counts towards the 50-note limit, once `end` is before today.
     - An optional `daily_max_minutes` (0–480, step 15) applies to every day in the period.
     - When several periods overlap, the lowest maximum wins.
   - `visibility: "parents"` can only be set by a user with the Ouder role.
@@ -73,7 +76,7 @@ All tools stay scoped to the caller's accessible children, as in M10–M12.
 ## Prompt
 - For each accessible child, the prompt includes:
   - the child-level notes;
-  - the circumstances from today to today + 14 days;
+  - the circumstances in the sync window that have not yet ended;
   - the effective maximum per day where it differs from the normal one.
 
   It includes only what the caller may see. Subject and item notes are read through the tools, which keeps the prompt short.
@@ -100,7 +103,7 @@ All tools stay scoped to the caller's accessible children, as in M10–M12.
 
 ## Card
 - No UI for the notes themselves.
-- The payload gains `daily_max_overrides: {"YYYY-MM-DD": minutes}` for dates in the shown window. The day total and warning
+- The payload gains `daily_max_overrides: {"YYYY-MM-DD": minutes}` for all dates in the sync window, including past days. The day total and warning
   use the effective maximum.
 - The contract is updated; the card change is small.
 
