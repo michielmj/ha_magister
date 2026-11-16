@@ -419,13 +419,61 @@ the MCP Server options say, and it can control the entities exposed to Assist. T
 Settings, Voice assistants, **Expose**. The coach tools also work with Home Assistant's own
 conversation agents.
 
-### Connect the Claude desktop app
+### Connect Claude
 
-Create a **long-lived access token** on the student's own Home Assistant profile (profile, Security,
-Long-lived access tokens). Which method works for you depends on how Home Assistant is reachable.
+Which method works depends on how Home Assistant is reachable. Use the **remote connector** if Home Assistant
+can be reached over HTTPS from the internet; otherwise use the **local bridge** (below).
 
-**A. Local bridge (works on your home network; try this first).** Claude desktop starts local MCP servers
-from `claude_desktop_config.json` (in the app: Settings, Developer, Edit config; on macOS
+#### Remote connector (recommended)
+
+Claude connects from Anthropic's cloud, so Home Assistant must be reachable from the internet on the standard
+HTTPS port **443** (for example Home Assistant Cloud or a reverse proxy). This was tested end to end with Claude.
+
+1. **Check the Home Assistant settings first.**
+   - On the student's (or parent's) Home Assistant user (Settings, People, the person), turn **Local access only** ("Can only log in from the local network") **off** and press **Update**. Claude arrives from the internet, so a local-only user cannot sign in.
+   - In the MCP Server, **Require an administrator account** must be **off**. Press **Submit** for the **last**
+     time with this setting off: a later Submit (for example after choosing the API) can set it back.
+   - **Behind a reverse proxy** (for example the NGINX Home Assistant SSL proxy app (add-on)) add this to
+     `configuration.yaml` and restart. Both settings are **required**:
+
+     ```yaml
+     http:
+       use_x_forwarded_for: true
+       trusted_proxies:
+         - 172.30.33.0/24   # the NGINX Home Assistant SSL proxy app (add-on) network
+     ```
+
+     Without them Home Assistant does not trust the proxy's forwarding headers: it refuses the request or does not know it came in over https://, so its sign-in addresses do not point to your public address and Claude's registration fails with "Couldn't register". 172.30.33.0/24 is the network of the NGINX app (add-on); use the address of your own proxy otherwise. Only list proxies you trust. Also enter your public https:// address under Settings, System, Network, **Home Assistant URL**, **Internet**: Home Assistant only uses it for the sign-in addresses when it matches the request.
+2. **Add the connector in Claude:** Settings, Connectors, **Add custom connector**. Name it, and as URL use
+   `https://<your HA>/api/mcp` (your public `https://` address, not the one at home).
+3. **Sign in.** Set Authentication to **Sign in now**. In the advanced settings keep the OAuth client on
+   **Use Claude's published identity** (the default) and add no headers. Home Assistant's sign-in page opens: log in
+   as the student's or parent's own user.
+   - **Fallback:** if that fails, choose **Use your own OAuth client** with Client ID `https://claude.ai/` and
+     **no secret**. Home Assistant accepts a client ID on the same host as the return address.
+4. **Enable and link the coach in each Magister login.** With several Magister logins, open **Configure**, **AI
+   coach**, **Settings per child** on **each** login, and enable the coach and link the user for the children there. A
+   login where it is not done is invisible to the AI.
+
+**Troubleshooting the connector**
+
+- **"Couldn't reload tools from the server"**: the user is probably refused. Check that **Require an
+  administrator account** is off in the MCP Server (saved with the last Submit) and that **Local access only** is off for the user.
+- **"Not linked" or "coach not enabled"** (`not_linked`, `coach_not_enabled` in the tools): the user is not linked to
+  any child, or only to children whose coach is off. Link the user, and turn **AI coach enabled** on, under Magister,
+  Configure, AI coach, Settings per child, in every Magister login that has the child.
+- **"Couldn't register"**: check the reverse-proxy settings first. Open
+  `https://<your HA>/.well-known/oauth-authorization-server` from **outside** your network (for example on a phone
+  without Wi-Fi). All addresses in it must start with your public `https://` address. If they show an internal
+  address, fix `use_x_forwarded_for` and `trusted_proxies` (and check Home Assistant URL, Internet) and restart. Then try again, and if needed use the
+  fallback client ID above.
+
+#### Alternative: local bridge
+
+Use this when Home Assistant is only reachable at home. Create a **long-lived access token** on the student's
+own Home Assistant profile (profile, Security, Long-lived access tokens).
+
+Claude desktop starts local MCP servers from `claude_desktop_config.json` (in the app: Settings, Developer, Edit config; on macOS
 `~/Library/Application Support/Claude/claude_desktop_config.json`, on Windows
 `%APPDATA%\Claude\claude_desktop_config.json`). A small bridge,
 [`mcp-proxy`](https://github.com/sparfenyuk/mcp-proxy), connects it to Home Assistant. Install it with
@@ -473,17 +521,6 @@ mishandles. Keep `--allow-http` only for a plain `http://` address; remove it fo
 > bridge. Verify the flags with `mcp-proxy --help` (or `npx mcp-remote --help`); they can differ per version.
 > Use the main address `/api/mcp`, not `/api/mcp/magister_coach`: that one needs an administrator.
 
-**B. Remote connector (only when Home Assistant is reachable over HTTPS).** In Claude (Settings,
-Connectors, add a custom connector) use `https://<your-home-assistant>/api/mcp`. Claude connects from
-Anthropic's cloud, so the address must be reachable from the internet on the standard HTTPS port 443
-(for example Home Assistant Cloud or a reverse proxy); it does not work for a Home Assistant that is only at
-home. Sign in with the student's Home Assistant account, or, if sign-in fails, give the connector a request
-header `Authorization: Bearer <long-lived token>`.
-
-> **Not verified.** Home Assistant has no dynamic client registration, so the sign-in only works if Claude
-> supports it through its published client identity; the header variant is untested. Treat this method as
-> experimental.
-
 ### Privacy and age
 
 - **Age and terms.** A student may only use their own AI account where the AI provider's terms allow it
@@ -505,6 +542,7 @@ header `Authorization: Bearer <long-lived token>`.
 - **The token.** The same applies to a parent's Home Assistant user. A long-lived token is stored in plain text in the Claude configuration on that computer.
   Use **HTTPS** wherever you can: with `http://` the token travels unencrypted over your network. Revoke the
   token on the profile when it is no longer needed.
+- **The remote connector.** Claude (Anthropic's cloud) keeps a sign-in of the user with the same access as the user, and turning **Local access only** off lets that user sign in from the internet. Use a strong password, and revoke the sign-in on the user's profile (Security, **Refresh tokens**) when it is no longer needed.
 - Nothing is written to Magister, and the coach cannot change settings or weights.
 
 ### Coaching guidelines
@@ -549,7 +587,7 @@ the same MCP Server setup as above (main endpoint `/api/mcp`); only the role dif
 2. **Set the daily maximum** per child: Configure, **Daily study maximum**, choose the child and enter the study
    minutes per school day (15 to 480 in steps of 15, default 90). The AI plans within it and the card
    compares each day's planned time with it.
-3. **Connect the AI app** with your own long-lived token, as described under *Connect the Claude desktop app*.
+3. **Connect the AI app** as described under *Connect Claude* (the remote connector signs in as your own user; the local bridge uses your own long-lived token).
 
 **What the parent's AI can do.** It sees the same data as the student coach (no teacher names or codes), only for
 the children your user is linked to. It can:

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 1.7.1
+
+AI coach fixes from the live test. Released 2026-11-15.
+
+- **Shorter overdue list.** `list_homework` without `start` lists the open overdue items of the last 7 days only. The
+  new argument `overdue_days` (1 to 35, default 7) widens the window; `include_overdue: false` still switches it off.
+- **Cancelled lessons are never overdue.** They are still listed, marked `cancelled: true`, inside a requested
+  `start`-`end` window.
+- **`coach_not_enabled`.** A user who is linked to a child whose coach is not enabled (and to no enabled child) now
+  gets this error, with a message that says where an administrator can enable it. The message and the prompt name no
+  child. `not_linked` stays for users without any link.
+- **README (NL/EN).** "Connect Claude" now starts with the remote connector (verified): URL, "Sign in now",
+  Claude's published identity or the fallback client ID, the required `use_x_forwarded_for` / `trusted_proxies`
+  settings behind a reverse proxy, user and MCP Server settings, and a troubleshooting list. The local bridge is the
+  alternative.
+
 ## 1.7.0
 
 Parent study planner. Released 2026-11-14.

@@ -76,6 +76,23 @@ CHANGELOG, version tagging, GitHub release, HACS validation green.
 - Proper fix for shared children: put the account id in the calendar unique_id/device identifier, with a
   config-entry migration (so two parents can each add the same child).
 
+## Follow-ups from the PM's live test of the AI coach (2026-11-15), for 1.7.1
+- `list_homework`: the default overdue list can be very long (all open past items in the sync window, e.g. ~35
+  for a child who never ticks). Default to the last 7 days, with the rest on request.
+- `list_homework`: cancelled lessons are listed as overdue open items; exclude them.
+- A user linked to a child whose coach is not enabled gets "not linked"; give a clearer message
+  ("linked, but the AI coach is not enabled for this child").
+- README, connecting Claude (verified by the PM with a remote connector):
+  - the connector URL is `https://<ha>/api/mcp`;
+  - "Use Claude's published identity" works once the reverse-proxy settings are right (before that: "couldn't
+    register"); "Use your own OAuth client" with client ID `https://claude.ai/` also works, as a fallback;
+  - behind the NGINX add-on, `use_x_forwarded_for` and `trusted_proxies` (172.30.33.0/24) are needed;
+  - "Require an administrator account" off, saved with the last Submit;
+  - "Local access only" must be off for the user;
+  - with several Magister logins, enable and link the coach in each entry.
+- Verified live: parent role, subtasks with minutes and `created_by: parent`, refused `set_progress`,
+  `invalid_minutes`, cross-child refusal, over-maximum, labels and overrides, and their cleanup.
+
 ## Risks
 
 | Risk | Impact | Mitigation |

@@ -14,6 +14,7 @@ import pytest
 from aioresponses import aioresponses
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.auth.const import GROUP_ID_USER
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import llm
@@ -215,6 +216,16 @@ async def test_minutes_schema_is_integer_or_null(hass: HomeAssistant) -> None:
         assert "minutes" not in schema.get("required", [])
 
 
+async def test_overdue_days_schema_is_integer(hass: HomeAssistant) -> None:
+    """MCP shows ``overdue_days`` as an integer; the shared check decides the range."""
+    tools = {t.name: t for t in coach_tools()}
+    schema = probatio.to_openapi(
+        tools["list_homework"].parameters, openapi_version="3.1.0"
+    )
+    assert schema["properties"]["overdue_days"]["type"] == "integer"
+    assert "overdue_days" not in schema.get("required", [])
+
+
 # -- access -----------------------------------------------------------------------
 
 
@@ -254,7 +265,8 @@ async def test_disabled_coach_and_inactive_user_have_no_access(
         mocked,
         coach_options(**{"1001": {"enabled": False, "users": [user.id]}}),
     )
-    assert await fails(hass, user.id, "list_homework") == "not_linked"
+    # Linked, but the coach is off: a clearer error, which names no child.
+    assert await fails(hass, user.id, "list_homework") == "coach_not_enabled"
     # Changing the options applies at once, without a reload.
     runtime = entry.runtime_data
     hass.config_entries.async_update_entry(
@@ -274,6 +286,55 @@ async def test_disabled_coach_and_inactive_user_have_no_access(
         options=coach_options(**{"1001": {"enabled": True, "users": []}}),
     )
     assert await fails(hass, user.id, "get_progress") == "not_linked"
+    # An inactive user is not told anything about the linking.
+    hass.config_entries.async_update_entry(
+        entry,
+        options=coach_options(**{"1001": {"enabled": False, "users": [user.id]}}),
+    )
+    await hass.auth.async_update_user(user, is_active=False)
+    assert await fails(hass, user.id, "get_progress") == "not_linked"
+
+
+async def test_not_enabled_only_for_loaded_active_users(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Not loaded entry, system user, inactive user: `not_linked`, nothing announced."""
+    unloaded = await make_user(hass, "Ontladen")
+    other = await make_user(hass, "Ander")
+    system = await hass.auth.async_create_system_user("Systeem")
+    inactive = await make_user(hass, "Inactief")
+    await setup_coach(
+        hass,
+        mocked,
+        coach_options(
+            **{
+                "1001": {
+                    "enabled": False,
+                    "users": [system.id, inactive.id],
+                    "parents": [other.id],
+                }
+            }
+        ),
+    )
+    # A second entry that is not loaded, with a disabled child linked to `unloaded`.
+    idle = make_entry(
+        children=[(2001, "Cas C")],
+        unique_id="idle",
+        options=coach_options(**{"2001": {"enabled": False, "users": [unloaded.id]}}),
+    )
+    idle.add_to_hass(hass)
+    assert idle.state is not ConfigEntryState.LOADED
+    # Linked to a disabled child: announced while active and loaded.
+    assert await fails(hass, inactive.id, "get_progress") == "coach_not_enabled"
+    # An inactive user's prompt does not say "not enabled".
+    await hass.auth.async_update_user(inactive, is_active=False)
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(inactive.id))
+    assert "not enabled" not in api.api_prompt
+    assert await fails(hass, inactive.id, "get_progress") == "not_linked"
+    # A system user is never told anything about the linking.
+    assert await fails(hass, system.id, "get_progress") == "not_linked"
+    # An entry that is not loaded does not count.
+    assert await fails(hass, unloaded.id, "get_progress") == "not_linked"
 
 
 async def test_user_of_child_a_cannot_touch_child_b(
@@ -478,6 +539,133 @@ async def test_overdue_items(hass: HomeAssistant, student: Any) -> None:
     # An `end` before today still bounds the overdue items.
     bounded = await ok(hass, student.id, "list_homework", end="2026-11-05")
     assert all(i["date"] <= "2026-11-05" for i in bounded["items"])
+
+
+async def test_overdue_window(hass: HomeAssistant, student: Any) -> None:
+    """Default 7 days back (today 13 Nov: from 6 Nov), `overdue_days` widens it."""
+
+    async def dates(**args: Any) -> list[str]:
+        data = await ok(hass, student.id, "list_homework", **args)
+        return [i["date"] for i in data["items"] if i["date"] < "2026-11-13"]
+
+    default = await dates()
+    assert default
+    assert min(default) == "2026-11-06"
+    assert await dates(overdue_days=7) == default
+    assert min(await dates(overdue_days=1)) == "2026-11-12"
+    assert set(await dates(overdue_days=1)) == {"2026-11-12"}
+    assert min(await dates(overdue_days=35)) < "2026-11-06"
+    assert len(await dates(overdue_days=35)) > len(default)
+    # Switched off, or a start date: no overdue part.
+    assert await dates(include_overdue=False) == []
+    assert await dates(overdue_days=35, include_overdue=False) == []
+    assert await dates(start="2026-11-13", overdue_days=35) == []
+
+
+async def test_overdue_minimum_uses_the_local_date(
+    hass: HomeAssistant, student: Any, freezer: FrozenDateTimeFactory
+) -> None:
+    """23:30 UTC on 12 Nov is 13 Nov in Amsterdam: overdue starts 7 days before that."""
+    freezer.move_to("2026-11-12T23:30:00+00:00")
+    data = await ok(hass, student.id, "list_homework")
+    dates = [i["date"] for i in data["items"] if i["date"] < "2026-11-13"]
+    assert min(dates) == "2026-11-06"
+
+
+@pytest.mark.parametrize("value", [0, 36, -1, 7.5, "7", True, None])
+async def test_overdue_days_invalid(
+    hass: HomeAssistant, student: Any, value: Any
+) -> None:
+    """Outside 1 to 35, or not a whole number: invalid_format."""
+    assert (
+        await fails(hass, student.id, "list_homework", overdue_days=value)
+        == "invalid_format"
+    )
+
+
+async def test_cancelled_items_are_not_overdue(
+    hass: HomeAssistant, student: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A cancelled lesson is never overdue, but listed inside a requested window."""
+    manager = student.entry.runtime_data.homework
+    real = type(manager).items
+    target = "100057"  # 12 Nov, overdue
+
+    def items(self: Any, child_id: int) -> Any:
+        return [
+            dataclasses.replace(i, cancelled=True)
+            if i.appointment_id == int(target)
+            else i
+            for i in real(self, child_id)
+        ]
+
+    monkeypatch.setattr(type(manager), "items", items)
+    default = await ok(hass, student.id, "list_homework")
+    assert target not in {i["id"] for i in default["items"]}
+    wide = await ok(hass, student.id, "list_homework", overdue_days=35)
+    assert target not in {i["id"] for i in wide["items"]}
+    window = await ok(
+        hass, student.id, "list_homework", start="2026-11-12", end="2026-11-12"
+    )
+    item = next(i for i in window["items"] if i["id"] == target)
+    assert item["cancelled"] is True
+
+
+async def test_coach_not_enabled_vs_not_linked(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Linked only to disabled children: `coach_not_enabled`; no names anywhere."""
+    off = await make_user(hass, "Uit")
+    mixed = await make_user(hass, "Gemengd")
+    stranger = await make_user(hass, "Vreemde")
+    await setup_coach(
+        hass,
+        mocked,
+        coach_options(
+            **{
+                "1001": {"enabled": False, "users": [off.id], "parents": [mixed.id]},
+                "1002": {"enabled": True, "users": [mixed.id]},
+            }
+        ),
+        two=True,
+    )
+    calls: list[tuple[str, dict[str, Any]]] = [
+        ("get_schedule", {"start": "2026-11-13", "end": "2026-11-14"}),
+        ("get_overview", {"start": "2026-11-13", "end": "2026-11-14"}),
+        ("list_homework", {}),
+        ("get_progress", {}),
+        ("list_label_options", {}),
+        ("add_subtask", {"item": PROEFWERK, "title": "x"}),
+        ("update_subtask", {"subtask": f"{PROEFWERK}:sub:1", "title": "x"}),
+        ("delete_subtask", {"subtask": f"{PROEFWERK}:sub:1"}),
+        ("set_progress", {"id": PROEFWERK, "progress": 50}),
+        ("add_label", {"appointment": PROEFWERK, "label": "SO"}),
+        ("remove_label", {"appointment": PROEFWERK, "label": "SO"}),
+        ("set_label_override", {"appointment": PROEFWERK, "mode": "clear"}),
+    ]
+    for user, code in ((off, "coach_not_enabled"), (stranger, "not_linked")):
+        for tool, args in calls:
+            result = await call(hass, user.id, tool, **args)
+            assert result.error, tool
+            assert result.data["error"] == code, tool
+            assert "Anna" not in result.data["message"]
+            assert "Bram" not in result.data["message"]
+        listed = await ok(hass, user.id, "list_children")
+        assert listed["children"] == []
+        assert ("Settings per child" in listed["message"]) is (
+            code == "coach_not_enabled"
+        )
+        api = await llm.async_get_api(hass, COACH_API_ID, llm_context(user.id))
+        assert ("coach is not enabled" in api.api_prompt) is (
+            code == "coach_not_enabled"
+        )
+        assert "Anna" not in api.api_prompt
+        assert "Bram" not in api.api_prompt
+    # Linked to one enabled child as well: that child works, nothing is announced.
+    data = await ok(hass, mixed.id, "list_children")
+    assert [c["id"] for c in data["children"]] == ["1002"]
+    api = await llm.async_get_api(hass, COACH_API_ID, llm_context(mixed.id))
+    assert "not enabled" not in api.api_prompt
 
 
 # -- write tools ------------------------------------------------------------------
