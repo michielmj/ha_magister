@@ -747,6 +747,18 @@ class ContextBook:
         updated = replace(note, **changes)
         if updated == note:
             return note, False
+        if (
+            protect_maximum
+            and updated.daily_max_minutes is not None
+            and updated.visibility == VISIBILITY_PARENTS
+            and note.visibility != VISIBILITY_PARENTS
+        ):
+            raise ContextError(
+                ERR_INVALID_FORMAT,
+                "A circumstance with a daily maximum stays visible to the student "
+                "(`visibility` `all`): the student decides about their own time. "
+                "Remove the maximum in the same call to make it parents-only.",
+            )
         if protect_maximum and updated.daily_max_minutes is not None:
             assert updated.start and updated.end and note.start and note.end
             if updated.start < note.start or updated.end > note.end:

@@ -361,6 +361,9 @@ Changes to the coach tools:
   refuses with `use_proposal` (nothing changes) a change of `start`/`end` of a circumstance that has a maximum when the new
   days include a day outside the current days (moving or extending); shortening is allowed, and so is changing the days
   together with `daily_max_minutes: null`. Circumstances without a maximum can be moved freely.
+  A circumstance with a maximum always has `visibility: "all"` (the student decides about their own time): `update_context`
+  refuses `visibility: "parents"` for it with `invalid_format`, unless the same call sets `daily_max_minutes: null`. An accepted
+  proposal creates a visible note.
 - New tools (all take the optional `child`):
 
 | Tool | Annotations | Notes |
@@ -369,7 +372,7 @@ Changes to the coach tools:
 | `propose_daily_max(kind, reason, start?, end?, minutes?, weekdays?)` | write | `kind` `period` needs `start`, `end` (inside the sync window, `start` tomorrow or later) and `minutes`; `weekdays` needs `weekdays` (seven integers, Monday first). A field of the other kind is `invalid_format`. Result `{"child", "proposal", "message"}` |
 | `respond_to_proposal(id, answer)` | write, destructive (accepting replaces weekday values), not idempotent | `answer` `accept` or `reject`. The description tells the AI to call it only after the person who may answer (the student, or the parent for a child without an active Leerling user) said yes or no explicitly in this conversation. Same rights as the WebSocket command; for a parent's AI while the child has an active Leerling user: `not_allowed_for_role` |
 
-Errors: `use_proposal`, `invalid_format` (kind, fields, a period without `start` and `end`, an unchanged `weekdays`, an exact duplicate of an open proposal, the reason: 1 to 100 characters; the reason is shown to the student), `invalid_period`,
+Errors: `use_proposal`, `invalid_format` (kind, fields, a period without `start` and `end`, an unchanged `weekdays`, a duplicate of an open proposal (same kind, days and minutes or weekdays; the reason is ignored), the reason: 1 to 100 characters; the reason is shown to the student), `invalid_period`,
 `invalid_daily_max` (a value that is not 0–480 in steps of 15), `too_many_proposals` (5 open per child), `proposal_not_found`,
 `proposal_closed`, `not_allowed_for_role`, `too_many_notes`.
 

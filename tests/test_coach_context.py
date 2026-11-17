@@ -485,6 +485,35 @@ async def test_ai_cannot_set_a_daily_maximum(hass: HomeAssistant, home: Home) ->
     assert check_daily_max(45.0) == 45
 
 
+async def test_capped_circumstance_stays_visible(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """The AI cannot hide a circumstance that has a daily maximum from the student."""
+    parent = home.parent
+    capped = await add(
+        hass,
+        parent,
+        scope="period",
+        start="2026-11-16",
+        end="2026-11-17",
+        text="Toetsweek",
+        daily_max_minutes=60,
+    )
+    assert capped["visibility"] == "all"
+    result = await call(
+        hass, parent.id, "update_context", id=capped["id"], visibility="parents"
+    )
+    assert result.error and result.data["error"] == "invalid_format"
+    assert "visible to the student" in result.data["message"]
+    stored = (await notes(hass, parent))[0]
+    assert (stored["visibility"], stored["daily_max_minutes"]) == ("all", 60)
+    # Without a maximum it can be hidden, also in the same call that removes it.
+    plain = await add(
+        hass, parent, scope="period", start="2026-11-16", end="2026-11-17", text="x"
+    )
+    await ok(hass, parent.id, "update_context", id=plain["id"], visibility="parents")
+
+
 async def test_update_period_and_scope_fields(hass: HomeAssistant, home: Home) -> None:
     """Days can move inside the window; other scopes have no days or maximum."""
     parent = home.parent
@@ -562,8 +591,25 @@ async def test_period_from_before_the_window_can_be_edited(
         "2026-11-26",
         45,
     )
-    # Visibility alone does not look at the days either.
-    await ok(hass, parent.id, "update_context", id=period["id"], visibility="parents")
+    # A circumstance with a maximum stays visible to the student (M14).
+    code = await fails(
+        hass, parent.id, "update_context", id=period["id"], visibility="parents"
+    )
+    assert code == "invalid_format"
+    # Removing the maximum in the same call makes it parents-only; text and the
+    # visibility `all` are untouched by the rule.
+    await ok(hass, parent.id, "update_context", id=period["id"], text="Nieuw 2")
+    await ok(hass, parent.id, "update_context", id=period["id"], visibility="all")
+    await ok(
+        hass,
+        parent.id,
+        "update_context",
+        id=period["id"],
+        visibility="parents",
+        daily_max_minutes=None,
+    )
+    set_max(hass, period["id"], 45)  # a legacy parents-only circumstance with a maximum
+    await ok(hass, parent.id, "update_context", id=period["id"], text="Nieuw 3")
     # A given day must fit the window and the other (stored) day.
     for args, hint in (
         ({"start": "2026-11-08"}, "leave `start` out"),  # before the window

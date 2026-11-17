@@ -123,7 +123,8 @@ days; the lowest one wins, otherwise the weekday's maximum applies. get_overview
 the effective maximum per day. You cannot set a maximum on a note (`use_proposal`): \
 propose it with propose_daily_max. You also cannot move or extend the days of a \
 circumstance that has a maximum (`use_proposal`): that would put the maximum on new \
-days. You can shorten it, or remove its maximum in the same call."""
+days. You can shorten it, or remove its maximum in the same call. A circumstance \
+with a maximum stays visible to the student: you cannot make it `parents`-only."""
 
 PROPOSAL_RULES: Final = """\
 Proposals for the daily maximum:

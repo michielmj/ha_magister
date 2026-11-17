@@ -1469,7 +1469,8 @@ class UpdateContextTool(CoachTool):
         "`use_proposal` (the maximum would reach days the student did not agree to); "
         "remove the maximum in the same call, or make a proposal. Give "
         "at least one. A student cannot change a note made by a parent, and only a "
-        "parent can make a note `parents`-only. "
+        "parent can make a note `parents`-only, but not a circumstance that has a "
+        "daily maximum (`invalid_format`: the student decides about their own time). "
         f"{NOTE_TEXT_WARNING} " + CONTEXT_RULES_SHORT
     )
     parameters = _schema(

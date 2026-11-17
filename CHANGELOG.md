@@ -24,8 +24,11 @@ card and the README follow in phase B.
   deactivated, a system user or deleted), a user linked as Ouder or an administrator answers on the child's behalf
   ("namens het kind" in the logbook). A parent's AI cannot answer while the child has an active Leerling user. The AI also
   cannot move or extend the days of a circumstance that has a maximum (`use_proposal`); shortening it, or removing the
-  maximum in the same call, is allowed. A proposal reason is shown to the student: the AI is told to keep parents-only
-  information out of it. An exact duplicate of an open proposal is refused (`invalid_format`). `get_overview` days show the open proposal that covers them; the prompt lists the open proposals.
+  maximum in the same call, is allowed. A circumstance with a maximum always stays visible to the student: `update_context`
+  refuses `visibility: "parents"` for it (`invalid_format`). A proposal reason is shown to the student: the AI is told to
+  keep parents-only information out of it. A duplicate of an open proposal (same kind, days and minutes or weekdays; the reason is ignored)
+  is refused (`invalid_format`). `get_overview` days show the open proposal that covers them; the prompt lists the open
+  proposals.
 - **WebSocket.** New command `magister/homework/respond_proposal` (`entity_id`, `proposal`, `answer`) with the same rights
   check, using the user of the connection. The payload has `proposals`: the open ones and those answered or expired in the last
   14 days. New errors: `use_proposal`, `proposal_not_found`, `proposal_closed`, `too_many_proposals`. See

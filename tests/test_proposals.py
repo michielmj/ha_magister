@@ -61,6 +61,7 @@ from .test_coach import (
     ok,
     setup_coach,
 )
+from .test_coach_context import add
 
 RESPOND = "magister/homework/respond_proposal"
 THREE = [
@@ -1660,3 +1661,86 @@ async def test_pruned_proposals_leave_the_payload_and_the_list(
     assert (await ok(hass, home.student.id, "list_proposals", include_closed=True))[
         "proposals"
     ] == []
+
+
+async def test_expired_capped_note_cannot_be_extended(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """A circumstance with a maximum that has ended cannot be revived by the AI."""
+    note = await add(
+        hass,
+        home.parent,
+        scope="period",
+        start="2026-11-10",
+        end="2026-11-11",
+        text="Toets",
+        daily_max_minutes=45,
+    )
+    for args in ({"end": "2026-11-20"}, {"start": "2026-11-09"}):
+        code = await fails(
+            hass, home.parent.id, "update_context", id=note["id"], **args
+        )
+        assert code == "use_proposal", args
+    assert (await ok(hass, home.parent.id, "list_context", include_expired=True))[
+        "notes"
+    ][0]["end"] == "2026-11-11"
+
+
+async def test_remove_maximum_move_then_propose(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """null, then move, then propose: the way to give a circumstance new days."""
+    note = await add(
+        hass,
+        home.parent,
+        scope="period",
+        start="2026-11-16",
+        end="2026-11-17",
+        text="Toets",
+        daily_max_minutes=45,
+    )
+    assert (
+        await fails(
+            hass, home.parent.id, "update_context", id=note["id"], end="2026-11-24"
+        )
+        == "use_proposal"
+    )
+    cleared = await ok(
+        hass, home.parent.id, "update_context", id=note["id"], daily_max_minutes=None
+    )
+    assert cleared["note"]["daily_max_minutes"] is None
+    moved = await ok(
+        hass,
+        home.parent.id,
+        "update_context",
+        id=note["id"],
+        start="2026-11-23",
+        end="2026-11-27",
+    )
+    assert (moved["note"]["start"], moved["note"]["end"]) == (
+        PERIOD["start"],
+        PERIOD["end"],
+    )
+    view = await propose_period(hass, home.parent, minutes=120)
+    assert view["status"] == "proposed"
+    # The moved circumstance has no maximum until the student accepts.
+    assert manager(home).context.daily_max_overrides(1001) == {}
+
+
+async def test_duplicate_with_five_open_is_too_many(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """With five open proposals the answer for a duplicate is too_many_proposals."""
+    for n in range(MAX_OPEN):
+        await propose_period(hass, home.student, minutes=15 * n, reason=f"P{n}")
+    code = await fails(
+        hass,
+        home.student.id,
+        "propose_daily_max",
+        kind="period",
+        minutes=15 * (MAX_OPEN - 1),
+        reason="Ander woord",
+        child="1001",
+        **PERIOD,
+    )
+    assert code == "too_many_proposals"
