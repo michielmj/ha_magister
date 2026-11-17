@@ -137,10 +137,17 @@ def clean_weekdays(raw: Any, single: Any = None) -> tuple[int, ...]:
     ``raw`` is the stored ``daily_max_weekdays`` (seven values). Without a usable
     list, the single ``daily_max_minutes`` of 1.7 and 1.8 (``single``) is the value of
     every day: that is the migration. The default is 90 for every day.
+
+    ``single`` is also the mirror of Monday kept next to the list. When it is present
+    and disagrees with the Monday value, the list is stale (the maximum was edited in
+    1.8 afterwards): the single value then holds for every day.
     """
     if isinstance(raw, list | tuple) and len(raw) == WEEKDAYS:
         fallback = clean_daily_max(single)
-        return tuple(clean_weekday_max(v, fallback) for v in raw)
+        values = tuple(clean_weekday_max(v, fallback) for v in raw)
+        if single is not None and clean_weekday_max(single, fallback) != values[0]:
+            return (fallback,) * WEEKDAYS
+        return values
     return (clean_daily_max(single),) * WEEKDAYS
 
 

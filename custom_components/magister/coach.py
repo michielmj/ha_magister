@@ -73,6 +73,7 @@ from .const import (
     DOMAIN,
 )
 from .context import (
+    ERR_USE_PROPOSAL,
     NOT_SET,
     NOTE_ID,
     NOTES_MAX,
@@ -112,6 +113,7 @@ from .proposals import (
 from .roles import (
     ROLE_PARENT,
     ROLE_STUDENT,
+    async_live_students,
     coach_settings,
     proposal_answerer,
     role_of,
@@ -720,7 +722,7 @@ class CoachTool(llm.Tool):
             user_id = llm_context.context.user_id if llm_context.context else None
             user = await hass.auth.async_get_user(user_id) if user_id else None
             return llm.ToolResult(
-                data=self.run(
+                data=await self.run_async(
                     CoachCall(
                         hass,
                         child,
@@ -752,6 +754,10 @@ class CoachTool(llm.Tool):
             return error_result(ERR_INTERNAL, "The tool failed; try again later")
 
     needs_child = True
+
+    async def run_async(self, call: CoachCall) -> Payload:
+        """Do the work for an accessible child (tools that need to await override)."""
+        return self.run(call)
 
     def run(self, call: CoachCall) -> Payload:
         """Do the work for an accessible child."""
@@ -1304,9 +1310,6 @@ class SetLabelOverrideTool(CoachTool):
 _PASS_THROUGH: Final = _minutes  # any value: the book answers `invalid_daily_max`
 
 
-ERR_USE_PROPOSAL: Final = "use_proposal"
-
-
 def _refuse_direct_maximum(args: dict[str, Any]) -> None:
     """The AI never sets a daily maximum itself: that is a proposal."""
     if args.get("daily_max_minutes") is not None:
@@ -1461,7 +1464,10 @@ class UpdateContextTool(CoachTool):
         "Change a context note: its text, the days of a circumstance (`start`, "
         "`end`), or its `visibility`; `daily_max_minutes: null` removes the maximum "
         "of a circumstance, but a number is refused with `use_proposal` (make a "
-        "proposal with propose_daily_max). Give "
+        "proposal with propose_daily_max). A circumstance that has a daily maximum "
+        "can only be shortened: moving or extending its days is refused with "
+        "`use_proposal` (the maximum would reach days the student did not agree to); "
+        "remove the maximum in the same call, or make a proposal. Give "
         "at least one. A student cannot change a note made by a parent, and only a "
         "parent can make a note `parents`-only. "
         f"{NOTE_TEXT_WARNING} " + CONTEXT_RULES_SHORT
@@ -1503,6 +1509,7 @@ class UpdateContextTool(CoachTool):
             end=_date_arg(args["end"]) if "end" in args else None,
             daily_max_minutes=args.get("daily_max_minutes", NOT_SET),
             visibility=args.get("visibility"),
+            protect_maximum=True,
         )
         if changed:
             hidden = was_hidden or note.visibility == VISIBILITY_PARENTS
@@ -1609,9 +1616,11 @@ class ProposeDailyMaxTool(CoachTool):
         "each of those days; accepted, it becomes a circumstance. `kind` `weekdays`: "
         "needs `weekdays`, seven values from Monday to Sunday; accepted, they replace "
         "the weekday maximums. Minutes are 0 to 480 in steps of 15; 0 means no study "
-        "that day. `reason` is short and neutral (at most 100 characters). At most "
-        f"{MAX_OPEN} proposals are open per child. Do not call "
-        "respond_to_proposal yourself."
+        "that day. `reason` is short and neutral (at most 100 characters). The "
+        "reason is shown to the student, on the card and in the logbook: never put "
+        "parents-only information, names or health details in it. At most "
+        f"{MAX_OPEN} proposals are open per child. Never answer a proposal without "
+        "that explicit yes or no."
     )
     parameters = _schema(
         {
@@ -1672,13 +1681,14 @@ class RespondToProposalTool(CoachTool):
     name = "respond_to_proposal"
     description = (
         "Accept or reject an open proposal for the daily maximum (`answer` `accept` or "
-        "`reject`). Only call this after the student has said yes or no explicitly in "
-        "this conversation, never on your own. Accepting a period proposal adds a "
-        "circumstance with that maximum; accepting a weekdays proposal replaces the "
-        "weekday maximums. Only the student may answer; when the child has no "
-        "student user, a parent may answer on the child's behalf. As a parent's AI "
-        "you cannot answer while the child has a student user "
-        "(`not_allowed_for_role`)."
+        "`reject`). Only call this after the person who may answer (the student, or "
+        "the parent for a child without an active student user) has said yes or no "
+        "explicitly in this conversation, never on your own. Accepting a period "
+        "proposal adds a circumstance with that maximum; accepting a weekdays "
+        "proposal replaces the weekday maximums. Only the student may answer; when "
+        "the child has no active student user, a parent may answer on the child's "
+        "behalf. As a parent's AI you cannot answer while the child has an active "
+        "student user (`not_allowed_for_role`)."
     )
     parameters = _schema(
         {
@@ -1690,9 +1700,9 @@ class RespondToProposalTool(CoachTool):
     )
     annotations = _write(destructive=True, idempotent=False)
 
-    def run(self, call: CoachCall) -> Payload:
+    async def run_async(self, call: CoachCall) -> Payload:
         """Answer the proposal as the user behind the call (rights checked)."""
-        proposal = call.manager.answer_proposal(
+        proposal = await call.manager.answer_proposal(
             call.child.child_id,
             _proposal_id(call.args["id"]),
             call.args["answer"],
@@ -1730,7 +1740,7 @@ class ListProposalsTool(CoachTool):
     )
     annotations = READ_ONLY
 
-    def run(self, call: CoachCall) -> Payload:
+    async def run_async(self, call: CoachCall) -> Payload:
         """The proposals of the child."""
         now = dt_util.utcnow()
         proposals = call.manager.proposals.listed(
@@ -1740,7 +1750,10 @@ class ListProposalsTool(CoachTool):
         return {
             "child": call.child.id,
             "today": call.manager.today().isoformat(),
-            "you_may_answer": proposal_answerer(settings, call.user_id) is not None,
+            "you_may_answer": proposal_answerer(
+                settings, call.user_id, await async_live_students(call.hass, settings)
+            )
+            is not None,
             "proposals": [p.view(now) for p in proposals],
         }
 

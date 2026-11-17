@@ -75,7 +75,7 @@ WEEKDAY_NAMES: Final = (
 
 NOT_ALLOWED_MESSAGE: Final = (
     "Only the student decides about the daily maximum. A parent (or an administrator) "
-    "may answer only when the child has no student user linked."
+    "may answer only when the child has no active student user."
 )
 
 
@@ -351,7 +351,8 @@ class ProposalBook:
         found = [
             p
             for p in self._proposals.get(child_id, [])
-            if include_closed or p.is_open(now)
+            if p.is_open(now)
+            or (include_closed and (p.closed or p.expires_at()) + KEEP_CLOSED >= now)
         ]
         return sorted(found, key=lambda p: (not p.is_open(now), p.created, p.id))
 
@@ -479,6 +480,10 @@ class ProposalBook:
                 raise ContextError(
                     ERR_INVALID_FORMAT, "A period proposal needs `minutes`"
                 )
+            if start is None or end is None:
+                raise ContextError(
+                    ERR_INVALID_FORMAT, "A period proposal needs start and end"
+                )
             period = book.check_period(start, end)
             if period[0] <= today:
                 raise ContextError(
@@ -504,6 +509,18 @@ class ProposalBook:
             raise ContextError(
                 ERR_TOO_MANY_PROPOSALS,
                 f"At most {MAX_OPEN} open proposals per child; wait for an answer.",
+            )
+        if any(
+            p.is_open(now)
+            and p.kind == kind
+            and p.start == (period[0] if period else None)
+            and p.end == (period[1] if period else None)
+            and p.minutes == daily
+            and p.weekdays == values
+            for p in self._proposals.get(child_id, [])
+        ):
+            raise ContextError(
+                ERR_INVALID_FORMAT, "This proposal is already open; wait for an answer."
             )
         proposal = Proposal(
             id=self._new_id(child_id),

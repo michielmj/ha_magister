@@ -104,6 +104,7 @@ class Home:
 async def home(hass: HomeAssistant, mocked: aioresponses) -> Home:
     """One entry with two children and the users of the rights matrix."""
     result = Home()
+    await make_user(hass, "Eigenaar")  # the first user is the owner
     result.student = await make_user(hass, "Sanne de Vries")
     result.parent = await make_user(hass, "Peter de Vries")
     result.parent_b = await make_user(hass, "Petra Jansen")
@@ -235,7 +236,7 @@ async def test_weekday_value_helpers() -> None:
     assert clean_weekdays(None) == (90,) * 7
     assert clean_weekdays(None, 60) == (60,) * 7
     assert clean_weekdays("junk", 75) == (75,) * 7
-    assert clean_weekdays([60, 0, 90, 90, 90, 90, 90], 30) == (
+    assert clean_weekdays([60, 0, 90, 90, 90, 90, 90], 60) == (
         60,
         0,
         90,
@@ -244,10 +245,14 @@ async def test_weekday_value_helpers() -> None:
         90,
         90,
     )
+    # A mirror that disagrees with Monday: the list is stale (edited in 1.8).
+    assert clean_weekdays([60, 0, 90, 90, 90, 90, 90], 30) == (30,) * 7
+    assert clean_weekdays([0, 45, 90, 90, 90, 90, 90], 0)[:2] == (0, 45)  # 0 mirrors 0
+    assert clean_weekdays([60, 0, 90, 90, 90, 90, 90], None)[1] == 0  # no mirror
     assert clean_weekdays([1] * 6, 30) == (30,) * 7  # not seven values
     assert clean_weekdays([60, "x", 90, 90, 90, 90, 90], 45)[1] == 45
     weights = Weights.from_options(
-        {"daily_max_minutes": 60, "daily_max_weekdays": [30, 0, 45, 60, 75, 90, 105]}
+        {"daily_max_minutes": 30, "daily_max_weekdays": [30, 0, 45, 60, 75, 90, 105]}
     )
     assert weights.daily_max_weekdays == (30, 0, 45, 60, 75, 90, 105)
     assert weights.daily_max_minutes == 30  # the 1.8 view: the Monday value
@@ -506,7 +511,11 @@ async def test_proposal_validation(hass: HomeAssistant, home: Home) -> None:
     assert await code(start="2026-11-13", end="2026-11-16") == "invalid_period"  # today
     assert await code(start="2026-11-10", end="2026-11-16") == "invalid_period"
     assert await code(start="2026-12-01", end="2026-12-09") == "invalid_period"
-    assert await code(start=None) == "invalid_period"
+    for missing in ({"start": None}, {"end": None}, {"start": None, "end": None}):
+        args = {k: v for k, v in {**base, **missing}.items() if v is not None}
+        result = await call(hass, uid, "propose_daily_max", **args)
+        assert result.error and result.data["error"] == "invalid_format"
+        assert result.data["message"] == "A period proposal needs start and end"
     assert await code(start="morgen") == "invalid_format"
     assert await code(reason="") == "invalid_format"
     assert await code(reason="x" * 101) == "invalid_format"
@@ -736,7 +745,9 @@ async def test_rights_matrix_without_a_student(
     entity_id = todo_id(hass, 1002)
     first = await propose_period(hass, home.parent_b, child="1002")
     second = await propose_weekdays(hass, home.parent_b, child="1002")
-    third = await propose_period(hass, home.parent_b, child="1002", reason="Derde")
+    third = await propose_period(
+        hass, home.parent_b, child="1002", reason="Derde", minutes=60
+    )
     # The parent's AI answers on behalf of the child.
     data = await ok(
         hass, home.parent_b.id, "respond_to_proposal", id=first["id"], answer="accept"
@@ -1003,10 +1014,8 @@ async def test_proposals_survive_a_restart_and_a_downgrade(
     assert await hass.config_entries.async_unload(home.entry.entry_id)
     key = f"magister.homework.{home.entry.entry_id}"
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (
-        1,
-        STORE_MINOR_VERSION == 8 and 8,
-    )
+    assert (saved["version"], saved["minor_version"]) == (1, 8)
+    assert STORE_MINOR_VERSION == 8
     stored = saved["data"]["proposals"]["1001"]
     assert [p["id"] for p in stored] == [first["id"], second["id"]]
     assert stored[0] == {
@@ -1119,7 +1128,7 @@ async def test_diagnostics_counts_only(hass: HomeAssistant, home: Home) -> None:
     )
 
     await propose_period(hass, home.parent, reason="Geheime reden")
-    await propose_period(hass, home.parent, reason="Nog een")
+    await propose_period(hass, home.parent, reason="Nog een", minutes=60)
     weekdays = await propose_weekdays(hass, home.parent)
     await ok(
         hass, home.student.id, "respond_to_proposal", id=weekdays["id"], answer="reject"
@@ -1301,17 +1310,23 @@ async def test_proposal_answerer_rules() -> None:
     """Pure rules: who answers how."""
     with_student = {"students": ["s"], "parents": ["p"]}
     without = {"parents": ["p"]}
-    assert proposal_answerer(with_student, "s") == "student"
-    assert proposal_answerer(with_student, "p") is None
-    assert proposal_answerer(with_student, "a", is_admin=True) is None
-    assert proposal_answerer(with_student, None) is None
-    assert proposal_answerer(without, "p") == "on_behalf"
-    assert proposal_answerer(without, "a", is_admin=True) == "on_behalf"
-    assert proposal_answerer(without, "x") is None
-    assert proposal_answerer({}, "a", is_admin=True) == "on_behalf"
-    assert proposal_answerer({"users": ["s"]}, "s") == "student"  # 1.6.0 key
+    live = frozenset({"s"})
+    none: frozenset[str] = frozenset()
+    assert proposal_answerer(with_student, "s", live) == "student"
+    assert proposal_answerer(with_student, "p", live) is None
+    assert proposal_answerer(with_student, "a", live, is_admin=True) is None
+    assert proposal_answerer(with_student, None, live) is None
+    # The student user is not active (or a system user, or deleted): not live.
+    assert proposal_answerer(with_student, "s", none) is None  # cannot act anyway
+    assert proposal_answerer(with_student, "p", none) == "on_behalf"
+    assert proposal_answerer(with_student, "a", none, is_admin=True) == "on_behalf"
+    assert proposal_answerer(without, "p", none) == "on_behalf"
+    assert proposal_answerer(without, "a", none, is_admin=True) == "on_behalf"
+    assert proposal_answerer(without, "x", none) is None
+    assert proposal_answerer({}, "a", none, is_admin=True) == "on_behalf"
+    assert proposal_answerer({"users": ["s"]}, "s", live) == "student"  # 1.6.0 key
     # A user in both lists counts as a parent (fewer rights).
-    assert proposal_answerer({"students": ["u"], "parents": ["u"]}, "u") is None
+    assert proposal_answerer({"students": ["u"], "parents": ["u"]}, "u", live) is None
     assert first_name_of("Anna de Vries") == "Anna"
     assert first_name_of("  ") == "iemand" and first_name_of(None) == "iemand"
     assert first_name_of("x" * 50) == "x" * 30
@@ -1444,3 +1459,204 @@ async def test_book_guards_and_housekeeping(
     book.drop_children([1001])
     assert book.all(1002) == []
     book.drop_children([1001])  # nothing left to drop
+
+
+# -- a Leerling user that does not count ---------------------------------------------
+
+
+async def _answers(
+    hass: HomeAssistant,
+    home: Home,
+    hass_ws_client: WebSocketGenerator,
+    expect_parent: bool,
+) -> None:
+    """Parent (AI and WebSocket) and admin answer on behalf, or are refused."""
+    entity_id = todo_id(hass)
+    first = await propose_period(hass, home.parent, minutes=30)
+    second = await propose_period(hass, home.parent, minutes=45, reason="Tweede")
+    third = await propose_period(hass, home.parent, minutes=60, reason="Derde")
+    listed = await ok(hass, home.parent.id, "list_proposals")
+    assert listed["you_may_answer"] is expect_parent
+    result = await call(
+        hass, home.parent.id, "respond_to_proposal", id=first["id"], answer="accept"
+    )
+    admin = await ws_client(hass, hass_ws_client, home.admin)
+    ws_parent = await ws_client(hass, hass_ws_client, home.parent)
+    if expect_parent:
+        assert not result.error, result.data
+        assert result.data["proposal"]["answered_by"] == "on_behalf"
+        message = await ws_respond(admin, entity_id, second["id"], "reject")
+        assert message["success"], message
+        assert message["result"]["proposal"]["answered_by"] == "on_behalf"
+        message = await ws_respond(ws_parent, entity_id, third["id"], "reject")
+        assert message["success"], message
+    else:
+        assert result.error and result.data["error"] == "not_allowed_for_role"
+        for client in (admin, ws_parent):
+            message = await ws_respond(client, entity_id, second["id"], "reject")
+            assert message["error"]["code"] == "not_allowed_for_role"
+        # Clean up for the next round: the student answers.
+        for view in (first, second, third):
+            await ok(
+                hass,
+                home.student.id,
+                "respond_to_proposal",
+                id=view["id"],
+                answer="reject",
+            )
+
+
+async def test_inactive_student_user_does_not_count(
+    hass: HomeAssistant, home: Home, hass_ws_client: WebSocketGenerator
+) -> None:
+    """A deactivated Leerling lets the parent and the admin answer; reactivated, only
+    the student may again."""
+    await _answers(hass, home, hass_ws_client, expect_parent=False)
+    await hass.auth.async_deactivate_user(home.student)
+    await _answers(hass, home, hass_ws_client, expect_parent=True)
+    await hass.auth.async_activate_user(home.student)
+    await _answers(hass, home, hass_ws_client, expect_parent=False)
+
+
+async def test_deleted_student_user_does_not_count(
+    hass: HomeAssistant, home: Home, hass_ws_client: WebSocketGenerator
+) -> None:
+    """A linked id of a user that no longer exists is no Leerling user."""
+    await hass.auth.async_remove_user(home.student)
+    await _answers(hass, home, hass_ws_client, expect_parent=True)
+
+
+async def test_system_user_as_student_does_not_count(
+    hass: HomeAssistant, home: Home, hass_ws_client: WebSocketGenerator
+) -> None:
+    """A system-generated user is not a Leerling user either."""
+    system = await hass.auth.async_create_system_user("Systeem")
+    settings = {
+        "1001": {
+            "enabled": True,
+            "students": [system.id],
+            "parents": [home.parent.id],
+        },
+        "1002": {"enabled": True, "parents": [home.parent_b.id]},
+    }
+    hass.config_entries.async_update_entry(
+        home.entry, options={**home.entry.options, "coach": settings}
+    )
+    await hass.async_block_till_done()
+    await _answers(hass, home, hass_ws_client, expect_parent=True)
+
+
+async def test_the_student_still_answers_when_another_student_is_inactive(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """One active Leerling user is enough to keep the parent out."""
+    other = await make_user(hass, "Tweede leerling")
+    settings = {
+        "1001": {
+            "enabled": True,
+            "students": [home.student.id, other.id],
+            "parents": [home.parent.id],
+        },
+    }
+    hass.config_entries.async_update_entry(
+        home.entry, options={**home.entry.options, "coach": settings}
+    )
+    await hass.async_block_till_done()
+    await hass.auth.async_deactivate_user(other)
+    view = await propose_period(hass, home.parent)
+    assert (await ok(hass, home.parent.id, "list_proposals"))["you_may_answer"] is False
+    assert (
+        await fails(
+            hass, home.parent.id, "respond_to_proposal", id=view["id"], answer="accept"
+        )
+        == "not_allowed_for_role"
+    )
+    assert (await ok(hass, home.student.id, "list_proposals"))["you_may_answer"] is True
+
+
+# -- texts, duplicates, pruning --------------------------------------------------------
+
+
+async def test_reason_and_answer_rules_are_in_the_texts() -> None:
+    """The reason is shown to the student; only an explicit yes or no answers."""
+    reason = (
+        "The reason is shown to the student, on the card and in the logbook: never "
+        "put parents-only information, names or health details in it."
+    )
+    tools = {t.name: t for t in coach_tools()}
+    assert reason in " ".join(tools["propose_daily_max"].description.split())
+    assert " ".join(reason.split()) in " ".join(PROPOSAL_RULES.split())
+    who = (
+        "after the person who may answer (the student, or the parent for a "
+        "child without an active student user) has said yes or no explicitly in "
+        "this conversation"
+    )
+    assert who in " ".join(tools["respond_to_proposal"].description.split())
+    assert who in " ".join(PROPOSAL_RULES.split())
+    assert "Never answer a proposal without that explicit yes or no." in " ".join(
+        tools["propose_daily_max"].description.split()
+    )
+    assert "Do not call respond_to_proposal yourself" not in (
+        tools["propose_daily_max"].description
+    )
+    assert "an active student user" in " ".join(PROPOSAL_RULES.split())
+    assert "actief leerlingaccount" in DEFAULT_PARENT_GUIDELINES
+
+
+async def test_an_exact_duplicate_of_an_open_proposal_is_refused(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """The same proposal twice is `invalid_format`; once closed, it may return."""
+    period = await propose_period(hass, home.parent)
+    args: dict[str, Any] = {
+        "kind": "period",
+        "minutes": 120,
+        "reason": "Nog eens",
+        **PERIOD,
+    }
+    assert await fails(hass, home.parent.id, "propose_daily_max", **args) == (
+        "invalid_format"
+    )
+    assert await fails(hass, home.student.id, "propose_daily_max", **args) == (
+        "invalid_format"
+    )
+    weekdays = await propose_weekdays(hass, home.parent)
+    again = {"kind": "weekdays", "weekdays": [90, 90, 90, 90, 90, 0, 0], "reason": "x"}
+    assert await fails(hass, home.parent.id, "propose_daily_max", **again) == (
+        "invalid_format"
+    )
+    # Other minutes or days are a different proposal.
+    await propose_period(hass, home.parent, minutes=105)
+    # After an answer the same one may be proposed again.
+    await ok(
+        hass, home.student.id, "respond_to_proposal", id=period["id"], answer="reject"
+    )
+    await propose_period(hass, home.parent)
+    await ok(
+        hass, home.student.id, "respond_to_proposal", id=weekdays["id"], answer="reject"
+    )
+    await propose_weekdays(hass, home.parent)
+
+
+async def test_pruned_proposals_leave_the_payload_and_the_list(
+    hass: HomeAssistant,
+    home: Home,
+    frozen_now: FrozenDateTimeFactory,
+) -> None:
+    """A closed proposal older than 14 days is no longer shown, even before the
+    housekeeping has pruned it."""
+    answered = await propose_period(hass, home.parent)
+    await ok(
+        hass, home.student.id, "respond_to_proposal", id=answered["id"], answer="reject"
+    )
+    book = manager(home).proposals
+    from homeassistant.util import dt as dt_util
+
+    frozen_now.move_to("2026-11-27 09:30:00+00:00")  # exactly 14 days: still shown
+    assert [p["id"] for p in book.payload(1001, dt_util.utcnow())] == [answered["id"]]
+    frozen_now.move_to("2026-11-27 09:30:01+00:00")
+    assert len(book.all(1001)) == 1  # not pruned yet
+    assert book.payload(1001, dt_util.utcnow()) == []
+    assert (await ok(hass, home.student.id, "list_proposals", include_closed=True))[
+        "proposals"
+    ] == []

@@ -67,6 +67,7 @@ ERR_INVALID_DAILY_MAX: Final = "invalid_daily_max"
 ERR_CONTEXT_NOT_FOUND: Final = "context_not_found"
 ERR_NOT_ALLOWED_FOR_ROLE: Final = "not_allowed_for_role"
 ERR_INVALID_FORMAT: Final = "invalid_format"
+ERR_USE_PROPOSAL: Final = "use_proposal"
 
 SERVICE_CLEAR_COACH_CONTEXT: Final = "clear_coach_context"
 ATTR_CONFIG_ENTRY_ID: Final = "config_entry_id"
@@ -696,8 +697,13 @@ class ContextBook:
         end: date | None = None,
         daily_max_minutes: Any = NOT_SET,
         visibility: str | None = None,
+        protect_maximum: bool = False,
     ) -> tuple[Note, bool]:
-        """Change a note; the second value says whether anything changed."""
+        """Change a note; the second value says whether anything changed.
+
+        With ``protect_maximum`` (the AI), a circumstance that keeps a daily maximum
+        may not cover a day outside its current days: that is a proposal.
+        """
         note = self.find(child_id, note_id, parent=parent)
         self._check_change_allowed(note, parent=parent)
         if visibility is not None and visibility not in VISIBILITIES:
@@ -741,6 +747,15 @@ class ContextBook:
         updated = replace(note, **changes)
         if updated == note:
             return note, False
+        if protect_maximum and updated.daily_max_minutes is not None:
+            assert updated.start and updated.end and note.start and note.end
+            if updated.start < note.start or updated.end > note.end:
+                raise ContextError(
+                    ERR_USE_PROPOSAL,
+                    "The AI cannot move or extend a circumstance that has a daily "
+                    "maximum: the student decides. Make a proposal with "
+                    "propose_daily_max, or shrink the days.",
+                )
         today = self._manager.today()
         if (
             note.expired(today)

@@ -17,7 +17,8 @@ Commands (any authenticated user, like HA's own ``todo/item/*``):
 * ``magister/homework/delete_subtask``: ``{"entity_id", "subtask"}``.
 * ``magister/homework/respond_proposal``: ``{"entity_id", "proposal", "answer"}`` with
   answer ``accept`` or ``reject`` (since 1.9.0): the student answers a proposal for the
-  daily maximum; a parent or an administrator only when the child has no student user.
+  daily maximum; a parent or an administrator only when the child has no active student
+  user.
 
 The label, override and subtask commands need control permission.
 See docs/reference/homework-websocket.md.
@@ -34,7 +35,10 @@ from homeassistant.components.todo.const import DATA_COMPONENT
 from homeassistant.components.todo.const import DOMAIN as TODO_DOMAIN
 from homeassistant.components.websocket_api import async_register_command
 from homeassistant.components.websocket_api.connection import ActiveConnection
-from homeassistant.components.websocket_api.decorators import websocket_command
+from homeassistant.components.websocket_api.decorators import (
+    async_response,
+    websocket_command,
+)
 from homeassistant.components.websocket_api.messages import event_message
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError, Unauthorized
@@ -380,8 +384,8 @@ def websocket_delete_subtask(
         probatio.Required("answer"): probatio.In(list(ANSWERS)),
     }
 )
-@callback
-def websocket_respond_proposal(
+@async_response
+async def websocket_respond_proposal(
     hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
 ) -> None:
     """Accept or reject a proposal for the daily maximum, as the connected user."""
@@ -390,7 +394,7 @@ def websocket_respond_proposal(
         return
     user = connection.user
     try:
-        proposal = entity.respond_proposal(
+        proposal = await entity.respond_proposal(
             msg["proposal"],
             msg["answer"],
             user_id=user.id,

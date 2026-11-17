@@ -51,8 +51,8 @@ the maximum only covers extra study time. The PM decided how time planning shoul
   - Answered and expired proposals are kept for 14 days for the history, then pruned.
 - **Who may accept or reject:**
   - a Home Assistant user linked as **Leerling** for that child, on the card or through their AI;
-  - when the child has **no** Leerling user linked (a child who does not use the app), a user linked as **Ouder**, or an administrator, may answer on the child's behalf. The logbook says so.
-  - A parent's AI can make a proposal, but cannot answer it while the child has a Leerling user.
+  - when the child has **no active** Leerling user (none linked, or the user is deactivated, a system user or deleted; a child who does not use the app), a user linked as **Ouder**, or an administrator, may answer on the child's behalf. The logbook says so.
+  - A parent's AI can make a proposal, but cannot answer it while the child has an active Leerling user.
 - **Through the AI:**
   - `propose_daily_max(child?, kind, start?, end?, minutes? | weekdays?, reason)`;
   - `respond_to_proposal(child?, id, answer: accept|reject)`. Its description says: only call this after the student has said yes or no explicitly in this conversation;
@@ -60,7 +60,7 @@ the maximum only covers extra study time. The PM decided how time planning shoul
   - `get_overview` days show any open proposal that covers them (`proposal: {id, minutes}`).
   - The prompt lists the open proposals.
 - **WebSocket and card:** a new command `magister/homework/respond_proposal` (`entity_id`, `id`, `answer`) with the same rights check, using `connection.user`. The payload gains `proposals` (open ones, plus those answered in the last 14 days).
-- **Logbook:** "AI-coach: voorstel dagmaximum (Toetsweek)", "Voorstel dagmaximum geaccepteerd door <first name of the HA user>" / "afgewezen", "… namens het kind" and "verlopen". No other personal data.
+- **Logbook:** "AI-coach: voorstel dagmaximum (Toetsweek)", "voorstel dagmaximum geaccepteerd door <first name of the HA user>" / "voorstel dagmaximum afgewezen door <first name>", with " namens het kind" at the end, and "voorstel dagmaximum verlopen (<reason>)"; an answer through the AI starts with "AI-coach: " or "Ouder via AI: ". Lower case. No other personal data.
 - **Options flow:** the weekday maximums stay editable by an administrator under Configureer → Dagmaximum studietijd ("beheer"). The README explains that, following the basic rule, changes are best made with the student, through a proposal.
 
 ### Coaching guidelines and prompt

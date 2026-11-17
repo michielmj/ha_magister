@@ -383,8 +383,7 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         )
         await super().async_will_remove_from_hass()
 
-    @callback
-    def respond_proposal(
+    async def respond_proposal(
         self,
         proposal_id: str,
         answer: str,
@@ -395,7 +394,7 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         context: Context | None,
     ) -> Payload:
         """Answer a proposal for the daily maximum as this user (rights checked)."""
-        proposal = self._manager.answer_proposal(
+        proposal = await self._manager.answer_proposal(
             self._child_id,
             proposal_id,
             answer,

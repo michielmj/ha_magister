@@ -16,6 +16,8 @@ from .const import (
 )
 
 if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+
     from .coordinator import MagisterConfigEntry
 
 # The role of a user for a child: Leerling (student) or Ouder (parent).
@@ -70,19 +72,39 @@ def role_of(settings: dict[str, Any], user_id: str | None) -> str | None:
     return None
 
 
+async def async_live_students(
+    hass: HomeAssistant, settings: dict[str, Any]
+) -> frozenset[str]:
+    """The linked Leerling ids that belong to an active, non-system user."""
+    linked = set(student_users(settings))
+    if not linked:
+        return frozenset()
+    return frozenset(
+        user.id
+        for user in await hass.auth.async_get_users()
+        if user.id in linked and user.is_active and not user.system_generated
+    )
+
+
 def proposal_answerer(
-    settings: dict[str, Any], user_id: str | None, *, is_admin: bool = False
+    settings: dict[str, Any],
+    user_id: str | None,
+    live_students: frozenset[str],
+    *,
+    is_admin: bool = False,
 ) -> str | None:
     """How this user may answer a proposal for the daily maximum of the child.
 
-    ``student`` for a user linked as Leerling. When the child has no Leerling user,
+    ``student`` for a linked Leerling user that is active. When the child has no
+    such user (none linked, or all deleted, deactivated or system-generated),
     ``on_behalf`` for a user linked as Ouder or an administrator. Otherwise ``None``:
-    nobody else answers, and no parent while the child has a Leerling user.
+    nobody else answers, and no parent while the child has an active Leerling user.
+    ``live_students`` comes from ``async_live_students``.
     """
     role = role_of(settings, user_id)
-    if role == ROLE_STUDENT:
+    if role == ROLE_STUDENT and user_id in live_students:
         return ANSWERED_BY_STUDENT
-    if student_users(settings):
+    if live_students:
         return None
     if role == ROLE_PARENT or is_admin:
         return ANSWERED_ON_BEHALF

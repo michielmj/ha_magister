@@ -92,7 +92,7 @@ from .proposals import (
     first_name_of,
 )
 from .proposals import STORE_KEY as PROPOSALS_KEY
-from .roles import coach_settings, proposal_answerer
+from .roles import async_live_students, coach_settings, proposal_answerer
 
 if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
@@ -960,7 +960,7 @@ class HomeworkManager:
         if self.proposals.sync(dt_util.utcnow()):
             self._schedule_save()
 
-    def answer_proposal(
+    async def answer_proposal(
         self,
         child_id: int,
         proposal_id: Any,
@@ -974,12 +974,16 @@ class HomeworkManager:
     ) -> Proposal:
         """Accept or reject a proposal as this user, if the user may answer it.
 
-        The student of the child answers; when the child has no student user linked, a
+        The student of the child answers; when the child has no active student user, a
         parent (or an administrator) answers on the child's behalf. Checked first, so
         a user who may not answer learns nothing about the proposals.
         """
+        settings = coach_settings(self._entry, child_id)
         mode = proposal_answerer(
-            coach_settings(self._entry, child_id), user_id, is_admin=is_admin
+            settings,
+            user_id,
+            await async_live_students(self.hass, settings),
+            is_admin=is_admin,
         )
         if mode is None:
             raise ContextError(ERR_NOT_ALLOWED_TO_ANSWER, NOT_ALLOWED_MESSAGE)

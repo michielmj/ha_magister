@@ -283,9 +283,10 @@ Result: `{"proposal": <proposal>}`, and a subscribe event follows with the new `
 
 Who may answer (`connection.user`, checked on every call, before the proposal is looked up):
 - a Home Assistant user linked as **Leerling** for the child;
-- only when the child has **no** Leerling user linked: a user linked as **Ouder** for the child, or an administrator. The
+- only when the child has **no active** Leerling user (none linked, or every linked user is deactivated, system-generated or
+  deleted): a user linked as **Ouder** for the child, or an administrator. The
   logbook then says "namens het kind" and the proposal has `answered_by` `on_behalf`;
-- nobody else. In particular a parent cannot answer while the child has a Leerling user, and a user with a stored link as
+- nobody else. In particular a parent cannot answer while the child has an active Leerling user, and a user with a stored link as
   both Leerling and Ouder counts as Ouder.
 
 Errors: `not_found` (unknown entity), `invalid_format` (bad `answer`), `not_allowed_for_role` (see above; nothing changes),
@@ -350,21 +351,25 @@ parent's AI needs the student's acceptance too.
 
 Changes to the coach tools:
 - `list_children` also returns `daily_max_weekdays` (seven values, Monday first); `daily_max_minutes` is the Monday value.
+- In `get_overview` the child-level `daily_max_minutes` is the Monday value only: use `daily_max_weekdays` (and the `daily_max_minutes` of each day, the effective maximum).
 - `get_overview`: every child has `daily_max_weekdays`; a day's `daily_max_minutes` is the **effective** maximum of that
   date (the lowest circumstance, else that weekday's value); `daily_max_period` as before (no `text` for a student when the
   circumstance is `parents`-only); `proposal` is `null` or `{"id", "minutes"}`: the open `period` proposal that covers the
   day (the lowest `minutes`; not accepted yet, so without effect).
 - `add_context` and `update_context` refuse a `daily_max_minutes` that is not `null` with `use_proposal`; nothing is stored.
-  A circumstance that already has a maximum keeps it, and `update_context` with `null` still removes it.
+  A circumstance that already has a maximum keeps it, and `update_context` with `null` still removes it. `update_context` also
+  refuses with `use_proposal` (nothing changes) a change of `start`/`end` of a circumstance that has a maximum when the new
+  days include a day outside the current days (moving or extending); shortening is allowed, and so is changing the days
+  together with `daily_max_minutes: null`. Circumstances without a maximum can be moved freely.
 - New tools (all take the optional `child`):
 
 | Tool | Annotations | Notes |
 |---|---|---|
-| `list_proposals(include_closed?)` | read-only | `{"child", "today", "you_may_answer", "proposals": [...]}`; the open ones, with `include_closed` also those answered or expired in the last 14 days; `you_may_answer` is whether the caller may answer (the rule above, for the Leerling or, without a Leerling user, the Ouder) |
+| `list_proposals(include_closed?)` | read-only | `{"child", "today", "you_may_answer", "proposals": [...]}`; the open ones, with `include_closed` also those answered or expired in the last 14 days; `you_may_answer` is whether the caller may answer (the rule above, for the Leerling or, without an active Leerling user, the Ouder) |
 | `propose_daily_max(kind, reason, start?, end?, minutes?, weekdays?)` | write | `kind` `period` needs `start`, `end` (inside the sync window, `start` tomorrow or later) and `minutes`; `weekdays` needs `weekdays` (seven integers, Monday first). A field of the other kind is `invalid_format`. Result `{"child", "proposal", "message"}` |
-| `respond_to_proposal(id, answer)` | write, destructive (accepting replaces weekday values), not idempotent | `answer` `accept` or `reject`. The description tells the AI to call it only after the student said yes or no explicitly in this conversation. Same rights as the WebSocket command; for a parent's AI while the child has a Leerling user: `not_allowed_for_role` |
+| `respond_to_proposal(id, answer)` | write, destructive (accepting replaces weekday values), not idempotent | `answer` `accept` or `reject`. The description tells the AI to call it only after the person who may answer (the student, or the parent for a child without an active Leerling user) said yes or no explicitly in this conversation. Same rights as the WebSocket command; for a parent's AI while the child has an active Leerling user: `not_allowed_for_role` |
 
-Errors: `use_proposal`, `invalid_format` (kind, fields, an unchanged `weekdays`, the reason: 1 to 100 characters), `invalid_period`,
+Errors: `use_proposal`, `invalid_format` (kind, fields, a period without `start` and `end`, an unchanged `weekdays`, an exact duplicate of an open proposal, the reason: 1 to 100 characters; the reason is shown to the student), `invalid_period`,
 `invalid_daily_max` (a value that is not 0–480 in steps of 15), `too_many_proposals` (5 open per child), `proposal_not_found`,
 `proposal_closed`, `not_allowed_for_role`, `too_many_notes`.
 
@@ -372,7 +377,8 @@ Prompt: the planner rules (time planning is optional and done with subtasks, als
 5 from the size of the work; a subtask on a day before the due day; within the effective maximum of each date, 0 meaning no
 study; the student decides), the rules for proposals, per child the maximum per weekday (and the days that differ from it) and
 the open proposals (reason as data). Logbook: "AI-coach: voorstel dagmaximum (Toetsweek)" / "Ouder via AI: ...", and the
-answers as in `respond_proposal`.
+answers as in `respond_proposal` ("voorstel dagmaximum geaccepteerd door Anna" / "afgewezen", plus " namens het kind"; through
+the AI with the prefix "AI-coach: " or "Ouder via AI: "; all lower case).
 
 Diagnostics: counts only, open proposals per kind and closed ones per status.
 

@@ -20,15 +20,19 @@ card and the README follow in phase B.
   (only after an explicit yes or no from the student). A proposal has no effect until the student accepts it: an accepted
   period becomes a circumstance, accepted weekdays replace the child's weekday maximums (no reload). It expires when the
   period starts unanswered, or after 7 days for weekdays; at most 5 are open per child; closed ones are kept for 14 days.
-  Only a user linked as Leerling answers; when the child has no Leerling user, a user linked as Ouder or an administrator
-  answers on the child's behalf ("namens het kind" in the logbook). A parent's AI cannot answer while the child has a
-  Leerling user. `get_overview` days show the open proposal that covers them; the prompt lists the open proposals.
+  Only a user linked as Leerling answers; when the child has no active Leerling user (none linked, or the user is
+  deactivated, a system user or deleted), a user linked as Ouder or an administrator answers on the child's behalf
+  ("namens het kind" in the logbook). A parent's AI cannot answer while the child has an active Leerling user. The AI also
+  cannot move or extend the days of a circumstance that has a maximum (`use_proposal`); shortening it, or removing the
+  maximum in the same call, is allowed. A proposal reason is shown to the student: the AI is told to keep parents-only
+  information out of it. An exact duplicate of an open proposal is refused (`invalid_format`). `get_overview` days show the open proposal that covers them; the prompt lists the open proposals.
 - **WebSocket.** New command `magister/homework/respond_proposal` (`entity_id`, `proposal`, `answer`) with the same rights
   check, using the user of the connection. The payload has `proposals`: the open ones and those answered or expired in the last
   14 days. New errors: `use_proposal`, `proposal_not_found`, `proposal_closed`, `too_many_proposals`. See
   `docs/reference/homework-websocket.md`.
-- **Logbook.** "AI-coach: voorstel dagmaximum (Toetsweek)", "Voorstel dagmaximum geaccepteerd/afgewezen door Anna", "... namens
-  het kind", "... verlopen". Only the first name of the Home Assistant user.
+- **Logbook.** "AI-coach: voorstel dagmaximum (Toetsweek)" (a parent's AI: "Ouder via AI: ..."), "voorstel dagmaximum
+  geaccepteerd door Anna" / "voorstel dagmaximum afgewezen door Anna", with " namens het kind" at the end, and "voorstel
+  dagmaximum verlopen (Toetsweek)"; an answer through the AI starts with "AI-coach: " or "Ouder via AI: ". All lower case. Only the first name of the Home Assistant user.
 - **Prompt and guidelines.** The planner rules say that planning with time is optional and done with subtasks (also for
   regular homework), with estimates from the size of the work in steps of 5, on a day before the due day, within each
   date's maximum. The default guidelines no longer say "ongeveer 1,5 uur extra werk per schooldag" but follow the child's
