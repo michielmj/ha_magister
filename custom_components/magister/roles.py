@@ -1,0 +1,111 @@
+"""Who is linked to a child, and who may answer a proposal for the daily maximum.
+
+Pure helpers on the stored coach settings of a child; shared by the AI coach and the
+WebSocket API (which cannot import the coach module).
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Final
+
+from .const import (
+    COACH_PARENTS,
+    COACH_STUDENTS,
+    COACH_USERS,
+    CONF_COACH,
+)
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+
+    from .coordinator import MagisterConfigEntry
+
+# The role of a user for a child: Leerling (student) or Ouder (parent).
+ROLE_STUDENT: Final = "student"
+ROLE_PARENT: Final = "parent"
+
+# Who answered a proposal: the student, or someone on behalf of a child that has no
+# student user (a parent, or an administrator).
+ANSWERED_BY_STUDENT: Final = "student"
+ANSWERED_ON_BEHALF: Final = "on_behalf"
+
+
+def coach_settings(entry: MagisterConfigEntry, child_id: int) -> dict[str, Any]:
+    """The stored coach settings of a child (empty when none)."""
+    stored = entry.options.get(CONF_COACH)
+    settings = stored.get(str(child_id)) if isinstance(stored, dict) else None
+    return settings if isinstance(settings, dict) else {}
+
+
+def _users(settings: dict[str, Any], key: str) -> list[str]:
+    raw = settings.get(key)
+    return [u for u in raw if isinstance(u, str)] if isinstance(raw, list) else []
+
+
+def student_users(settings: dict[str, Any]) -> list[str]:
+    """The linked student (Leerling) users; the 1.6.0 ``users`` key counts as such."""
+    key = (
+        COACH_STUDENTS
+        if isinstance(settings.get(COACH_STUDENTS), list)
+        else COACH_USERS
+    )
+    return _users(settings, key)
+
+
+def parent_users(settings: dict[str, Any]) -> list[str]:
+    """The linked parent (Ouder) users."""
+    return _users(settings, COACH_PARENTS)
+
+
+def role_of(settings: dict[str, Any], user_id: str | None) -> str | None:
+    """The role of a user for a child; ``None`` when not linked.
+
+    A user in both lists (the options flow refuses that) gets the parent role, the
+    one with fewer rights.
+    """
+    if not user_id:
+        return None
+    if user_id in parent_users(settings):
+        return ROLE_PARENT
+    if user_id in student_users(settings):
+        return ROLE_STUDENT
+    return None
+
+
+async def async_live_students(
+    hass: HomeAssistant, settings: dict[str, Any]
+) -> frozenset[str]:
+    """The linked Leerling ids that belong to an active, non-system user."""
+    linked = set(student_users(settings))
+    if not linked:
+        return frozenset()
+    return frozenset(
+        user.id
+        for user in await hass.auth.async_get_users()
+        if user.id in linked and user.is_active and not user.system_generated
+    )
+
+
+def proposal_answerer(
+    settings: dict[str, Any],
+    user_id: str | None,
+    live_students: frozenset[str],
+    *,
+    is_admin: bool = False,
+) -> str | None:
+    """How this user may answer a proposal for the daily maximum of the child.
+
+    ``student`` for a linked Leerling user that is active. When the child has no
+    such user (none linked, or all deleted, deactivated or system-generated),
+    ``on_behalf`` for a user linked as Ouder or an administrator. Otherwise ``None``:
+    nobody else answers, and no parent while the child has an active Leerling user.
+    ``live_students`` comes from ``async_live_students``.
+    """
+    role = role_of(settings, user_id)
+    if role == ROLE_STUDENT and user_id in live_students:
+        return ANSWERED_BY_STUDENT
+    if live_students:
+        return None
+    if role == ROLE_PARENT or is_admin:
+        return ANSWERED_ON_BEHALF
+    return None

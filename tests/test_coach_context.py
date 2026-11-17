@@ -122,9 +122,36 @@ async def home(hass: HomeAssistant, mocked: aioresponses) -> Home:
     return result
 
 
+def set_max(
+    hass: HomeAssistant, note_id: str, minutes: int | None, child: str = "1001"
+) -> None:
+    """Give a circumstance a maximum directly: the AI can only propose one (M14)."""
+    for entry in hass.config_entries.async_entries("magister"):
+        book = entry.runtime_data.homework.context
+        found = book._notes.get(int(child), [])
+        if any(n.id == note_id for n in found):
+            book._store(
+                int(child),
+                [
+                    replace(n, daily_max_minutes=minutes) if n.id == note_id else n
+                    for n in found
+                ],
+            )
+            return
+    raise AssertionError(note_id)  # pragma: no cover
+
+
 async def add(hass: HomeAssistant, user: Any, **args: Any) -> dict[str, Any]:
-    """Add a note that must succeed: the stored note."""
+    """Add a note that must succeed: the stored note.
+
+    ``daily_max_minutes`` is set directly on the note (an accepted proposal does the
+    same); the tool itself refuses it.
+    """
+    maximum = args.pop("daily_max_minutes", None)
     note: dict[str, Any] = (await ok(hass, user.id, "add_context", **args))["note"]
+    if maximum is not None:
+        set_max(hass, note["id"], maximum, str(args.get("child", "1001")))
+        note["daily_max_minutes"] = maximum
     return note
 
 
@@ -296,7 +323,6 @@ async def test_fields_must_fit_the_scope(hass: HomeAssistant, home: Home) -> Non
     uid = home.parent.id
     bad: list[dict[str, Any]] = [
         {"scope": "child", "subject": "wiskunde"},
-        {"scope": "child", "daily_max_minutes": 30},
         {"scope": "subject", "subject": "wiskunde", "item": HOMEWORK},
         {"scope": "item", "item": HOMEWORK, "start": "2026-11-16"},
         {"scope": "period", "start": "2026-11-16", "end": "2026-11-16", "item": "1"},
@@ -420,42 +446,72 @@ async def test_window_follows_the_options(
         assert code == "invalid_period"
 
 
-async def test_daily_max_values(hass: HomeAssistant, home: Home) -> None:
-    """0 to 480 in steps of 15; anything else is invalid_daily_max."""
-    parent = home.parent
+async def test_ai_cannot_set_a_daily_maximum(hass: HomeAssistant, home: Home) -> None:
+    """add_context and update_context refuse a maximum: it is a proposal (M14)."""
+    parent, student = home.parent, home.student
     base = {"scope": "period", "start": "2026-11-16", "end": "2026-11-16", "text": "x"}
-    for value in (0, 15, 30, 480):
-        note = await add(hass, parent, daily_max_minutes=value, **base)
-        assert note["daily_max_minutes"] == value
-    assert (await add(hass, parent, daily_max_minutes=45.0, **base))[
-        "daily_max_minutes"
-    ] == 45
-    for value in (7, 495, -15, 481, "x", True, 22.5, [30]):
-        code = await fails(
-            hass, parent.id, "add_context", daily_max_minutes=value, **base
-        )
-        assert code == "invalid_daily_max", value
-    plain = await add(hass, parent, **base)
+    for user in (parent, student):
+        for value in (0, 15, 30, 45.0, 480, 7, 495, "x", True, [30]):
+            result = await call(
+                hass, user.id, "add_context", daily_max_minutes=value, **base
+            )
+            assert result.error and result.data["error"] == "use_proposal", value
+            assert "propose_daily_max" in result.data["message"]
+    # Nothing was stored; null is the same as not given.
+    assert await notes(hass, parent, include_expired=True) == []
+    plain = await add(hass, parent, daily_max_minutes=None, **base)
     assert plain["daily_max_minutes"] is None
-    # Update: set, change and remove (null).
-    updated = (
-        await ok(
-            hass, parent.id, "update_context", id=plain["id"], daily_max_minutes=60
-        )
-    )["note"]
-    assert updated["daily_max_minutes"] == 60
+    for user in (parent, student):
+        for value in (60, 20, 0):
+            code = await fails(
+                hass, user.id, "update_context", id=plain["id"], daily_max_minutes=value
+            )
+            assert code == "use_proposal", value
+    assert (await notes(hass, parent))[0]["daily_max_minutes"] is None
+    # An existing maximum keeps working, and null removes it.
+    set_max(hass, plain["id"], 45)
+    assert (await notes(hass, parent))[0]["daily_max_minutes"] == 45
     cleared = (
         await ok(
             hass, parent.id, "update_context", id=plain["id"], daily_max_minutes=None
         )
     )["note"]
     assert cleared["daily_max_minutes"] is None
-    code = await fails(
-        hass, parent.id, "update_context", id=plain["id"], daily_max_minutes=20
-    )
-    assert code == "invalid_daily_max"
     with pytest.raises(BookError):
         check_daily_max(None)
+    for value in (7, 495, -15, 481, "x", True, 22.5, [30]):
+        with pytest.raises(BookError):
+            check_daily_max(value)
+    assert check_daily_max(45.0) == 45
+
+
+async def test_capped_circumstance_stays_visible(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """The AI cannot hide a circumstance that has a daily maximum from the student."""
+    parent = home.parent
+    capped = await add(
+        hass,
+        parent,
+        scope="period",
+        start="2026-11-16",
+        end="2026-11-17",
+        text="Toetsweek",
+        daily_max_minutes=60,
+    )
+    assert capped["visibility"] == "all"
+    result = await call(
+        hass, parent.id, "update_context", id=capped["id"], visibility="parents"
+    )
+    assert result.error and result.data["error"] == "invalid_format"
+    assert "visible to the student" in result.data["message"]
+    stored = (await notes(hass, parent))[0]
+    assert (stored["visibility"], stored["daily_max_minutes"]) == ("all", 60)
+    # Without a maximum it can be hidden, also in the same call that removes it.
+    plain = await add(
+        hass, parent, scope="period", start="2026-11-16", end="2026-11-17", text="x"
+    )
+    await ok(hass, parent.id, "update_context", id=plain["id"], visibility="parents")
 
 
 async def test_update_period_and_scope_fields(hass: HomeAssistant, home: Home) -> None:
@@ -483,7 +539,6 @@ async def test_update_period_and_scope_fields(hass: HomeAssistant, home: Home) -
     for args in (
         {"start": "2026-11-16"},
         {"end": "2026-11-16"},
-        {"daily_max_minutes": 30},
     ):
         code = await fails(hass, parent.id, "update_context", id=general["id"], **args)
         assert code == "invalid_format", args
@@ -506,7 +561,6 @@ async def test_period_from_before_the_window_can_be_edited(
         scope="period",
         start="2026-11-02",
         end="2026-11-25",
-        daily_max_minutes=30,
         text="Toetsweken",
     )
     # Tuesday 17 November: the window starts on 9 November.
@@ -523,24 +577,45 @@ async def test_period_from_before_the_window_can_be_edited(
         await ok(hass, parent.id, "update_context", id=period["id"], end="2026-11-27")
     )["note"]
     assert (edited["start"], edited["end"]) == ("2026-11-02", "2026-11-27")
+    set_max(hass, period["id"], 45)
+    # Extending a circumstance with a maximum is a proposal; shrinking is fine.
+    code = await fails(
+        hass, parent.id, "update_context", id=period["id"], end="2026-11-28"
+    )
+    assert code == "use_proposal"
     edited = (
-        await ok(
-            hass, parent.id, "update_context", id=period["id"], daily_max_minutes=45
-        )
+        await ok(hass, parent.id, "update_context", id=period["id"], end="2026-11-26")
     )["note"]
     assert (edited["start"], edited["end"], edited["daily_max_minutes"]) == (
         "2026-11-02",
-        "2026-11-27",
+        "2026-11-26",
         45,
     )
-    # Visibility alone does not look at the days either.
-    await ok(hass, parent.id, "update_context", id=period["id"], visibility="parents")
+    # A circumstance with a maximum stays visible to the student (M14).
+    code = await fails(
+        hass, parent.id, "update_context", id=period["id"], visibility="parents"
+    )
+    assert code == "invalid_format"
+    # Removing the maximum in the same call makes it parents-only; text and the
+    # visibility `all` are untouched by the rule.
+    await ok(hass, parent.id, "update_context", id=period["id"], text="Nieuw 2")
+    await ok(hass, parent.id, "update_context", id=period["id"], visibility="all")
+    await ok(
+        hass,
+        parent.id,
+        "update_context",
+        id=period["id"],
+        visibility="parents",
+        daily_max_minutes=None,
+    )
+    set_max(hass, period["id"], 45)  # a legacy parents-only circumstance with a maximum
+    await ok(hass, parent.id, "update_context", id=period["id"], text="Nieuw 3")
     # A given day must fit the window and the other (stored) day.
     for args, hint in (
         ({"start": "2026-11-08"}, "leave `start` out"),  # before the window
         ({"end": "2026-12-09"}, "`end` is 2026-12-08 or earlier"),
         ({"end": "2026-11-01"}, "`end` is 2026-11-09 or later"),
-        ({"start": "2026-11-30"}, "after the current last day (2026-11-27)"),
+        ({"start": "2026-11-30"}, "after the current last day (2026-11-26)"),
         ({"start": "2026-11-20", "end": "2026-11-19"}, "must not be after `end`"),
         # A given day must also lie in the window on the other side.
         ({"end": "2026-11-08"}, "`end` is 2026-11-09 or later"),
@@ -902,7 +977,7 @@ async def test_effective_maximum_tie_prefers_a_note_the_role_may_see(
             == (wanted["id"])
         )
     # A lower hidden maximum still decides the minutes: only a tie is broken.
-    await ok(hass, parent.id, "update_context", id=hidden["id"], daily_max_minutes=15)
+    set_max(hass, hidden["id"], 15)
     effective = book_.effective_daily_max(1001, day, parent=False)
     assert effective.minutes == 15
     assert effective.note is not None and effective.note.id == hidden["id"]
@@ -1523,7 +1598,8 @@ async def test_prompt_has_rules_and_context(hass: HomeAssistant, home: Home) -> 
     assert f"({covering['id']}) 2026-11-12 to 2026-11-14" in prompt
     # Days (from today) with another maximum, grouped in ranges; past days are left out.
     assert (
-        "The daily maximum (minutes) differs from 90 on: 2026-11-13 to 2026-11-14: 45; "
+        "The daily maximum (minutes) differs from the weekday's maximum on: "
+        "2026-11-13 to 2026-11-14: 45; "
         "2026-11-18 to 2026-11-20: 30."
     ) in prompt
     assert SECRET not in prompt and hidden["id"] not in prompt
@@ -1760,3 +1836,108 @@ async def test_item_note_keeps_its_gone_mark_in_the_store(
     assert marked.id == note.id
     # The mark is internal: the tools never show it.
     assert "gone" not in marked.view(TODAY)
+
+
+# -- a circumstance with a maximum cannot be moved or extended by the AI --------------
+
+
+async def test_ai_cannot_move_or_extend_a_capped_circumstance(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """The maximum would reach days nobody agreed to: that is a proposal (B1)."""
+    for user in (home.student, home.parent):
+        capped = await add(
+            hass,
+            user,
+            scope="period",
+            start="2026-11-16",
+            end="2026-11-20",
+            text="Toets",
+            daily_max_minutes=45,
+        )
+        for args in (
+            {"end": "2026-11-21"},  # extended at the end
+            {"start": "2026-11-15"},  # extended at the start
+            {"start": "2026-11-23", "end": "2026-11-27"},  # moved away
+            {"start": "2026-11-18", "end": "2026-11-22"},  # moved partly
+            {"start": "2026-11-14", "end": "2026-11-21"},
+        ):
+            result = await call(
+                hass, user.id, "update_context", id=capped["id"], **args
+            )
+            assert result.error and result.data["error"] == "use_proposal", args
+            assert "propose_daily_max" in result.data["message"]
+        # Nothing changed.
+        stored = [n for n in await notes(hass, home.parent) if n["id"] == capped["id"]]
+        assert (stored[0]["start"], stored[0]["end"]) == ("2026-11-16", "2026-11-20")
+        assert stored[0]["daily_max_minutes"] == 45
+        # Shrinking, or the same days, is fine.
+        shrunk = (
+            await ok(
+                hass,
+                user.id,
+                "update_context",
+                id=capped["id"],
+                start="2026-11-17",
+                end="2026-11-19",
+            )
+        )["note"]
+        assert (shrunk["start"], shrunk["end"]) == ("2026-11-17", "2026-11-19")
+        assert shrunk["daily_max_minutes"] == 45
+        same = (
+            await ok(
+                hass,
+                user.id,
+                "update_context",
+                id=capped["id"],
+                start="2026-11-17",
+                end="2026-11-19",
+                text="Nog steeds",
+            )
+        )["note"]
+        assert same["daily_max_minutes"] == 45
+        # Moving together with removing the maximum is allowed.
+        moved = (
+            await ok(
+                hass,
+                user.id,
+                "update_context",
+                id=capped["id"],
+                start="2026-11-23",
+                end="2026-11-27",
+                daily_max_minutes=None,
+            )
+        )["note"]
+        assert (moved["start"], moved["end"]) == ("2026-11-23", "2026-11-27")
+        assert moved["daily_max_minutes"] is None
+
+
+async def test_circumstance_without_a_maximum_moves_freely(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """Only a maximum is protected."""
+    for user in (home.student, home.parent):
+        free = await add(
+            hass, user, scope="period", start="2026-11-16", end="2026-11-20", text="x"
+        )
+        moved = (
+            await ok(
+                hass,
+                user.id,
+                "update_context",
+                id=free["id"],
+                start="2026-11-14",
+                end="2026-11-30",
+            )
+        )["note"]
+        assert (moved["start"], moved["end"]) == ("2026-11-14", "2026-11-30")
+
+
+async def test_update_context_text_explains_the_limit() -> None:
+    """The tool description and the rules say what the AI cannot do (B1)."""
+    from custom_components.magister.coach_text import PROPOSAL_RULES
+
+    tool = next(t for t in coach_tools() if t.name == "update_context")
+    assert "moving or extending its days is refused" in tool.description
+    assert "move or extend the days of a circumstance" in PROPOSAL_RULES
+    assert "move or extend the days of a circumstance" in CONTEXT_RULES

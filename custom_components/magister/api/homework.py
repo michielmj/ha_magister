@@ -75,6 +75,10 @@ DAILY_MAX_DEFAULT: Final = 90
 DAILY_MAX_MIN: Final = 15
 DAILY_MAX_MAX: Final = 480
 DAILY_MAX_STEP: Final = 15
+# Since 1.9.0 the maximum is set per weekday (Monday to Sunday): 0 to 480 in steps of
+# 15, where 0 means "no study planned that day".
+WEEKDAY_MAX_MIN: Final = 0
+WEEKDAYS: Final = 7
 
 
 def valid_minutes(value: Any) -> int | None:
@@ -101,6 +105,50 @@ def clean_daily_max(value: Any) -> int:
     # Integer arithmetic: a huge value must not overflow (no float division).
     stepped = (int(value) + DAILY_MAX_STEP // 2) // DAILY_MAX_STEP * DAILY_MAX_STEP
     return min(max(stepped, DAILY_MAX_MIN), DAILY_MAX_MAX)
+
+
+def clean_weekday_max(value: Any, default: int = DAILY_MAX_DEFAULT) -> int:
+    """A stored maximum of one weekday: rounded to the step, 0 to 480, else default."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return default
+    if isinstance(value, float) and not value.is_integer():
+        return default
+    stepped = (int(value) + DAILY_MAX_STEP // 2) // DAILY_MAX_STEP * DAILY_MAX_STEP
+    return min(max(stepped, WEEKDAY_MAX_MIN), DAILY_MAX_MAX)
+
+
+def valid_weekday_max(value: Any) -> int | None:
+    """A weekday maximum as int; ``None`` when it is not 0 to 480 in steps of 15."""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or not WEEKDAY_MAX_MIN <= value <= DAILY_MAX_MAX
+        or value % DAILY_MAX_STEP
+    ):
+        return None
+    return value
+
+
+def clean_weekdays(raw: Any, single: Any = None) -> tuple[int, ...]:
+    """The seven weekday maximums from the options, leniently (Monday first).
+
+    ``raw`` is the stored ``daily_max_weekdays`` (seven values). Without a usable
+    list, the single ``daily_max_minutes`` of 1.7 and 1.8 (``single``) is the value of
+    every day: that is the migration. The default is 90 for every day.
+
+    ``single`` is also the mirror of Monday kept next to the list. When it is present
+    and disagrees with the Monday value, the list is stale (the maximum was edited in
+    1.8 afterwards): the single value then holds for every day.
+    """
+    if isinstance(raw, list | tuple) and len(raw) == WEEKDAYS:
+        fallback = clean_daily_max(single)
+        values = tuple(clean_weekday_max(v, fallback) for v in raw)
+        if single is not None and clean_weekday_max(single, fallback) != values[0]:
+            return (fallback,) * WEEKDAYS
+        return values
+    return (clean_daily_max(single),) * WEEKDAYS
 
 
 @dataclass(frozen=True, slots=True)
@@ -410,14 +458,25 @@ class Weights:
 
     ``types`` is keyed by the names in ``TYPE_KEYS``; ``labels`` by label option id;
     ``subjects`` by the subject as it was stored. Subject matching is exact and
-    case-insensitive. ``daily_max_minutes`` (since 1.7.0) is the study time per school
-    day, stored with the weights of the child.
+    case-insensitive. ``daily_max_weekdays`` (since 1.9.0) is the study time per
+    weekday, Monday first, stored with the weights of the child; before 1.9.0 one value
+    (``daily_max_minutes``) held for every day and it is still stored as a mirror of
+    the Monday value, for a downgrade.
     """
 
     types: Mapping[str, float] = field(default_factory=dict)
     subjects: Mapping[str, float] = field(default_factory=dict)
     labels: Mapping[str, float] = field(default_factory=dict)
-    daily_max_minutes: int = DAILY_MAX_DEFAULT
+    daily_max_weekdays: tuple[int, ...] = (DAILY_MAX_DEFAULT,) * WEEKDAYS
+
+    @property
+    def daily_max_minutes(self) -> int:
+        """The Monday value: what 1.8 and older cards know as the daily maximum."""
+        return self.daily_max_weekdays[0]
+
+    def weekday_max(self, day: date) -> int:
+        """The maximum of the weekday of ``day``."""
+        return self.daily_max_weekdays[day.weekday()]
 
     @classmethod
     def from_options(cls, raw: Any) -> Weights:
@@ -443,7 +502,10 @@ class Weights:
                 if isinstance(label_id, str) and label_id and weight is not None:
                     labels[label_id] = weight
         return cls(
-            types, subjects, labels, clean_daily_max(raw.get("daily_max_minutes"))
+            types,
+            subjects,
+            labels,
+            clean_weekdays(raw.get("daily_max_weekdays"), raw.get("daily_max_minutes")),
         )
 
     def type_weight(self, info_type: int) -> float:

@@ -218,16 +218,22 @@
       },
       "daily_max": {
         "title": "Dagmaximum studietijd",
-        "description": "Kies het kind. Het dagmaximum is het aantal studieminuten per schooldag waarbinnen de AI plant en waartegen de kaart de geplande tijd vergelijkt.",
+        "description": "Kies het kind. Het dagmaximum is het aantal studieminuten per weekdag (maandag tot en met zondag) waarbinnen de AI plant en waartegen de kaart de geplande tijd vergelijkt. De leerling beslist zelf over zijn studietijd: wijzig het dagmaximum bij voorkeur samen met de leerling, via een voorstel.",
         "data": {
           "child": "Kind"
         }
       },
       "daily_max_settings": {
         "title": "Dagmaximum van {child}",
-        "description": "Studieminuten per schooldag, van 15 tot 480 in stappen van 15 (standaard {default}). Wijzigingen gelden direct.",
+        "description": "Studieminuten per weekdag, van 0 tot 480 in stappen van 15 (standaard {default}); 0 betekent geen studie op die dag. Wijzigingen gelden direct.",
         "data": {
-          "daily_max_minutes": "Minuten per schooldag"
+          "daily_max_monday": "Maandag",
+          "daily_max_tuesday": "Dinsdag",
+          "daily_max_wednesday": "Woensdag",
+          "daily_max_thursday": "Donderdag",
+          "daily_max_friday": "Vrijdag",
+          "daily_max_saturday": "Zaterdag",
+          "daily_max_sunday": "Zondag"
         }
       },
       "labels": {
@@ -348,7 +354,7 @@
       "name_invalid_chars": "De naam mag geen [ of ] bevatten.",
       "guidelines_too_long": "De richtlijnen zijn te lang (maximaal 4000 tekens).",
       "user_in_both_roles": "Een gebruiker kan niet tegelijk leerling en ouder van hetzelfde kind zijn. Haal de gebruiker uit een van de lijsten.",
-      "invalid_daily_max": "Vul een getal in van 15 tot 480 in stappen van 15."
+      "invalid_daily_max": "Vul een getal in van 0 tot 480 in stappen van 15."
     },
     "abort": {
       "auth_failed": "Inloggen bij Magister is mislukt. Gebruik eerst de kaart voor opnieuw inloggen of de optie Opnieuw configureren.",

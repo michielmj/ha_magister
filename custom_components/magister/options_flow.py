@@ -30,13 +30,13 @@ from .api import MagisterApiError, MagisterAuthError, MagisterConnectionError, P
 from .api.homework import (
     DAILY_MAX_DEFAULT,
     DAILY_MAX_MAX,
-    DAILY_MAX_MIN,
     DAILY_MAX_STEP,
     DEFAULT_WEIGHT,
     KIND_HOMEWORK,
     LABEL_KINDS,
     LABEL_NAME_MAX,
     TYPE_KEYS,
+    WEEKDAY_MAX_MIN,
     WEIGHT_MAX,
     WEIGHT_MIN,
     LabelOption,
@@ -45,13 +45,11 @@ from .api.homework import (
     label_options_to_stored,
     merge_subject_weights,
     subjects_of,
+    valid_weekday_max,
 )
 from .coach import (
-    coach_settings,
     guidelines_of,
     parent_guidelines_of,
-    parent_users,
-    student_users,
 )
 from .coach_text import DEFAULT_GUIDELINES, DEFAULT_PARENT_GUIDELINES
 from .const import (
@@ -66,7 +64,6 @@ from .const import (
     COACH_USERS,
     CONF_CHILDREN,
     CONF_COACH,
-    CONF_DAILY_MAX,
     CONF_HOST,
     CONF_INTERVAL,
     CONF_LABELS,
@@ -84,10 +81,15 @@ from .const import (
     WEEKS_BACK,
     WEEKS_BACK_MAX,
 )
-from .homework import new_label_id
+from .homework import new_label_id, options_with_weekdays, weekday_options
 from .pending import peek_retained_login
+from .proposals import WEEKDAY_NAMES
+from .roles import coach_settings, parent_users, student_users
 
 _LOGGER = logging.getLogger(__name__)
+
+# The fields of the daily maximum step: one per weekday, Monday first.
+WEEKDAY_FIELDS = tuple(f"daily_max_{name}" for name in WEEKDAY_NAMES)
 
 
 def child_entry(person: Person) -> dict[str, Any]:
@@ -405,13 +407,12 @@ class MagisterOptionsFlow(OptionsFlow):
             for key, value in (entry.options.get(CONF_WEIGHTS) or {}).items()
         }
         child_key = str(self._weights_child)
-        daily_max = stored.daily_max_minutes
-        if types or subjects or labels or daily_max != DAILY_MAX_DEFAULT:
+        weekday_values = weekday_options(stored.daily_max_weekdays)
+        if types or subjects or labels or weekday_values:
             weights[child_key] = {"types": types, "subjects": subjects}
             if labels:
                 weights[child_key]["labels"] = labels
-            if daily_max != DAILY_MAX_DEFAULT:
-                weights[child_key][CONF_DAILY_MAX] = daily_max
+            weights[child_key].update(weekday_values)
         else:
             weights.pop(child_key, None)
         options = dict(entry.options)
@@ -453,38 +454,40 @@ class MagisterOptionsFlow(OptionsFlow):
     async def async_step_daily_max_settings(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """The study minutes per school day, used by the AI and the card."""
+        """The study minutes per weekday (Monday to Sunday) for the AI and the card."""
         assert self._daily_max_child is not None
         entry = self.config_entry
         child_key = str(self._daily_max_child)
         stored = entry.options.get(CONF_WEIGHTS)
         current = Weights.from_options(
             stored.get(child_key) if isinstance(stored, dict) else None
-        ).daily_max_minutes
+        ).daily_max_weekdays
         errors: dict[str, str] = {}
         if user_input is not None:
-            value = float(user_input[CONF_DAILY_MAX])
-            if not DAILY_MAX_MIN <= value <= DAILY_MAX_MAX or value % DAILY_MAX_STEP:
-                errors[CONF_DAILY_MAX] = "invalid_daily_max"
-            else:
-                return self._save_daily_max(int(value))
+            values = [valid_weekday_max(user_input[key]) for key in WEEKDAY_FIELDS]
+            for key, value in zip(WEEKDAY_FIELDS, values, strict=True):
+                if value is None:
+                    errors[key] = "invalid_daily_max"
+            if not errors:
+                return self._save_daily_max(tuple(v for v in values if v is not None))
         schema = probatio.Schema(
             {
-                probatio.Required(CONF_DAILY_MAX): NumberSelector(
+                probatio.Required(key): NumberSelector(
                     NumberSelectorConfig(
-                        min=DAILY_MAX_MIN,
+                        min=WEEKDAY_MAX_MIN,
                         max=DAILY_MAX_MAX,
                         step=DAILY_MAX_STEP,
                         mode=NumberSelectorMode.BOX,
                         unit_of_measurement="min",
                     )
                 )
+                for key in WEEKDAY_FIELDS
             }
         )
         return self.async_show_form(
             step_id="daily_max_settings",
             data_schema=self.add_suggested_values_to_schema(
-                schema, user_input or {CONF_DAILY_MAX: current}
+                schema, user_input or dict(zip(WEEKDAY_FIELDS, current, strict=True))
             ),
             errors=errors,
             description_placeholders={
@@ -493,29 +496,14 @@ class MagisterOptionsFlow(OptionsFlow):
             },
         )
 
-    def _save_daily_max(self, minutes: int) -> ConfigFlowResult:
-        """Store the maximum with the child's weights (no reload); default = removed."""
-        entry = self.config_entry
-        weights = {
-            key: dict(value)
-            for key, value in (entry.options.get(CONF_WEIGHTS) or {}).items()
-        }
-        child_key = str(self._daily_max_child)
-        child = weights.get(child_key, {})
-        if minutes == DAILY_MAX_DEFAULT:
-            child.pop(CONF_DAILY_MAX, None)
-        else:
-            child[CONF_DAILY_MAX] = minutes
-        if child:
-            weights[child_key] = child
-        else:
-            weights.pop(child_key, None)
-        options = dict(entry.options)
-        if weights:
-            options[CONF_WEIGHTS] = weights
-        else:
-            options.pop(CONF_WEIGHTS, None)
-        return self.async_create_entry(data=options)
+    def _save_daily_max(self, weekdays: tuple[int, ...]) -> ConfigFlowResult:
+        """Store the maximums with the child's weights (no reload); default: removed."""
+        assert self._daily_max_child is not None
+        return self.async_create_entry(
+            data=options_with_weekdays(
+                self.config_entry.options, self._daily_max_child, weekdays
+            )
+        )
 
     # -- manual labels ------------------------------------------------------
 

@@ -67,6 +67,7 @@ ERR_INVALID_DAILY_MAX: Final = "invalid_daily_max"
 ERR_CONTEXT_NOT_FOUND: Final = "context_not_found"
 ERR_NOT_ALLOWED_FOR_ROLE: Final = "not_allowed_for_role"
 ERR_INVALID_FORMAT: Final = "invalid_format"
+ERR_USE_PROPOSAL: Final = "use_proposal"
 
 SERVICE_CLEAR_COACH_CONTEXT: Final = "clear_coach_context"
 ATTR_CONFIG_ENTRY_ID: Final = "config_entry_id"
@@ -398,12 +399,14 @@ class ContextBook:
     def effective_daily_max(
         self, child_id: int, day: date, *, parent: bool = True
     ) -> EffectiveMax:
-        """The daily maximum of a day: the lowest circumstance, else the child's.
+        """The daily maximum of a day: the lowest circumstance, else the weekday's.
 
-        This is the one function the overview, the prompt and the card use. A
-        circumstance applies to its days also after it has ended (past days). On a
-        tie the circumstance that ``parent`` (the role) may see wins, so a student is
-        not pointed at a parents-only period when a visible one explains the day.
+        The weekday value is that of the child for the weekday of ``day`` (since 1.9.0
+        every weekday has its own). This is the one function the overview, the prompt
+        and the card use. A circumstance applies to its days also after it has ended
+        (past days). On a tie the circumstance that ``parent`` (the role) may see
+        wins, so a student is not pointed at a parents-only period when a visible one
+        explains the day.
         """
         candidates = [
             (
@@ -419,29 +422,34 @@ class ContextBook:
             and note.end is not None
             and note.start <= day <= note.end
         ]
+        normal = self._manager.weekday_max(child_id, day)
         if not candidates:
-            return EffectiveMax(self._manager.daily_max(child_id), None)
+            return EffectiveMax(normal, None)
         minutes, _, _, _, note = min(candidates, key=lambda c: c[:4])
-        normal = self._manager.daily_max(child_id)
         if not note.visible_to(parent=parent) and minutes == normal:
             # A hidden period that changes nothing is not named to this role.
             return EffectiveMax(normal, None)
         return EffectiveMax(minutes, note)
 
     def daily_max_overrides(self, child_id: int) -> dict[str, int]:
-        """The effective maximum of the days a period changes, in the sync window."""
+        """The effective maximum of the days a period changes, in the sync window.
+
+        Only days whose maximum differs from the normal value of that weekday.
+        """
         if not any(
             n.daily_max_minutes is not None for n in self._notes.get(child_id, [])
         ):
             return {}
         first, after_last = self._manager.window_dates()
-        normal = self._manager.daily_max(child_id)
         result: dict[str, int] = {}
         day = first
         while day < after_last:
             effective = self.effective_daily_max(child_id, day)
             # A period that leaves the maximum as it is changes nothing to show.
-            if effective.note is not None and effective.minutes != normal:
+            if (
+                effective.note is not None
+                and effective.minutes != self._manager.weekday_max(child_id, day)
+            ):
                 result[day.isoformat()] = effective.minutes
             day += timedelta(days=1)
         return result
@@ -633,6 +641,37 @@ class ContextBook:
         self._store(child_id, [*self._notes.get(child_id, []), note])
         return note
 
+    def add_accepted_period(
+        self,
+        child_id: int,
+        *,
+        start: date,
+        end: date,
+        text: str,
+        minutes: int,
+        created_by: str,
+    ) -> Note:
+        """Add the circumstance of an accepted proposal (the limit still holds)."""
+        today = self._manager.today()
+        if self.active_count(child_id, today) >= NOTES_MAX:
+            raise ContextError(
+                ERR_TOO_MANY_NOTES,
+                f"At most {NOTES_MAX} notes per child; delete a note first.",
+            )
+        note = Note(
+            id=self._new_id(child_id),
+            scope=SCOPE_PERIOD,
+            text=clean_text(text),
+            visibility=VISIBILITY_ALL,
+            created_by=created_by,
+            updated=today.isoformat(),
+            start=start,
+            end=end,
+            daily_max_minutes=check_daily_max(minutes),
+        )
+        self._store(child_id, [*self._notes.get(child_id, []), note])
+        return note
+
     def find(self, child_id: int, note_id: str, *, parent: bool) -> Note:
         """A note of this child that the role may see (else ``context_not_found``)."""
         for note in self._notes.get(child_id, []):
@@ -658,8 +697,13 @@ class ContextBook:
         end: date | None = None,
         daily_max_minutes: Any = NOT_SET,
         visibility: str | None = None,
+        protect_maximum: bool = False,
     ) -> tuple[Note, bool]:
-        """Change a note; the second value says whether anything changed."""
+        """Change a note; the second value says whether anything changed.
+
+        With ``protect_maximum`` (the AI), a circumstance that keeps a daily maximum
+        may not cover a day outside its current days: that is a proposal.
+        """
         note = self.find(child_id, note_id, parent=parent)
         self._check_change_allowed(note, parent=parent)
         if visibility is not None and visibility not in VISIBILITIES:
@@ -703,6 +747,27 @@ class ContextBook:
         updated = replace(note, **changes)
         if updated == note:
             return note, False
+        if (
+            protect_maximum
+            and updated.daily_max_minutes is not None
+            and updated.visibility == VISIBILITY_PARENTS
+            and note.visibility != VISIBILITY_PARENTS
+        ):
+            raise ContextError(
+                ERR_INVALID_FORMAT,
+                "A circumstance with a daily maximum stays visible to the student "
+                "(`visibility` `all`): the student decides about their own time. "
+                "Remove the maximum in the same call to make it parents-only.",
+            )
+        if protect_maximum and updated.daily_max_minutes is not None:
+            assert updated.start and updated.end and note.start and note.end
+            if updated.start < note.start or updated.end > note.end:
+                raise ContextError(
+                    ERR_USE_PROPOSAL,
+                    "The AI cannot move or extend a circumstance that has a daily "
+                    "maximum: the student decides. Make a proposal with "
+                    "propose_daily_max, or shrink the days.",
+                )
         today = self._manager.today()
         if (
             note.expired(today)

@@ -365,13 +365,19 @@ show_progress_next_week: false
   not in the list, set through the AI or a service, is kept and shown; choosing — clears it). The time shows
   in the subtask row ("30 min"). Each day heading shows the planned time of that day, for example
   "± 1 h 15 min planned": the sum of the estimates of all subtasks (done or not) whose current day it is,
-  left out when it is 0. When the sum is above the child's **daily maximum** (Configure, Daily study maximum,
-  default 90 minutes) it is shown with a warning icon, highlight and the visible text "/ max 1 h 30 min" (also on touch
+  left out when it is 0. When the sum is above the child's **daily maximum of that weekday** (Configure, Daily study maximum: one field per
+  weekday, default 90 minutes; since 1.9.0) it is shown with a warning icon, highlight and the visible text "/ max 1 h 30 min" (also on touch
   screens), and screen readers add "over daily maximum (1 h 30 min)". Since 1.8.0 a day on which an AI-coach
-  circumstance (see *Context*) sets another maximum uses that maximum instead: the whole day total is dotted
+  circumstance (see *Context*) sets another maximum than that weekday's normal one uses that maximum instead: the whole day total is dotted
   underlined, with a tooltip, the visible text "/ max 1 h (adjusted)" and screen reader text "adjusted daily maximum
   (1 h)" (no reason is shown). The minutes of overdue subtasks count toward their (past)
   day; the Overdue group itself shows no total. Changes show at once and are rolled back with a message if saving fails.
+- **Colours, marker and proposals** (since 1.9.0). Subtasks have their own colour: a left border and a light tint in the theme's
+  information colour (`--info-color`, blue by default), readable in light and dark themes; the **AI** and **Parent** markers stay.
+  An item that has subtasks shows a marker next to its title, in the same colour: a small icon and "3 subtasks" (visible on touch screens
+  too; screen readers say "has 3 subtasks"), next to the existing "1 of 3 subtasks" line. A coach **proposal** for the daily
+  maximum shows at the top of the card in the same colour, with **Accept** (after a confirmation) and **Reject**; the days it covers show "proposal: max 2 h" next to
+  the day total. Answered and expired proposals show under the **Earlier** switch. See *Planning with time*.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
 
 ## AI homework coach
@@ -387,6 +393,8 @@ Server** integration.
   due dates, progress and subtasks, the progress values and the label options of the child it is linked to.
 - **It can change, in the planner:** add, change and delete subtasks; set the progress of an item or
   subtask; add and remove manual labels; replace, disable or restore the Magister label of a lesson.
+- **It can propose, not decide:** propose another daily maximum (`propose_daily_max`), list the proposals (`list_proposals`),
+  and answer one (`respond_to_proposal`) only after you have said yes or no explicitly (see *Planning with time*).
 - **It cannot** write anything to Magister, and it cannot change the integration's settings, the subject
   weights or the coach settings.
 - Every change is written to the Home Assistant **logbook** ("AI-coach: subtask 'H4 words' added to Proefwerk
@@ -556,7 +564,8 @@ The assistant gets guidelines with the tools. Without your own text it uses this
 >
 > - Maak geen huiswerk, opdrachten of toetsen voor de leerling; leg uit, stel vragen en geef hints.
 > - Help toetsen en grote opdrachten op te knippen in kleine deelstappen (15–45 minuten), verspreid over de dagen vóór de deadline, en houd rekening met andere toetsen en huiswerk in dezelfde periode.
-> - Plan realistisch: niet meer dan ongeveer 1,5 uur extra werk per schooldag, en laat de dag vóór een toets ruimte voor herhalen.
+> - Plan realistisch: houd je aan het dagmaximum van de leerling voor die dag, en laat de dag vóór een toets ruimte voor herhalen.
+> - De leerling bepaalt zelf zijn studietijd. Wil je een ander dagmaximum, doe dan een voorstel (propose_daily_max) en laat de leerling dat zelf accepteren; accepteer of wijs nooit af namens de leerling.
 > - Vraag eerst wat de leerling al af heeft voordat je voortgang aanpast; pas voortgang alleen aan als de leerling dat bevestigt.
 > - Wees positief en concreet. Benoem wat goed gaat. Geen druk of schuldgevoel.
 > - Spreek Nederlands, tenzij de leerling een andere taal gebruikt.
@@ -566,8 +575,8 @@ The assistant gets guidelines with the tools. Without your own text it uses this
 > a secondary-school student. You help plan, you do not take over the work. Do not do homework, assignments
 > or tests for the student; explain, ask questions and give hints. Help split tests and big assignments into
 > small steps (15 to 45 minutes) spread over the days before the deadline, taking other tests and homework
-> in the same period into account. Plan realistically: no more than about 1.5 hours of extra work per
-> school day, and leave room for revision on the day before a test. First ask what the student has already
+> in the same period into account. Plan realistically: keep to the student's daily maximum for that
+> day, and leave room for revision on the day before a test. The student decides about their own study time: for another daily maximum, make a proposal (propose_daily_max) and let the student accept it; never accept or reject on the student's behalf. First ask what the student has already
 > finished before changing progress, and only change progress when the student confirms. Be positive and
 > concrete, name what goes well, no pressure or guilt. Speak Dutch unless the student uses another
 > language. Briefly explain what you change in the planner and ask permission before deleting subtasks or
@@ -575,6 +584,12 @@ The assistant gets guidelines with the tools. Without your own text it uses this
 
 You can edit the text **per child** under Configure, AI coach, Settings per child (empty means the default, and there is a
 "reset to default" option).
+
+**Guidelines you edited are not changed by an update.** The default above (since 1.9.0, with the daily maximum per day and
+the proposals) only applies to a child whose text is empty or was never changed. To go back to the new default:
+Settings, Devices & services, Magister, **Configure**, **AI coach**, **Settings per child**, choose the child, tick **Reset the guidelines to the
+default** and press **Submit** (or empty the **Coaching guidelines** field). For the parent text: **Configure**, **AI coach**,
+**Parent guidelines (Ouder-richtlijnen)**, tick **Reset the guidelines to the default**, **Submit**.
 
 ### For parents (Ouder)
 
@@ -588,18 +603,21 @@ the same MCP Server setup as above (main endpoint `/api/mcp`); only the role dif
    linked to several children). A student's user goes under **Students (Leerling)**; the same user cannot be in
    both lists for one child. Users that were linked in 1.6.0 are students.
 2. **Set the daily maximum** per child: Configure, **Daily study maximum**, choose the child and enter the study
-   minutes per school day (15 to 480 in steps of 15, default 90). The AI plans within it and the card
-   compares each day's planned time with it.
+   minutes for each weekday (**Monday** to **Sunday**, 0 to 480 in steps of 15, default 90; 0 means no study that day).
+   The AI plans within it and the card compares each day's planned time with it. Since the student decides about their
+   own study time, change it preferably together with the student, through a proposal (see *Planning with time*).
 3. **Connect the AI app** as described under *Connect Claude* (the remote connector signs in as your own user; the local bridge uses your own long-lived token).
 
 **What the parent's AI can do.** It sees the same data as the student coach (no teacher names or codes), only for
 the children your user is linked to. It can:
 
 - give an **overview** across all your children for a period (`get_overview`, at most 31 days): the tests and
-  assignments due, the open homework count, the planned minutes and the daily maximum for every day;
+  assignments due, the open homework count, the planned minutes and the daily maximum of every day;
 - read the schedule, the homework with its subtasks and the progress;
 - **plan**: add, change and delete subtasks with an estimated time (`minutes`, 5 to 240 in steps of 5), and
-  add or change labels like the student coach.
+  add or change labels like the student coach;
+- **propose** another daily maximum (`propose_daily_max`) and list proposals (`list_proposals`). Answering one
+  (`respond_to_proposal`) is only possible for a child without an active student user, and only after you said yes or no.
 
 It **reads progress but cannot set it**: the student reports progress, in the planner or through their own
 coach. Subtasks the parent's AI creates are marked **Parent** in the card (the child can still edit and tick
@@ -609,9 +627,11 @@ them) and the logbook says "Ouder via AI: ...". It cannot change settings, weigh
 (Ouder-richtlijnen)** (empty means the default; there is a reset option). The default is in Dutch:
 
 > Je helpt een ouder om voor een kind een haalbare studieplanning te maken. Je praat met de ouder, niet met het kind.
+>
 > - Geef eerst een overzicht van toetsen, grote opdrachten en huiswerk in de gevraagde periode, en wijs op drukke dagen.
 > - Stel een planning voor met deelstappen van 15–45 minuten, elk met een geschatte tijd, verspreid over de dagen vóór de deadline.
-> - Houd je aan het dagmaximum van het kind en laat de dag vóór een toets ruimte voor herhalen.
+> - Houd je aan het dagmaximum van het kind voor die dag en laat de dag vóór een toets ruimte voor herhalen.
+> - Het kind bepaalt zelf zijn studietijd. Een ander dagmaximum stel je voor met propose_daily_max; het kind moet dat zelf accepteren. Heeft het kind een eigen, actief leerlingaccount, dan kun jij een voorstel niet beantwoorden.
 > - Leg de planning eerst voor en voer wijzigingen pas door als de ouder akkoord geeft.
 > - Voortgang geeft het kind zelf aan; jij past die niet aan. Gebruik de voortgang om te zien wat af is en de planning bij te stellen.
 > - Maak geen huiswerk of opdrachten; de planning is bedoeld om het kind zelfstandig te laten werken.
@@ -621,7 +641,7 @@ them) and the logbook says "Ouder via AI: ...". It cannot change settings, weigh
 > feasible study plan for a child. You talk to the parent, not to the child. First give an overview of the
 > tests, big assignments and homework in the requested period, and point out busy days. Propose a plan with
 > steps of 15 to 45 minutes, each with an estimated time, spread over the days before the deadline. Keep to the
-> child's daily maximum and leave room for revision on the day before a test. Present the plan first and only
+> child's daily maximum for that day and leave room for revision on the day before a test. The child decides about their own study time: propose another daily maximum with propose_daily_max; the child must accept it. If the child has their own active student account, you cannot answer a proposal. Present the plan first and only
 > make changes once the parent agrees. The child reports progress themselves; you do not change it. Use the
 > progress to see what is done and to adjust the plan. Do not do homework or assignments; the plan is meant to
 > let the child work independently. Speak Dutch unless the parent uses another language.
@@ -655,10 +675,12 @@ card). There are four kinds:
 - **circumstance**: a note for a **period**, with a start and an end date inside the period the calendar and the
   card cover (the weeks back to the weeks ahead in the options), for example "wo 18 nov: zwemwedstrijd".
 
-**Daily maximum.** A circumstance can also set a **daily maximum**, higher or lower than the normal one (0 to 480 minutes in steps of 15), for its days. The
-AI then plans within it, `get_overview` shows it, and the **card uses it**: the day's planned time is compared with it, the
-warning and the text "/ max ..." show it, and the text "(adjusted)", an underline and a tooltip (and screen reader text "adjusted daily maximum") tell that the maximum of that day was adjusted. No reason is shown in the card. When circumstances
-overlap, the lowest maximum wins. A day without a circumstance uses the child's daily maximum.
+**Daily maximum.** A circumstance can also carry a **daily maximum**, higher or lower than the normal one (0 to 480 minutes in
+steps of 15), for its days. Since 1.9.0 the AI cannot set one directly: a maximum always goes through a **proposal** that the
+student accepts (see *Planning with time*); an accepted period proposal becomes such a circumstance, always visible to the
+student. A circumstance that already has a maximum keeps working. The AI plans within it, `get_overview` shows it, and **the card uses it**: the day's planned time is compared with it, the
+warning and the text "/ max ..." show it, and the text "(adjusted)", an underline and a tooltip (and screen reader text "adjusted daily maximum") tell that the maximum of that day differs from the normal maximum of that weekday. No reason is shown in the card. When circumstances
+overlap, the lowest maximum wins. A day without a circumstance uses the child's maximum for that weekday.
 
 **Notes for parents only.** A parent can mark a note **"alleen ouders"**. The student's AI never receives such a note:
 not its text, not its subject, and the note does not show in any tool or in the prompt (only the id, without text, in `get_overview` on days where such a circumstance decides the maximum). If such a circumstance changes
@@ -747,8 +769,91 @@ asks you to delete a note first.
 > **Parent:** Zet erbij dat mijn kind volgende week ADHD-medicatie krijgt en daarom moe is.
 >
 > **Assistant:** Dat sla ik niet op: gezondheidsinformatie hoort niet in de notities. Wil je wel dat ik rekening houd met
-> de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, eventueel met een lager
-> dagmaximum, en alleen zichtbaar voor ouders.
+> de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, alleen zichtbaar voor ouders.
+> Een lager dagmaximum kan ik alleen voorstellen (propose_daily_max); dat moet je kind dan zelf accepteren.
+
+### Planning with time
+
+*Since 1.9.0.* Planning with time is **optional**: it helps in some periods, for example when you prepare for a test week.
+Without subtasks nothing changes.
+
+- **How.** You plan with time using **subtasks**, also for regular homework. The coach creates subtasks for every piece of
+  homework and test preparation in the period you ask about, each with an **estimated time** (`minutes`, in steps of 5).
+- **Estimates.** The coach estimates the minutes from the **size of the work** in the homework text (number of exercises,
+  pages, words to learn), not from a fixed time per subject, and says that it is an estimate. You can always change a time
+  in the card.
+- **Days.** Homework is not done on the day it is due, so the coach plans a subtask on a day **before** the due day, normally the day before or
+  earlier. Every day can be a homework day, weekends included.
+- **Daily maximum per weekday.** Every child has seven maximums, one per weekday. Set them under Settings, Devices &
+  services, Magister, **Configure**, **Daily study maximum**, choose the child and fill in the seven fields
+  (**Monday** to **Sunday**; 0 to 480 minutes in steps of 15, default 90). **0 means no study that day**: any planned time
+  on that day is over the maximum. The coach keeps each day within its maximum, and the card compares each day's planned time with it.
+  An older single maximum becomes the value of all seven days when you update.
+
+**The basic rule: the student decides.** The student decides about their own study plan and study time; the parent and the
+coach support. That is why neither the coach nor a parent's AI ever sets a daily maximum directly, and why an administrator
+is best advised to edit the seven fields together with the student.
+
+#### Proposals
+
+When the maximum should change, for example for a test week, the coach makes a **proposal**, in consultation with the student or a
+parent. A proposal has **no effect until the student accepts it**. There are two kinds:
+
+- a **period**: a date range (from tomorrow on, inside the period the card covers), a maximum for each day of it and a short
+  reason ("Toetsweek"). When accepted it becomes a circumstance with that maximum (see *Context*), visible to the student;
+- **weekdays**: seven new weekday values and a reason. When accepted they replace the child's weekday maximums.
+
+**Accepting or rejecting.** The student does this **on the card**: the proposal shows at the top ("Proposal from the coach: Toetsweek 23–27 Nov, max 2 h per day", or the seven
+weekday values), with **Accept** (after a confirmation) and **Reject**. Or **in the conversation**: the coach may only accept or reject
+after an explicit "yes" or "no" from the person who may answer. A proposal made through a **parent's** AI needs the student's
+acceptance too.
+
+**Who may answer.** A Home Assistant user linked as **Leerling** (student) for that child, on the card or through their AI.
+Only when the child has **no active student user** (none linked, or the user is deactivated, a system user or deleted, for
+example a child who does not use the app), a user linked as **Ouder** (parent) for the child, or an administrator, may answer on the child's behalf;
+the logbook then says "namens het kind". A parent's AI cannot answer while the child has an active student user. On the card,
+the buttons are shown to everyone; when you are not allowed you see "Only the student (or, for a child without their own account, a parent) can answer this proposal".
+
+**Expiry.** A proposal that is not answered expires: a period proposal when its first day starts, a weekday proposal after 7
+days. At most 5 are open per child. Answered and expired proposals are kept for 14 days and show on the card under the
+**Earlier** switch, with their status.
+
+**Logbook.** "AI-coach: voorstel dagmaximum (Toetsweek)" (a parent's AI: "Ouder via AI: ..."), "voorstel dagmaximum geaccepteerd
+door Anna" or "afgewezen door Anna" (with " namens het kind" when answered on behalf), and "voorstel dagmaximum verlopen
+(Toetsweek)". Only the first name of the Home Assistant user is written. An answer given through the AI starts with "AI-coach: " or "Ouder via AI: ".
+
+**What the AI cannot do.** It never sets a daily maximum itself: it can still add a circumstance without a maximum, but a
+maximum is always a proposal. It also cannot move or extend the days of a circumstance that has a maximum (shortening it, or
+removing its maximum, is allowed), and it cannot hide such a circumstance from the student.
+
+**Example conversation** (student; the assistant speaks Dutch by default):
+
+> **Student:** Plan de toetsweek met tijd.
+>
+> **Assistant:** *(looks at the overview of the coming weeks)* Volgende week heb je een proefwerk Engels op dinsdag en een
+> proefwerk biologie op donderdag, plus gewoon huiswerk. Ik stel voor: voor het proefwerk Engels woordjes leren (30 min,
+> zaterdag), grammatica oefenen (30 min, zondag) en een oefentoets (45 min, maandag); voor biologie hoofdstuk 2 samenvatten
+> (45 min, maandag) en de samenvatting herhalen (30 min, woensdag). Ook voor het gewone huiswerk maak ik deelstappen, een
+> dag eerder (maandag, 30 min), met een schatting op basis van het aantal opdrachten. Dit zijn schattingen; pas ze gerust aan.
+> Maandag komt dan op 2 uur, boven je maximum van 1 u 30 op maandag. Ik kan 30 min naar zondag schuiven, of een voorstel
+> doen voor 2 uur per dag van 16 t/m 20 november; dat geldt pas als jij het accepteert. Wat wil je?
+>
+> **Student:** Doe maar het voorstel, en voeg de deelstappen toe.
+>
+> **Assistant:** Gedaan: ik heb deelstappen met een geschatte tijd toegevoegd aan het gewone huiswerk en aan beide proefwerken. Ik heb ook het voorstel gedaan: "Toetsweek 16–20 nov, max 2 u per dag". Je ziet het bovenaan de kaart. Wil je het nu accepteren?
+>
+> **Student:** Ja, accepteer maar.
+>
+> **Assistant:** *(accepts after the explicit yes)* Geaccepteerd: voor 16 t/m 20 november geldt een maximum van 2 uur per dag.
+
+**On the card.** Subtasks have their own colour (a left border and a light tint, in the theme's information colour), an item that has subtasks shows
+a marker with the number ("3 subtasks"), a proposal shows at the top in the same colour, and each day heading shows the planned time against that day's
+maximum, with "proposal: max 2 h" on the days an open period proposal covers.
+
+**After an update.** An update that adds tools (such as 1.9.0) does not reach a running conversation. Reload the connector's tools
+in Claude (disconnect and connect the connector, or use its menu to reload the tools) and, if the new tools do not show up, start a new
+conversation.
+
 
 ## How it behaves
 

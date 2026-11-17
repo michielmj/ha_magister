@@ -3,10 +3,12 @@ import type {
   CardConfig,
   CardLanguage,
   HomeworkItem,
+  HomeworkPayload,
   ItemOverride,
   LabelOption,
   PeriodProgress,
   ProgressPeriod,
+  Proposal,
   Subtask,
 } from "./types";
 
@@ -251,6 +253,108 @@ export function plannedMinutes(items: readonly HomeworkItem[]): Map<string, numb
     }
   }
   return totals;
+}
+
+/** "1 u 30" / "45 min": minutes without the trailing "min" after hours, for lists of days. */
+export function formatMinutesShort(minutes: number, language: string): string {
+  const text = formatMinutes(minutes, language);
+  return Math.round(minutes) >= 60 ? text.replace(/ min$/, "") : text;
+}
+
+/** Monday = 0 ... Sunday = 6, for a local date YYYY-MM-DD (never shifted by a time zone). */
+export function weekdayIndex(iso: string): number {
+  const date = utcDate(iso);
+  return Number.isNaN(date.getTime()) ? -1 : (date.getUTCDay() + 6) % 7;
+}
+
+/** The seven weekday values of a payload, or undefined for an old or malformed payload. */
+export function weekdayMaximums(payload: Pick<HomeworkPayload, "daily_max_weekdays">): number[] | undefined {
+  const values = payload.daily_max_weekdays;
+  return Array.isArray(values) && values.length === 7 && values.every((v) => Number.isFinite(v))
+    ? values
+    : undefined;
+}
+
+export interface DayMaximum {
+  /** The effective maximum of the date; undefined when the payload says nothing. */
+  max: number | undefined;
+  /** The normal maximum of that weekday. */
+  normal: number | undefined;
+  /** The effective maximum differs from that weekday's normal value. */
+  adjusted: boolean;
+}
+
+/**
+ * The effective daily maximum of a date: the override of that date when there is one, else the
+ * weekday's value (Monday = index 0), else (an old payload) `daily_max_minutes`.
+ */
+export function dayMaximum(
+  payload: Pick<HomeworkPayload, "daily_max_weekdays" | "daily_max_minutes" | "daily_max_overrides"> | undefined,
+  date: string,
+): DayMaximum {
+  if (!payload) return { max: undefined, normal: undefined, adjusted: false };
+  const weekdays = weekdayMaximums(payload);
+  const index = weekdayIndex(date);
+  const fromWeekday = weekdays && index >= 0 ? weekdays[index] : undefined;
+  const normal =
+    fromWeekday ?? (typeof payload.daily_max_minutes === "number" ? payload.daily_max_minutes : undefined);
+  const override = payload.daily_max_overrides?.[date];
+  if (typeof override === "number") {
+    return { max: override, normal, adjusted: override !== normal };
+  }
+  return { max: normal, normal, adjusted: false };
+}
+
+// -- proposals --
+
+/** An optimistic answer to a proposal, until the backend has confirmed it. */
+export type ProposalAnswer = Pick<Proposal, "status" | "closed" | "answered_by">;
+
+/** The proposals with the optimistic answers applied. */
+export function applyProposalOverlay(
+  proposals: readonly Proposal[],
+  overlay: ReadonlyMap<string, ProposalAnswer>,
+): Proposal[] {
+  return proposals.map((proposal) => {
+    const answer = overlay.get(proposal.id);
+    return answer ? { ...proposal, ...answer } : proposal;
+  });
+}
+
+export const isOpenProposal = (proposal: Proposal): boolean => proposal.status === "proposed";
+
+/**
+ * The lowest maximum that an open period proposal gives a date (not accepted yet, so without
+ * effect), or undefined when no open proposal covers it.
+ */
+export function proposedMaximum(proposals: readonly Proposal[], date: string): number | undefined {
+  let lowest: number | undefined;
+  for (const proposal of proposals) {
+    if (!isOpenProposal(proposal) || proposal.kind !== "period") continue;
+    if (proposal.start === undefined || proposal.end === undefined) continue;
+    if (typeof proposal.minutes !== "number") continue;
+    if (date < proposal.start || date > proposal.end) continue;
+    if (lowest === undefined || proposal.minutes < lowest) lowest = proposal.minutes;
+  }
+  return lowest;
+}
+
+/** "23–27 nov", "30 nov – 4 dec" or "23 nov" */
+export function formatRange(start: string, end: string, language: string): string {
+  const first = utcDate(start);
+  const last = utcDate(end);
+  if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime())) return `${start} – ${end}`;
+  const month = (date: Date): string =>
+    new Intl.DateTimeFormat(language, { timeZone: "UTC", month: "short" })
+      .format(date)
+      .replace(/\./g, "");
+  const a = `${first.getUTCDate()} ${month(first)}`;
+  const b = `${last.getUTCDate()} ${month(last)}`;
+  if (a === b && start === end) return a;
+  if (first.getUTCMonth() === last.getUTCMonth() && first.getUTCFullYear() === last.getUTCFullYear()) {
+    return `${first.getUTCDate()}–${b}`;
+  }
+  return `${a} – ${b}`;
 }
 
 /** The uid of the item a subtask uid belongs to. */

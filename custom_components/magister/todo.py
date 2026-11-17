@@ -11,7 +11,7 @@ from homeassistant.components.todo.const import (
 )
 from homeassistant.components.todo.const import TodoItemStatus, TodoListEntityFeature
 from homeassistant.components.todo.entity import TodoItem, TodoListEntity
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import (
@@ -342,6 +342,7 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
     @callback
     def _on_new_day(self) -> None:
         """Subtasks roll over: new due dates, a new payload and a new count."""
+        self._manager.async_expire_proposals()
         self._rebuild()
         super()._on_new_day()
 
@@ -367,6 +368,12 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
                 "labels": labels,
                 "progress": {"next_day": None, "week": None, "next_week": None},
                 "daily_max_minutes": self._manager.daily_max(self._child_id),
+                "daily_max_weekdays": list(
+                    self._manager.daily_max_weekdays(self._child_id)
+                ),
+                "proposals": (
+                    self._last_payload["proposals"] if self._last_payload else []
+                ),
                 "daily_max_overrides": (
                     self._last_payload["daily_max_overrides"]
                     if self._last_payload
@@ -375,6 +382,28 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
             },
         )
         await super().async_will_remove_from_hass()
+
+    async def respond_proposal(
+        self,
+        proposal_id: str,
+        answer: str,
+        *,
+        user_id: str | None,
+        user_name: str | None,
+        is_admin: bool,
+        context: Context | None,
+    ) -> Payload:
+        """Answer a proposal for the daily maximum as this user (rights checked)."""
+        proposal = await self._manager.answer_proposal(
+            self._child_id,
+            proposal_id,
+            answer,
+            user_id=user_id,
+            user_name=user_name,
+            is_admin=is_admin,
+            context=context,
+        )
+        return proposal.view(dt_util.utcnow())
 
     @callback
     def payload(self) -> Payload:

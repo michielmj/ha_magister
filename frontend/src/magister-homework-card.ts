@@ -4,13 +4,19 @@ import {
   applyLabelRemovals,
   applyOverlay,
   applyOverrides,
+  applyProposalOverlay,
   applySubtaskEdits,
   dateBounds,
+  dayMaximum,
   formatDay,
   formatMinutes,
+  formatMinutesShort,
+  addDays,
+  formatRange,
   formatShortDay,
   groupEntries,
   isDerived,
+  isOpenProposal,
   hasOverrideFields,
   labelKey,
   loadSwitches,
@@ -24,6 +30,7 @@ import {
   overrideFieldsOf,
   parentUid,
   plannedMinutes,
+  proposedMaximum,
   reflectsEdit,
   saveSwitches,
   snapToStep,
@@ -36,6 +43,7 @@ import {
   type OverrideChange,
   type OverrideFields,
   type Overlay,
+  type ProposalAnswer,
   type SubtaskEdit,
 } from "./logic";
 import "./label-dialog";
@@ -54,6 +62,8 @@ import type {
   HomeworkItem,
   HomeworkPayload,
   ManualLabel,
+  Proposal,
+  RespondResult,
   SetOverrideResult,
   SetProgressResult,
   Subtask,
@@ -69,6 +79,7 @@ const SET_OVERRIDE = "magister/homework/set_override";
 const ADD_SUBTASK = "magister/homework/add_subtask";
 const UPDATE_SUBTASK = "magister/homework/update_subtask";
 const DELETE_SUBTASK = "magister/homework/delete_subtask";
+const RESPOND_PROPOSAL = "magister/homework/respond_proposal";
 const MAX_TITLE = 100;
 const TOAST_MS = 6000;
 /** Retry of a failed subscribe: 30 s, doubling, at most 10 minutes. */
@@ -95,6 +106,9 @@ type LoadError = "not_found" | "unauthorized" | "load_failed";
 
 const PAPERCLIP =
   "M16.5,6V17.5A4,4 0 0,1 12.5,21.5A4,4 0 0,1 8.5,17.5V5A2.5,2.5 0 0,1 11,2.5A2.5,2.5 0 0,1 13.5,5V15.5A1,1 0 0,1 12.5,16.5A1,1 0 0,1 11.5,15.5V6H10V15.5A2.5,2.5 0 0,0 12.5,18A2.5,2.5 0 0,0 15,15.5V5A4,4 0 0,0 11,1A4,4 0 0,0 7,5V17.5A5.5,5.5 0 0,0 12.5,23A5.5,5.5 0 0,0 18,17.5V6H16.5Z";
+
+/** A list with an indented second level (mdi-subdirectory-arrow-right), for the subtask marker. */
+const SUBTASKS_ICON = "M19,15L13,21L11.58,19.58L15.17,16H4V4H6V14H15.17L11.58,10.42L13,9L19,15Z";
 
 /** Unsubscribe without letting a rejected promise escape. */
 function safeUnsubscribe(unsubscribe: Unsubscribe): void {
@@ -123,6 +137,8 @@ export class MagisterHomeworkCard extends LitElement {
     _subEdits: { state: true },
     _form: { state: true },
     _subConfirm: { state: true },
+    _proposalOverlay: { state: true },
+    _proposalConfirm: { state: true },
   };
 
   declare _payload: HomeworkPayload | undefined;
@@ -147,6 +163,10 @@ export class MagisterHomeworkCard extends LitElement {
   declare _form: SubForm | undefined;
   /** The uid of the subtask waiting for its delete confirmation. */
   declare _subConfirm: string | undefined;
+  /** Optimistic answers to proposals, until the backend has answered. */
+  declare _proposalOverlay: ReadonlyMap<string, ProposalAnswer>;
+  /** The id of the proposal waiting for its accept confirmation. */
+  declare _proposalConfirm: string | undefined;
 
   private _storageKey = "";
   private readonly _removing = new Set<string>();
@@ -161,6 +181,7 @@ export class MagisterHomeworkCard extends LitElement {
   private readonly _tokens = new Map<string, number>();
   private readonly _overrideTokens = new Map<string, number>();
   private readonly _subTokens = new Map<string, number>();
+  private readonly _proposalTokens = new Map<string, number>();
   /** A subtask row that should take the focus as soon as it is rendered (after an add). */
   private _pendingFocus: string | undefined;
   /** The inline form should focus its title field when it renders. */
@@ -200,6 +221,8 @@ export class MagisterHomeworkCard extends LitElement {
     this._subEdits = new Map();
     this._form = undefined;
     this._subConfirm = undefined;
+    this._proposalOverlay = new Map();
+    this._proposalConfirm = undefined;
   }
 
   // -- Home Assistant card API --
@@ -235,6 +258,9 @@ export class MagisterHomeworkCard extends LitElement {
       this._overrideTokens.clear();
       this._subEdits = new Map();
       this._subTokens.clear();
+      this._proposalOverlay = new Map();
+      this._proposalTokens.clear();
+      this._proposalConfirm = undefined;
       this._form = undefined;
       this._subConfirm = undefined;
       this._pendingFocus = undefined;
@@ -393,6 +419,11 @@ export class MagisterHomeworkCard extends LitElement {
       if (this._subTokens.has(uid)) keptEdits.set(uid, edit);
     }
     this._subEdits = keptEdits;
+    const keptAnswers = new Map<string, ProposalAnswer>();
+    for (const [id, answer] of this._proposalOverlay) {
+      if (this._proposalTokens.has(id)) keptAnswers.set(id, answer);
+    }
+    this._proposalOverlay = keptAnswers;
     // Removals that were confirmed are in the pushed state; those in flight stay hidden.
     this._hiddenLabels = new Set([...this._hiddenLabels].filter((key) => this._removing.has(key)));
   }
@@ -615,6 +646,219 @@ export class MagisterHomeworkCard extends LitElement {
     }
   }
 
+  // -- proposals --
+
+  /** The proposals of the payload with the optimistic answers applied. */
+  private _proposals(): Proposal[] {
+    return applyProposalOverlay(this._payload?.proposals ?? [], this._proposalOverlay);
+  }
+
+  private _proposalSummary(proposal: Proposal, texts: Texts): string {
+    const lang = this._language() === "nl" ? "nl" : "en";
+    if (proposal.kind === "weekdays") {
+      const values = (proposal.weekdays ?? [])
+        .map(
+          (minutes, index) =>
+            `${texts.proposal.weekdays_short[index] ?? ""} ${minutes === 0 ? texts.proposal.none : formatMinutesShort(minutes, lang)}`,
+        )
+        .join(", ");
+      return format(texts.proposal.weekdays, { reason: proposal.reason, values });
+    }
+    return format(texts.proposal.period, {
+      reason: proposal.reason,
+      range: formatRange(proposal.start ?? "", proposal.end ?? "", lang === "nl" ? "nl" : "en-GB"),
+      max: formatMinutes(proposal.minutes ?? 0, lang),
+    });
+  }
+
+  /** The summary with the date range kept on one line. */
+  private _proposalSummaryHtml(proposal: Proposal, texts: Texts): TemplateResult | string {
+    if (proposal.kind === "weekdays") return this._proposalSummary(proposal, texts);
+    const lang = this._language() === "nl" ? "nl" : "en";
+    const marker = "\u0000";
+    const range = formatRange(proposal.start ?? "", proposal.end ?? "", lang === "nl" ? "nl" : "en-GB");
+    const parts = format(texts.proposal.period, {
+      reason: proposal.reason,
+      range: marker,
+      max: formatMinutes(proposal.minutes ?? 0, lang),
+    }).split(marker);
+    if (parts.length !== 2) return this._proposalSummary(proposal, texts);
+    return html`${parts[0]}<span class="nowrap">${range}</span>${parts[1]}`;
+  }
+
+  /** A period proposal can be answered until the day before it starts; a weekdays proposal expires on a date. */
+  private _expiryText(proposal: Proposal, texts: Texts, lang: string): string {
+    if (proposal.kind === "period") {
+      return format(texts.proposal.answer_by, { date: formatShortDay(addDays(proposal.expires, -1), lang) });
+    }
+    return format(texts.proposal.expires, { date: formatShortDay(proposal.expires, lang) });
+  }
+
+  private _askAccept(id: string): void {
+    this._toast = "";
+    this._proposalConfirm = id;
+    void this.updateComplete.then(() => {
+      this.shadowRoot?.querySelector<HTMLElement>(".proposal .confirm .cancel")?.focus();
+    });
+  }
+
+  private _cancelAccept(id: string): void {
+    this._proposalConfirm = undefined;
+    void this.updateComplete.then(() => {
+      this.shadowRoot
+        ?.querySelector<HTMLElement>(`[data-accept="${CSS.escape(id)}"]`)
+        ?.focus();
+    });
+  }
+
+  private async _respond(proposal: Proposal, answer: "accept" | "reject"): Promise<void> {
+    const hass = this._hass;
+    const entity = this._config?.entity;
+    this._proposalConfirm = undefined;
+    if (!hass || !entity || !this._payload?.available || this._offline) return;
+    const id = proposal.id;
+    const token = ++this._nextToken;
+    this._proposalTokens.set(id, token);
+    // The block is gone once it is answered: focus moves on to the next proposal, else the switches.
+    const others = this._proposals().filter((other) => isOpenProposal(other) && other.id !== id);
+    this._proposalOverlay = new Map(this._proposalOverlay).set(id, {
+      status: answer === "accept" ? "accepted" : "rejected",
+      closed: this._currentDay(),
+    });
+    this._focusAfter([
+      ...others.map((other) => `[data-proposal="${CSS.escape(other.id)}"] button`),
+      ".toolbar .switch",
+    ]);
+    const texts = this._texts();
+    try {
+      const result = await hass.callWS<RespondResult>({
+        type: RESPOND_PROPOSAL,
+        entity_id: entity,
+        proposal: id,
+        answer,
+      });
+      if (this._proposalTokens.get(id) !== token) return;
+      this._proposalTokens.delete(id);
+      const next = new Map(this._proposalOverlay);
+      const current = this._payload.proposals?.find((candidate) => candidate.id === id);
+      // The push usually arrives first; otherwise keep the confirmed answer until it does.
+      if (current && current.status !== "proposed") next.delete(id);
+      else {
+        next.set(id, {
+          status: result.proposal.status,
+          closed: result.proposal.closed,
+          answered_by: result.proposal.answered_by,
+        });
+      }
+      this._proposalOverlay = next;
+      this._showToast(answer === "accept" ? texts.proposal.accepted_toast : texts.proposal.rejected_toast);
+    } catch (error) {
+      if (this._proposalTokens.get(id) !== token) return;
+      this._proposalTokens.delete(id);
+      const next = new Map(this._proposalOverlay);
+      next.delete(id);
+      this._proposalOverlay = next;
+      const code = (error as WsError | undefined)?.code;
+      this._showToast(
+        (code ? texts.proposal.errors[code] : undefined) ?? texts.proposal.errors.default ?? texts.save_failed,
+      );
+      this._focusAfter([`[data-proposal="${CSS.escape(id)}"] button`]);
+    }
+  }
+
+  private _renderProposals(texts: Texts, enabled: boolean): TemplateResult | typeof nothing {
+    const open = this._proposals().filter(isOpenProposal);
+    if (open.length === 0) return nothing;
+    const lang = this._language() === "nl" ? "nl" : "en-GB";
+    return html`<div class="proposals">
+      ${open.map((proposal) => {
+        const summary = this._proposalSummary(proposal, texts);
+        const confirming = this._proposalConfirm === proposal.id;
+        return html`<section
+          class="proposal"
+          role="group"
+          data-proposal=${proposal.id}
+          aria-label=${format(texts.proposal.group_aria, { summary })}
+        >
+          <p class="proposal-text">
+            <span class="proposal-title">${texts.proposal.title}:</span> ${this._proposalSummaryHtml(proposal, texts)}
+            <span class="proposal-expires">${this._expiryText(proposal, texts, lang)}</span>
+          </p>
+          ${confirming
+            ? html`<div
+                class="confirm"
+                role="group"
+                aria-label=${texts.proposal.confirm}
+                @keydown=${(event: KeyboardEvent) => {
+                  if (event.key === "Escape") {
+                    event.stopPropagation();
+                    this._cancelAccept(proposal.id);
+                  }
+                }}
+              >
+                <span>${texts.proposal.confirm}</span>
+                <button type="button" class="cancel" @click=${() => {
+                  this._cancelAccept(proposal.id);
+                }}>${texts.proposal.confirm_no}</button>
+                <button type="button" class="primary" ?disabled=${!enabled} @click=${() => {
+                  void this._respond(proposal, "accept");
+                }}>${texts.proposal.confirm_yes}</button>
+              </div>`
+            : html`<div class="proposal-actions">
+                <button
+                  type="button"
+                  class="primary"
+                  data-accept=${proposal.id}
+                  ?disabled=${!enabled}
+                  aria-label=${format(texts.proposal.accept_aria, { summary })}
+                  @click=${() => {
+                    this._askAccept(proposal.id);
+                  }}
+                >${texts.proposal.accept}</button>
+                <button
+                  type="button"
+                  class="reject"
+                  data-reject=${proposal.id}
+                  ?disabled=${!enabled}
+                  aria-label=${format(texts.proposal.reject_aria, { summary })}
+                  @click=${() => {
+                    void this._respond(proposal, "reject");
+                  }}
+                >${texts.proposal.reject}</button>
+              </div>`}
+        </section>`;
+      })}
+    </div>`;
+  }
+
+  /** The answered and expired proposals, under the "Eerder" switch. */
+  private _renderClosedProposals(texts: Texts): TemplateResult | typeof nothing {
+    if (!this._showPast) return nothing;
+    const closed = this._proposals().filter((proposal) => !isOpenProposal(proposal));
+    if (closed.length === 0) return nothing;
+    const lang = this._language() === "nl" ? "nl" : "en-GB";
+    return html`<section class="closed-proposals" aria-labelledby="closed-proposals-title">
+      <h3 class="section" id="closed-proposals-title">${texts.proposal.earlier}</h3>
+      <ul>
+        ${closed.map((proposal) => {
+          const status = texts.proposal[proposal.status as "accepted" | "rejected" | "expired"];
+          const behalf =
+            proposal.answered_by === "on_behalf" ? ` ${texts.proposal.on_behalf}` : "";
+          const when = proposal.closed
+            ? format(texts.proposal.closed_on, {
+                status: `${status}${behalf}`,
+                date: formatShortDay(proposal.closed, lang),
+              })
+            : `${status}${behalf}`;
+          return html`<li class="closed-proposal" data-proposal=${proposal.id}>
+            <span class="proposal-status ${proposal.status}">${when}</span>
+            <span>${this._proposalSummaryHtml(proposal, texts)}</span>
+          </li>`;
+        })}
+      </ul>
+    </section>`;
+  }
+
   // -- manual labels --
 
   private _askRemove(uid: string, label: ManualLabel): void {
@@ -762,6 +1006,13 @@ export class MagisterHomeworkCard extends LitElement {
     if (this._subConfirm && (readOnly || !this._findSubtask(this._subConfirm))) {
       this._subConfirm = undefined;
     }
+    const confirming = this._proposalConfirm;
+    if (
+      confirming !== undefined &&
+      (readOnly || !this._proposals().some((p) => p.id === confirming && isOpenProposal(p)))
+    ) {
+      this._proposalConfirm = undefined;
+    }
     // The menu goes when the card turns read-only or its item is gone.
     if (
       this._menu !== undefined &&
@@ -798,15 +1049,19 @@ export class MagisterHomeworkCard extends LitElement {
     const enabled = available && !this._offline;
     const groups = this._visibleGroups();
     const bars = this._renderBars(texts, this._offline);
-    const banners = html`${this._renderToolbar(texts, enabled)}${bars}${!available
+    const banners = html`${this._renderProposals(texts, enabled)}${this._renderToolbar(
+      texts,
+      enabled,
+    )}${bars}${!available
       ? html`<p class="banner" role="status">${texts.unavailable}</p>`
       : nothing}${this._offline
       ? html`<p class="banner" role="status">${texts.offline}</p>`
       : nothing}`;
+    const closedProposals = this._renderClosedProposals(texts);
     if (groups.length === 0) {
       return available
-        ? html`${banners}<p class="state empty">${texts.no_homework}</p>`
-        : html`${banners}`;
+        ? html`${banners}<p class="state empty">${texts.no_homework}</p>${closedProposals}`
+        : html`${banners}${closedProposals}`;
     }
     const firstPast = groups.findIndex((group) => group.kind === "past");
     const planned = plannedMinutes(this._items());
@@ -819,7 +1074,7 @@ export class MagisterHomeworkCard extends LitElement {
             <section class="day" aria-labelledby="day-${group.date}">
               <div class="day-head">
                 <h4 id="day-${group.date}" class=${group.kind}>${this._dayTitle(group, texts)}</h4>
-                ${this._renderPlanned(group, planned, texts)}
+                ${this._renderPlanned(group, planned, texts)}${this._renderProposedMax(group, texts)}
               </div>
               <ul>
                 ${group.entries.map((entry) => this._renderEntry(entry, texts, enabled))}
@@ -827,12 +1082,14 @@ export class MagisterHomeworkCard extends LitElement {
             </section>
           `,
         )}
-      </div>`;
+      </div>${closedProposals}`;
   }
 
   /**
    * The planned time of a day, with a warning when it is above the effective daily maximum: the
-   * override of that day (a coach circumstance) when there is one, else the child's maximum.
+   * override of that day (a coach circumstance) when there is one, else the maximum of that
+   * weekday (an old payload: the single daily maximum). "Adjusted" means different from the
+   * normal maximum of that weekday.
    */
   private _renderPlanned(
     group: EntryGroup,
@@ -843,10 +1100,7 @@ export class MagisterHomeworkCard extends LitElement {
     const total = planned.get(group.date) ?? 0;
     if (total <= 0) return nothing;
     const lang = this._language() === "nl" ? "nl" : "en";
-    const override = this._payload?.daily_max_overrides?.[group.date];
-    const base = this._payload?.daily_max_minutes;
-    const adjusted = typeof override === "number" && override !== base;
-    const max = typeof override === "number" ? override : base;
+    const { max, adjusted } = dayMaximum(this._payload, group.date);
     const text = format(texts.sub.planned, { time: formatMinutes(total, lang) });
     if (typeof max !== "number") return html`<span class="planned">${text}</span>`;
     const over = total > max;
@@ -854,11 +1108,15 @@ export class MagisterHomeworkCard extends LitElement {
     const maxText = formatMinutes(max, lang);
     // No reason is shown: the payload has none.
     const tip = format(
-      adjusted
-        ? over
-          ? texts.sub.over_adjusted_max
-          : texts.sub.adjusted_max
-        : texts.sub.over_max,
+      over && max === 0
+        ? adjusted
+          ? texts.sub.over_zero_adjusted_max
+          : texts.sub.over_zero_max
+        : adjusted
+          ? over
+            ? texts.sub.over_adjusted_max
+            : texts.sub.adjusted_max
+          : texts.sub.over_max,
       { max: maxText },
     );
     const short = format(adjusted ? texts.sub.max_short_adjusted : texts.sub.max_short, {
@@ -871,6 +1129,21 @@ export class MagisterHomeworkCard extends LitElement {
       >${over ? html`<span aria-hidden="true">⚠ </span>` : nothing}${text}<span aria-hidden="true">
         ${short}</span
       ><span class="sr-only">, ${tip}</span></span
+    >`;
+  }
+
+  /** "voorstel: max 2 u" on a day that an open period proposal covers (it has no effect yet). */
+  private _renderProposedMax(
+    group: EntryGroup,
+    texts: Texts,
+  ): TemplateResult | typeof nothing {
+    if (group.kind === "overdue") return nothing;
+    const minutes = proposedMaximum(this._proposals(), group.date);
+    if (minutes === undefined) return nothing;
+    const max = formatMinutes(minutes, this._language() === "nl" ? "nl" : "en");
+    return html`<span class="proposed-max" title=${format(texts.proposal.day_note_aria, { max })}
+      ><span aria-hidden="true">${format(texts.proposal.day_note, { max })}</span
+      ><span class="sr-only">${format(texts.proposal.day_note_aria, { max })}</span></span
     >`;
   }
 
@@ -1015,6 +1288,7 @@ export class MagisterHomeworkCard extends LitElement {
           ${this._renderMagisterChip(item, texts, enabled)}
           ${item.manual_labels.map((label) => this._renderManualChip(item.uid, label, texts, enabled))}
           <span class="subject">${item.subject}</span>
+          ${this._renderMarker(item, texts)}
           ${item.lesson_hour !== null
             ? html`<span class="meta">${format(texts.lesson_hour, { n: item.lesson_hour })}</span>`
             : nothing}
@@ -1074,6 +1348,18 @@ export class MagisterHomeworkCard extends LitElement {
         ${this._renderAddSubtask(item, texts, enabled)}
       </div>
     </li>`;
+  }
+
+  /** The marker of an item that has subtasks: an icon and the count, in the subtask colour. */
+  private _renderMarker(item: HomeworkItem, texts: Texts): TemplateResult | typeof nothing {
+    const count = item.disabled === true ? 0 : (item.subtasks?.length ?? 0);
+    if (count === 0) return nothing;
+    const one = count === 1;
+    const label = format(one ? texts.sub.marker_aria_one : texts.sub.marker_aria, { n: count });
+    return html`<span class="sub-marker" role="img" title=${label} aria-label=${label}
+      ><svg viewBox="0 0 24 24" aria-hidden="true"><path d=${SUBTASKS_ICON}></path></svg
+      ><span aria-hidden="true">${format(one ? texts.sub.marker_one : texts.sub.marker, { n: count })}</span></span
+    >`;
   }
 
   private _renderEntry(entry: Entry, texts: Texts, enabled: boolean): TemplateResult {
@@ -1780,6 +2066,10 @@ export class MagisterHomeworkCard extends LitElement {
   static override styles = css`
     :host {
       display: block;
+      /* Subtasks and proposals: one colour. The text variant mixes in the text colour, so it
+         keeps its contrast on the light tint (light theme) and on the dark card (dark theme). */
+      --sub-color: var(--info-color, #039be5);
+      --sub-text: color-mix(in srgb, var(--sub-color) 55%, var(--primary-text-color, #212121));
     }
     ha-card {
       display: block;
@@ -1894,6 +2184,10 @@ export class MagisterHomeworkCard extends LitElement {
     .item.test {
       border-left-color: var(--warning-color, #ffa600);
       background: color-mix(in srgb, var(--warning-color, #ffa600) 8%, transparent);
+    }
+    .item.subtask {
+      border-left-color: var(--sub-color);
+      background: color-mix(in srgb, var(--sub-color) 10%, transparent);
     }
     .item.done .subject,
     .item.done .text {
@@ -2261,6 +2555,7 @@ export class MagisterHomeworkCard extends LitElement {
     input[type="checkbox"]:focus-visible,
     .toast button:focus-visible,
     .confirm button:focus-visible,
+    .proposal button:focus-visible,
     .chip-remove:focus-visible,
     button.chip:focus-visible,
     .switch:focus-visible,
@@ -2298,10 +2593,110 @@ export class MagisterHomeworkCard extends LitElement {
       color: var(--error-color);
     }
     .arrow {
+      color: var(--sub-text);
+    }
+    .sub-marker {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      flex: 0 0 auto;
+      padding: 0 7px 0 4px;
+      border-radius: 10px;
+      border: 1px solid color-mix(in srgb, var(--sub-color) 60%, transparent);
+      background: color-mix(in srgb, var(--sub-color) 12%, transparent);
+      color: var(--sub-text);
+      font-size: 0.75em;
+      font-weight: 500;
+      line-height: 1.6;
+      white-space: nowrap;
+    }
+    .sub-marker svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+    }
+    .proposals {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+    .proposal {
+      padding: 8px 12px;
+      border-left: 3px solid var(--sub-color);
+      border-radius: 4px 8px 8px 4px;
+      background: color-mix(in srgb, var(--sub-color) 10%, transparent);
+    }
+    .proposal-text {
+      margin: 0 0 8px;
+      overflow-wrap: anywhere;
+    }
+    .proposal-title {
+      font-weight: 600;
+      color: var(--sub-text);
+    }
+    .nowrap {
+      white-space: nowrap;
+    }
+    .proposal-expires {
+      display: block;
+      font-size: 0.8em;
       color: var(--secondary-text-color);
+    }
+    .proposal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .proposal-actions button {
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 18px;
+      border: 1px solid var(--divider-color);
+      background: transparent;
+      color: var(--primary-text-color);
+      font: inherit;
+      font-size: 0.85em;
+      cursor: pointer;
+    }
+    .proposal .primary {
+      border-color: var(--primary-color);
+      background: var(--primary-color);
+      color: var(--text-primary-color, #fff);
+    }
+    .proposal button:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+    .proposal .confirm {
+      margin-top: 0;
+      background: color-mix(in srgb, var(--sub-color) 16%, transparent);
+    }
+    .proposed-max {
+      font-size: 0.85em;
+      color: var(--sub-text);
+      font-weight: 500;
+    }
+    .closed-proposals {
+      margin-top: 8px;
+    }
+    .closed-proposal {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px 8px;
+      padding: 6px 0 6px 8px;
+      border-left: 3px solid var(--sub-color);
+      font-size: 0.9em;
+      color: var(--secondary-text-color);
+      overflow-wrap: anywhere;
+    }
+    .proposal-status {
+      font-weight: 600;
+      color: var(--sub-text);
     }
     .item.subtask {
       padding-left: 24px;
+      padding-right: 8px;
     }
     .item.overdue .ref {
       color: var(--error-color);

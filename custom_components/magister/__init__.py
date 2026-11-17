@@ -119,7 +119,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
 
     _async_remove_dropped_children(hass, entry)
     # The coach's context notes of a child that was unselected go with the child.
-    homework.context.drop_children(int(c[CHILD_ID]) for c in entry.data[CONF_CHILDREN])
+    kept = [int(c[CHILD_ID]) for c in entry.data[CONF_CHILDREN]]
+    homework.context.drop_children(kept)
+    homework.proposals.drop_children(kept)
     entry.runtime_data = MagisterRuntimeData(
         session=login.session,
         auth=login.auth,

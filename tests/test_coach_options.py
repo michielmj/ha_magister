@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 import pytest
@@ -309,7 +310,7 @@ async def test_created_by_in_payload_and_store(
     )
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 7)
+    assert (saved["version"], saved["minor_version"]) == (1, 8)
     stored = {
         s["title"]: s["created_by"]
         for s in saved["data"]["items"][uid(PROEFWERK)]["subtasks"]
@@ -533,8 +534,26 @@ async def _open_daily_max(hass: HomeAssistant, entry: Any, child: str | None) ->
     return result
 
 
+DAYS = [
+    "daily_max_monday",
+    "daily_max_tuesday",
+    "daily_max_wednesday",
+    "daily_max_thursday",
+    "daily_max_friday",
+    "daily_max_saturday",
+    "daily_max_sunday",
+]
+
+
+def _days(*values: float) -> dict[str, float]:
+    """The seven fields of the form; a single value is used for every day."""
+    if len(values) == 1:
+        values = values * 7
+    return dict(zip(DAYS, values, strict=True))
+
+
 async def test_daily_max_flow(hass: HomeAssistant, mocked: aioresponses) -> None:
-    """Own menu item: default 90, steps of 15, stored with the weights, no reload."""
+    """Own menu item: seven weekdays, default 90, 0 to 480, stored with the weights."""
     entry = await setup_coach(
         hass,
         mocked,
@@ -544,44 +563,64 @@ async def test_daily_max_flow(hass: HomeAssistant, mocked: aioresponses) -> None
     runtime = entry.runtime_data
     result = await _open_daily_max(hass, entry, "1001")
     keys = {str(k): k for k in result["data_schema"].schema}
-    assert keys["daily_max_minutes"].description["suggested_value"] == 90
-    config = result["data_schema"].schema[keys["daily_max_minutes"]].config
-    assert (config["min"], config["max"], config["step"]) == (15, 480, 15)
+    assert list(keys) == DAYS
+    for key in DAYS:
+        assert keys[key].description["suggested_value"] == 90
+        config = result["data_schema"].schema[keys[key]].config
+        assert (config["min"], config["max"], config["step"]) == (0, 480, 15)
     assert result["description_placeholders"] == {"child": "Anna A", "default": "90"}
-    # Outside the range or not a step of 15: an error, nothing stored.
-    for bad in (0, 14, 481, 495):  # the selector refuses these
+    # Outside the range: the selector refuses it; not a step of 15: an error.
+    for bad in (-15, 481, 495):
         with pytest.raises(InvalidData):
-            await _save(hass, result, {"daily_max_minutes": bad})
-    for bad in (16, 100, 479, 100.5):  # in range but not a step of 15
-        result = await _save(hass, result, {"daily_max_minutes": bad})
+            await _save(hass, result, {**_days(90), "daily_max_friday": bad})
+    for bad in (1, 16, 100, 479, 100.5):
+        result = await _save(hass, result, {**_days(90), "daily_max_friday": bad})
         assert result["type"] is FlowResultType.FORM, bad
-        assert result["errors"] == {"daily_max_minutes": "invalid_daily_max"}, bad
+        assert result["errors"] == {"daily_max_friday": "invalid_daily_max"}, bad
     assert entry.options[CONF_WEIGHTS] == {"1002": {"types": {"test": 2.0}}}
-    result = await _save(hass, result, {"daily_max_minutes": 135.0})
+    # A weekend of 0 and a long Wednesday: weekdays and the Monday mirror are stored.
+    values = (135.0, 90, 120, 90, 90, 0, 0)
+    result = await _save(hass, result, _days(*values))
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert entry.runtime_data is runtime  # no reload
     assert entry.options[CONF_WEIGHTS] == {
-        "1001": {"daily_max_minutes": 135},
+        "1001": {
+            "daily_max_weekdays": [135, 90, 120, 90, 90, 0, 0],
+            "daily_max_minutes": 135,
+        },
         "1002": {"types": {"test": 2.0}},
     }
     manager = runtime.homework
+    assert manager.daily_max_weekdays(1001) == (135, 90, 120, 90, 90, 0, 0)
     assert (manager.daily_max(1001), manager.daily_max(1002)) == (135, 90)
+    assert manager.weekday_max(1001, date(2026, 11, 14)) == 0  # Saturday
+    assert manager.weekday_max(1001, date(2026, 11, 18)) == 120  # Wednesday
+    # With Monday at the default there is no mirror (1.8 reads the default).
+    result = await _open_daily_max(hass, entry, "1001")
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert keys["daily_max_monday"].description["suggested_value"] == 135
+    assert keys["daily_max_saturday"].description["suggested_value"] == 0
+    await _save(hass, result, _days(90, 90, 120, 90, 90, 90, 90))
+    assert entry.options[CONF_WEIGHTS]["1001"] == {
+        "daily_max_weekdays": [90, 90, 120, 90, 90, 90, 90]
+    }
     # The second child keeps its other weights when its maximum is set and reset.
     result = await _open_daily_max(hass, entry, "1002")
-    await _save(hass, result, {"daily_max_minutes": 15})
+    await _save(hass, result, _days(15))
     assert entry.options[CONF_WEIGHTS]["1002"] == {
         "types": {"test": 2.0},
+        "daily_max_weekdays": [15] * 7,
         "daily_max_minutes": 15,
     }
     result = await _open_daily_max(hass, entry, "1002")
     keys = {str(k): k for k in result["data_schema"].schema}
-    assert keys["daily_max_minutes"].description["suggested_value"] == 15
-    await _save(hass, result, {"daily_max_minutes": 90})
+    assert keys["daily_max_sunday"].description["suggested_value"] == 15
+    await _save(hass, result, _days(90))
     assert entry.options[CONF_WEIGHTS]["1002"] == {"types": {"test": 2.0}}
     # Back to the default for the only setting removes the entry (and the option).
     result = await _open_daily_max(hass, entry, "1001")
-    await _save(hass, result, {"daily_max_minutes": 90})
+    await _save(hass, result, _days(90))
     assert "1001" not in entry.options[CONF_WEIGHTS]
     assert entry.runtime_data is runtime
 
@@ -592,11 +631,32 @@ async def test_daily_max_single_child_and_removal_of_empty_weights(
     """One child skips the choice; the weights option disappears when empty."""
     entry = await setup_coach(hass, mocked, {})
     result = await _open_daily_max(hass, entry, None)
-    await _save(hass, result, {"daily_max_minutes": 480})
-    assert entry.options[CONF_WEIGHTS] == {"1001": {"daily_max_minutes": 480}}
+    await _save(hass, result, _days(480))
+    assert entry.options[CONF_WEIGHTS] == {
+        "1001": {"daily_max_weekdays": [480] * 7, "daily_max_minutes": 480}
+    }
     result = await _open_daily_max(hass, entry, None)
-    await _save(hass, result, {"daily_max_minutes": 90})
+    await _save(hass, result, _days(90))
     assert CONF_WEIGHTS not in entry.options
+
+
+async def test_daily_max_1_8_value_is_every_weekday(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """Migration: the single 1.8 value is shown and kept for all seven days."""
+    entry = await setup_coach(
+        hass, mocked, {CONF_WEIGHTS: {"1001": {"daily_max_minutes": 60}}}
+    )
+    assert entry.runtime_data.homework.daily_max_weekdays(1001) == (60,) * 7
+    result = await _open_daily_max(hass, entry, None)
+    keys = {str(k): k for k in result["data_schema"].schema}
+    assert {keys[k].description["suggested_value"] for k in DAYS} == {60}
+    # Saving the unchanged form writes the new keys next to the old mirror.
+    await _save(hass, result, _days(60))
+    assert entry.options[CONF_WEIGHTS]["1001"] == {
+        "daily_max_weekdays": [60] * 7,
+        "daily_max_minutes": 60,
+    }
 
 
 async def test_weights_flow_keeps_the_daily_max(
@@ -617,6 +677,7 @@ async def test_weights_flow_keeps_the_daily_max(
         result = await _save(hass, result, normal)
     stored = entry.options[CONF_WEIGHTS]["1001"]
     assert stored["daily_max_minutes"] == 150
+    assert stored["daily_max_weekdays"] == [150] * 7
     assert stored["types"] == {"test": 3.0}
     # All weights back to normal: only the daily maximum is left.
     result = await hass.config_entries.options.async_init(entry.entry_id)
@@ -628,5 +689,10 @@ async def test_weights_flow_keeps_the_daily_max(
         normal = {str(k): 1.0 for k in result["data_schema"].schema}
         result = await _save(hass, result, normal)
     assert entry.options[CONF_WEIGHTS] == {
-        "1001": {"types": {}, "subjects": {}, "daily_max_minutes": 150}
+        "1001": {
+            "types": {},
+            "subjects": {},
+            "daily_max_weekdays": [150] * 7,
+            "daily_max_minutes": 150,
+        }
     }

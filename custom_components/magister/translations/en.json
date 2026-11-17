@@ -218,16 +218,22 @@
       },
       "daily_max": {
         "title": "Daily study maximum",
-        "description": "Choose the child. The daily maximum is the number of study minutes per school day that the AI plans within and that the card compares the planned time against.",
+        "description": "Choose the child. The daily maximum is the number of study minutes per weekday (Monday to Sunday) that the AI plans within and that the card compares the planned time against. The student decides about their own study time: change the maximum preferably together with the student, through a proposal.",
         "data": {
           "child": "Child"
         }
       },
       "daily_max_settings": {
         "title": "Daily maximum of {child}",
-        "description": "Study minutes per school day, from 15 to 480 in steps of 15 (default {default}). Changes apply immediately.",
+        "description": "Study minutes per weekday, from 0 to 480 in steps of 15 (default {default}); 0 means no study that day. Changes apply immediately.",
         "data": {
-          "daily_max_minutes": "Minutes per school day"
+          "daily_max_monday": "Monday",
+          "daily_max_tuesday": "Tuesday",
+          "daily_max_wednesday": "Wednesday",
+          "daily_max_thursday": "Thursday",
+          "daily_max_friday": "Friday",
+          "daily_max_saturday": "Saturday",
+          "daily_max_sunday": "Sunday"
         }
       },
       "labels": {
@@ -348,7 +354,7 @@
       "name_invalid_chars": "The name cannot contain [ or ].",
       "guidelines_too_long": "The guidelines are too long (at most 4000 characters).",
       "user_in_both_roles": "A user cannot be both student and parent of the same child. Remove the user from one of the lists.",
-      "invalid_daily_max": "Enter a number from 15 to 480 in steps of 15."
+      "invalid_daily_max": "Enter a number from 0 to 480 in steps of 15."
     },
     "abort": {
       "auth_failed": "Logging in to Magister failed. Use the re-login card or reconfigure first.",

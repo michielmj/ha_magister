@@ -93,6 +93,15 @@ CHANGELOG, version tagging, GitHub release, HACS validation green.
 - Verified live: parent role, subtasks with minutes and `created_by: parent`, refused `set_progress`,
   `invalid_minutes`, cross-child refusal, over-maximum, labels and overrides, and their cleanup.
 
+## Follow-ups after the 1.8.0 live test (2026-11-16)
+- Verified live: subject notes appear in `list_homework` `context`; a parents-only note is stored as such; a circumstance
+  lowers the day's maximum in `get_overview` and on the card (over-maximum warning); a medical note was refused; clearing
+  removed every note and restored the normal maximum.
+- `get_overview` tool description still says a circumstance can only lower the maximum (it can also raise it), and that
+  `daily_max_period` always has text (not for a student and a parents-only period).
+- README: after an update that adds tools, reload the connector's tools in Claude (Settings, Connectors); an AI session
+  that started earlier may keep its old tool list until a new conversation is started.
+
 ## Risks
 
 | Risk | Impact | Mitigation |
