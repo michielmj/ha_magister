@@ -2,9 +2,22 @@
 
 ## Unreleased
 
-Time planning with subtasks, a daily maximum per weekday and proposals for the daily maximum (M14, phase A: backend). The
-card and the README follow in phase B.
+## 1.9.0
 
+Time planning with subtasks, a daily maximum per weekday and proposals for the daily maximum.
+
+- **Card.** Subtasks have their own colour (a left border and a light tint in the theme's information colour, with a
+  fallback, readable in light and dark). An item that has subtasks shows a marker with the count ("3 deelstappen" /
+  "3 subtasks", with the accessible label "heeft 3 deelstappen", visible on touch screens). The day total and its warning
+  use the maximum of that weekday (the circumstance's maximum when there is one, an old payload falls back to
+  `daily_max_minutes`); "(aangepast)" / "(adjusted)" means different from that weekday's value, and a weekday maximum of 0
+  with planned minutes shows the warning. Open proposals show at the top with **Accepteren** (after a confirmation) and
+  **Afwijzen** (EN: Accept / Reject), optimistic with rollback and translated errors (`not_allowed_for_role`,
+  `proposal_closed`, `too_many_notes`); days covered by an open period proposal show "voorstel: max 2 u" / "proposal: max
+  2 h"; answered and expired proposals show under the "Eerder" switch. Keyboard and screen reader accessible. New
+  screenshots.
+- **README (NL/EN).** New section "Plannen met tijd" / "Planning with time", the new default coaching guidelines (and how
+  to reset your own), the seven weekday fields, and the tip to reload the connector's tools in Claude after an update.
 - **Daily maximum per weekday.** Every child has seven maximums (Monday to Sunday), each 0 to 480 minutes in steps of 15; 0
   means no study planned that day, and weekends count. The options (Configure, Dagmaximum studietijd) show one field per
   weekday. The single value of 1.7 and 1.8 becomes the value of all seven days (read-time migration, written in the new form

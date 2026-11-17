@@ -389,14 +389,20 @@ show_progress_next_week: false
   bewerken (een waarde die niet in de lijst staat, via de AI of een service ingesteld, blijft bewaard en zichtbaar;
   kies je — dan wordt de tijd gewist). De tijd staat in de regel van de deelstap ("30 min"). Elke dagkop toont de geplande
   tijd van die dag, bijvoorbeeld "± 1 u 15 min gepland": de som van de schattingen van alle deelstappen (af of niet)
-  waarvan dit de huidige dag is; bij 0 blijft het weg. Is de som hoger dan het **dagmaximum** van het kind
-  (Configureer, Dagmaximum studietijd, standaard 90 minuten), dan staat het met een waarschuwingsicoon, markering en
+  waarvan dit de huidige dag is; bij 0 blijft het weg. Is de som hoger dan het **dagmaximum van die weekdag** van het kind
+  (Configureer, Dagmaximum studietijd: een veld per weekdag, standaard 90 minuten; sinds 1.9.0), dan staat het met een waarschuwingsicoon, markering en
   de zichtbare tekst "/ max 1 u 30 min" (ook op touchscreens), en lezen schermlezers "boven dagmaximum (1 u 30 min)"
-  voor. Sinds 1.8.0 gebruikt een dag waarop een omstandigheid van de AI-coach (zie *Context*) een ander maximum
-  instelt dat maximum: het hele dagtotaal is dan met een stippellijn onderstreept, met tooltip, de zichtbare tekst
+  voor. Sinds 1.8.0 gebruikt een dag waarop een omstandigheid van de AI-coach (zie *Context*) een ander maximum dan het normale van die weekdag
+  instelt, dat maximum: het hele dagtotaal is dan met een stippellijn onderstreept, met tooltip, de zichtbare tekst
   "/ max 1 u (aangepast)" en schermlezertekst "aangepast dagmaximum (1 u)" (een reden wordt niet getoond). De minuten
   van achterstallige deelstappen tellen mee voor hun (voorbije) dag; de groep Achterstallig zelf toont geen totaal. Wijzigingen zijn direct zichtbaar en worden met een
   melding teruggedraaid als opslaan mislukt.
+- **Kleuren, markering en voorstellen** (sinds 1.9.0). Deelstappen hebben een eigen kleur: een linkerrand en een lichte tint in de
+  informatiekleur van het thema (`--info-color`, standaard blauw), leesbaar in lichte en donkere thema's; de labels **AI** en **Ouder** blijven.
+  Een item met deelstappen toont naast zijn titel een markering in dezelfde kleur: een klein icoon en "3 deelstappen" (ook zichtbaar op
+  touchscreens; schermlezers zeggen "heeft 3 deelstappen"), naast de bestaande regel "1 van 3 deelstappen". Een **voorstel** van de coach voor het
+  dagmaximum staat bovenaan de kaart in dezelfde kleur, met **Accepteren** (na een bevestiging) en **Afwijzen**; de dagen die het dekt tonen "voorstel: max 2 u" naast
+  het dagtotaal. Beantwoorde en verlopen voorstellen staan onder de schakelaar **Eerder**. Zie *Plannen met tijd*.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
 
@@ -590,7 +596,8 @@ De assistent krijgt richtlijnen mee met de tools. Zonder eigen tekst gelden deze
 >
 > - Maak geen huiswerk, opdrachten of toetsen voor de leerling; leg uit, stel vragen en geef hints.
 > - Help toetsen en grote opdrachten op te knippen in kleine deelstappen (15–45 minuten), verspreid over de dagen vóór de deadline, en houd rekening met andere toetsen en huiswerk in dezelfde periode.
-> - Plan realistisch: niet meer dan ongeveer 1,5 uur extra werk per schooldag, en laat de dag vóór een toets ruimte voor herhalen.
+> - Plan realistisch: houd je aan het dagmaximum van de leerling voor die dag, en laat de dag vóór een toets ruimte voor herhalen.
+> - De leerling bepaalt zelf zijn studietijd. Wil je een ander dagmaximum, doe dan een voorstel (propose_daily_max) en laat de leerling dat zelf accepteren; accepteer of wijs nooit af namens de leerling.
 > - Vraag eerst wat de leerling al af heeft voordat je voortgang aanpast; pas voortgang alleen aan als de leerling dat bevestigt.
 > - Wees positief en concreet. Benoem wat goed gaat. Geen druk of schuldgevoel.
 > - Spreek Nederlands, tenzij de leerling een andere taal gebruikt.
@@ -598,6 +605,12 @@ De assistent krijgt richtlijnen mee met de tools. Zonder eigen tekst gelden deze
 
 Je kunt de tekst **per kind** aanpassen onder Configureer, AI-coach, Instellingen per kind (leeg betekent de standaardtekst, en er is
 een optie "terugzetten naar standaard").
+
+**Richtlijnen die je zelf hebt aangepast, verandert een update niet.** De standaardtekst hierboven (sinds 1.9.0, met het dagmaximum per
+dag en de voorstellen) geldt alleen voor een kind waarvan de tekst leeg is of nooit is aangepast. Terug naar de nieuwe standaard:
+Instellingen, Apparaten en diensten, Magister, **Configureer**, **AI-coach**, **Instellingen per kind**, kies het kind, vink **Richtlijnen terugzetten naar de
+standaard** aan en kies **Verzenden** (of maak het veld **Coachrichtlijnen** leeg). Voor de ouder-richtlijnen: **Configureer**, **AI-coach**,
+**Ouder-richtlijnen**, vink **Zet de richtlijnen terug naar de standaardtekst** aan, **Verzenden**.
 
 ### Voor ouders (Ouder)
 
@@ -611,8 +624,9 @@ dezelfde MCP Server-opzet als hierboven (hoofdadres `/api/mcp`); alleen de rol v
    meerdere kinderen zijn gekoppeld). De gebruiker van een leerling komt onder **Leerlingen**; dezelfde gebruiker kan voor één
    kind niet in beide lijsten staan. Gebruikers die in 1.6.0 zijn gekoppeld, zijn leerlingen.
 2. **Stel het dagmaximum in** per kind: Configureer, **Dagmaximum studietijd**, kies het kind en vul de
-   studieminuten per schooldag in (15 tot 480 in stappen van 15, standaard 90). De AI plant daarbinnen en de kaart
-   vergelijkt de geplande tijd per dag ermee.
+   studieminuten per weekdag in (**Maandag** tot en met **Zondag**, 0 tot 480 in stappen van 15, standaard 90; 0 betekent geen studie op die dag).
+   De AI plant daarbinnen en de kaart vergelijkt de geplande tijd per dag ermee. Omdat de leerling zelf over zijn
+   studietijd beslist, wijzig je het bij voorkeur samen met de leerling, via een voorstel (zie *Plannen met tijd*).
 3. **Verbind de AI-app** zoals beschreven bij *Claude verbinden* (de externe connector logt in als je eigen gebruiker; de lokale brug gebruikt je eigen langlevende token).
 
 **Wat de AI van de ouder kan.** Ze ziet dezelfde gegevens als de coach van de leerling (geen namen of codes van
@@ -633,9 +647,11 @@ labelopties wijzigen.
 (leeg betekent de standaardtekst; er is een optie om terug te zetten). De standaardtekst:
 
 > Je helpt een ouder om voor een kind een haalbare studieplanning te maken. Je praat met de ouder, niet met het kind.
+>
 > - Geef eerst een overzicht van toetsen, grote opdrachten en huiswerk in de gevraagde periode, en wijs op drukke dagen.
 > - Stel een planning voor met deelstappen van 15–45 minuten, elk met een geschatte tijd, verspreid over de dagen vóór de deadline.
-> - Houd je aan het dagmaximum van het kind en laat de dag vóór een toets ruimte voor herhalen.
+> - Houd je aan het dagmaximum van het kind voor die dag en laat de dag vóór een toets ruimte voor herhalen.
+> - Het kind bepaalt zelf zijn studietijd. Een ander dagmaximum stel je voor met propose_daily_max; het kind moet dat zelf accepteren. Heeft het kind een eigen, actief leerlingaccount, dan kun jij een voorstel niet beantwoorden.
 > - Leg de planning eerst voor en voer wijzigingen pas door als de ouder akkoord geeft.
 > - Voortgang geeft het kind zelf aan; jij past die niet aan. Gebruik de voortgang om te zien wat af is en de planning bij te stellen.
 > - Maak geen huiswerk of opdrachten; de planning is bedoeld om het kind zelfstandig te laten werken.
@@ -670,11 +686,13 @@ bewerken). Er zijn vier soorten:
 - **omstandigheid**: een notitie voor een **periode**, met een begin- en einddatum binnen de periode die de agenda en
   de kaart beslaan (de weken terug tot de weken vooruit in de opties), bijvoorbeeld "wo 18 nov: zwemwedstrijd".
 
-**Dagmaximum.** Een omstandigheid kan ook een **dagmaximum** instellen, hoger of lager dan het normale (0 tot 480 minuten in stappen van 15), voor
-haar dagen. De AI plant dan binnen dat maximum, `get_overview` toont het en **de kaart gebruikt het**: de geplande tijd van de dag
+**Dagmaximum.** Een omstandigheid kan ook een **dagmaximum** hebben, hoger of lager dan het normale (0 tot 480 minuten in stappen van 15), voor
+haar dagen. Sinds 1.9.0 kan de AI er zelf geen instellen: een maximum loopt altijd via een **voorstel** dat de leerling
+accepteert (zie *Plannen met tijd*); een geaccepteerd periodevoorstel wordt zo'n omstandigheid, altijd zichtbaar voor de leerling.
+Een omstandigheid die al een maximum heeft, blijft werken. De AI plant binnen dat maximum, `get_overview` toont het en **de kaart gebruikt het**: de geplande tijd van de dag
 wordt ermee vergeleken, de waarschuwing en de tekst "/ max ..." tonen het, en de tekst "(aangepast)", een
-onderstreping en tooltip (en schermlezertekst "aangepast dagmaximum") laten zien dat het maximum van die dag is aangepast. Een reden toont de kaart niet.
-Bij overlappende omstandigheden wint het laagste maximum. Een dag zonder omstandigheid gebruikt het dagmaximum van het kind.
+onderstreping en tooltip (en schermlezertekst "aangepast dagmaximum") laten zien dat het maximum van die dag afwijkt van het normale maximum van die weekdag. Een reden toont de kaart niet.
+Bij overlappende omstandigheden wint het laagste maximum. Een dag zonder omstandigheid gebruikt het maximum van het kind voor die weekdag.
 
 **Notities alleen voor ouders.** Een ouder kan een notitie markeren als **"alleen ouders"**. De AI van de leerling krijgt
 zo'n notitie nooit: niet de tekst, niet het vak, en de notitie komt in geen enkele tool en niet in de prompt voor (alleen het id, zonder tekst, in `get_overview` op dagen waarop zo'n omstandigheid het maximum bepaalt). Verandert
@@ -767,6 +785,93 @@ omstandigheden tellen niet mee; notities alleen voor ouders wel, ook als een lee
 > **Assistent:** Dat sla ik niet op: gezondheidsinformatie hoort niet in de notities. Wil je wel dat ik rekening houd met
 > de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, eventueel met een lager
 > dagmaximum, en alleen zichtbaar voor ouders.
+
+### Plannen met tijd
+
+*Sinds 1.9.0.* Plannen met tijd is **optioneel**: het helpt in sommige periodes, bijvoorbeeld bij de voorbereiding op een toetsweek.
+Zonder deelstappen verandert er niets.
+
+- **Hoe.** Je plant met tijd met **deelstappen**, ook voor gewoon huiswerk. De coach maakt deelstappen voor elk huiswerkitem en
+  elke toetsvoorbereiding in de periode waarnaar je vraagt, elk met een **geschatte tijd** (`minutes`, in stappen van 5).
+- **Schattingen.** De coach schat de minuten op basis van de **omvang van het werk** in de huiswerktekst (aantal opdrachten,
+  bladzijden, woorden om te leren), niet op een vaste tijd per vak, en zegt erbij dat het een schatting is. Je kunt een tijd altijd in
+  de kaart aanpassen.
+- **Dagen.** Huiswerk maak je niet op de dag waarop het af moet zijn, dus de coach plant een deelstap op een dag **vóór** de deadline, normaal de dag ervoor of
+  eerder. Elke dag kan een huiswerkdag zijn, weekenden ook.
+- **Dagmaximum per weekdag.** Elk kind heeft zeven maxima, één per weekdag. Stel ze in via Instellingen, Apparaten en
+  diensten, Magister, **Configureer**, **Dagmaximum studietijd**, kies het kind en vul de zeven velden in
+  (**Maandag** tot en met **Zondag**; 0 tot 480 minuten in stappen van 15, standaard 90). **0 betekent geen studie op die dag**: elke geplande tijd
+  op die dag is boven het maximum. De coach houdt elke dag binnen zijn maximum en de kaart vergelijkt de geplande tijd van elke dag ermee.
+  Het oude enkele maximum wordt bij het bijwerken de waarde van alle zeven dagen.
+
+**De basisregel: de leerling beslist.** De leerling beslist zelf over zijn studieplan en studietijd; de ouder en de coach
+ondersteunen. Daarom stelt de coach, ook die van een ouder, nooit zelf een dagmaximum in, en wijzig je de zeven velden als beheerder
+bij voorkeur samen met de leerling.
+
+#### Voorstellen
+
+Moet het maximum veranderen, bijvoorbeeld voor een toetsweek, dan doet de coach een **voorstel**, in overleg met de leerling of een
+ouder. Een voorstel heeft **geen effect totdat de leerling het accepteert**. Er zijn twee soorten:
+
+- een **periode**: een datumbereik (vanaf morgen, binnen de periode die de kaart beslaat), een maximum voor elke dag ervan en een korte
+  reden ("Toetsweek"). Geaccepteerd wordt het een omstandigheid met dat maximum (zie *Context*), zichtbaar voor de leerling;
+- **weekdagen**: zeven nieuwe waarden en een reden. Geaccepteerd vervangen ze de weekdagmaxima van het kind.
+
+**Accepteren of afwijzen.** De leerling doet dat **op de kaart**: het voorstel staat bovenaan ("Voorstel van de coach: Toetsweek 23–27 nov, max 2 u per dag", of de zeven
+weekdagwaarden), met **Accepteren** (na een bevestiging) en **Afwijzen**. Of **in het gesprek**: de coach mag pas accepteren of afwijzen
+na een uitdrukkelijk "ja" of "nee" van degene die mag antwoorden. Een voorstel dat via de AI van een **ouder** is gedaan, moet ook door de leerling worden
+geaccepteerd.
+
+**Wie mag antwoorden.** Een Home Assistant-gebruiker die als **Leerling** aan dat kind is gekoppeld, op de kaart of via zijn AI.
+Alleen als het kind **geen actieve leerlinggebruiker** heeft (er is er geen gekoppeld, of de gebruiker is gedeactiveerd, een systeemgebruiker of
+verwijderd, bijvoorbeeld bij een kind dat de app niet gebruikt), mag een als **Ouder** gekoppelde gebruiker, of een beheerder, namens het kind antwoorden;
+het logboek zegt dan "namens het kind". De AI van een ouder kan niet antwoorden zolang het kind een actieve leerlinggebruiker heeft. De knoppen in de kaart zijn voor
+iedereen zichtbaar; mag je niet antwoorden, dan zie je "Alleen de leerling kan dit voorstel beantwoorden".
+
+**Verlopen.** Een voorstel waarop niet wordt geantwoord, verloopt: een periodevoorstel als de eerste dag begint, een weekdagvoorstel na 7
+dagen. Per kind staan er maximaal 5 open. Beantwoorde en verlopen voorstellen blijven 14 dagen bewaard en staan in de kaart onder de schakelaar
+**Eerder**, met hun status.
+
+**Logboek.** "AI-coach: voorstel dagmaximum (Toetsweek)" (de AI van een ouder: "Ouder via AI: ..."), "voorstel dagmaximum geaccepteerd
+door Anna" of "afgewezen door Anna" (met " namens het kind" als namens het kind is geantwoord) en "voorstel dagmaximum verlopen
+(Toetsweek)". Alleen de voornaam van de Home Assistant-gebruiker wordt vastgelegd.
+
+**Wat de AI niet kan.** Ze stelt nooit zelf een dagmaximum in: een omstandigheid zonder maximum kan ze nog wel toevoegen, maar een
+maximum is altijd een voorstel. Ze kan ook de dagen van een omstandigheid met een maximum niet verplaatsen of verlengen (inkorten, of het maximum
+weghalen, mag wel) en ze kan zo'n omstandigheid niet voor de leerling verbergen.
+
+**Voorbeeldgesprek** (leerling; de assistent spreekt standaard Nederlands):
+
+> **Leerling:** Plan de toetsweek met tijd.
+>
+> **Assistent:** *(bekijkt het overzicht van de komende weken)* Volgende week heb je een proefwerk Engels op dinsdag en een
+> proefwerk biologie op donderdag, plus gewoon huiswerk. Ik stel voor: voor het proefwerk Engels woordjes leren (30 min,
+> zaterdag), grammatica oefenen (30 min, zondag) en een oefentoets (45 min, maandag); voor biologie hoofdstuk 2 samenvatten
+> (45 min, maandag) en de samenvatting herhalen (30 min, woensdag). Ook voor het gewone huiswerk maak ik deelstappen, een
+> dag eerder (maandag, 30 min), met een schatting op basis van het aantal opdrachten. Dit zijn schattingen; pas ze gerust aan. Zal ik dit toevoegen?
+>
+> **Leerling:** Ja.
+>
+> **Assistent:** Gedaan: ik heb deelstappen met een geschatte tijd toegevoegd aan het gewone huiswerk en aan beide proefwerken.
+> Maandag komt dan op 2 uur terwijl je maximum op maandag 1 u 30 is. Wil je voor die week een hoger maximum? Dan doe ik een
+> voorstel van 2 uur per dag voor 16 t/m 20 november; het geldt pas als jij het accepteert.
+>
+> **Leerling:** Ja, doe maar.
+>
+> **Assistent:** Ik heb het voorstel gedaan: "Toetsweek 16–20 nov, max 2 u per dag". Je ziet het bovenaan de kaart. Wil je het nu accepteren?
+>
+> **Leerling:** Ja, accepteer maar.
+>
+> **Assistent:** *(accepteert na het uitdrukkelijke ja)* Geaccepteerd: voor 16 t/m 20 november geldt een maximum van 2 uur per dag.
+
+**In de kaart.** Deelstappen hebben een eigen kleur (een linkerrand en een lichte tint, in de informatiekleur van het thema), een item met deelstappen toont
+een markering met het aantal ("3 deelstappen"), een voorstel staat bovenaan in dezelfde kleur en elke dagkop toont de geplande tijd ten opzichte van het maximum van
+die dag, met "voorstel: max 2 u" op de dagen die een open periodevoorstel dekt.
+
+**Na een update.** Een update die tools toevoegt (zoals 1.9.0) bereikt een lopend gesprek niet. Laad de tools van de connector opnieuw
+in Claude (koppel de connector los en weer aan, of laad de tools opnieuw via het menu van de connector) en begin zo nodig een nieuw
+gesprek als de nieuwe tools niet verschijnen.
+
 
 ## Gedrag
 
