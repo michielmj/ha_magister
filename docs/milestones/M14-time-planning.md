@@ -1,4 +1,4 @@
-# M14 — Time planning with subtasks and a daily maximum per weekday (release 1.9.0)
+# M14 — Time planning with subtasks, a daily maximum per weekday and proposals (release 1.9.0)
 
 | | |
 |---|---|
@@ -19,6 +19,10 @@ the maximum only covers extra study time. The PM decided how time planning shoul
 | 4 | The time of a subtask depends on the **size of the work**, not on a fixed time per subject. The AI estimates it from the homework text. |
 | 5 | **Every day** can be a homework day, weekends included. The **daily maximum is set per weekday** (Monday to Sunday), per child. |
 | 6 | Card: **subtasks get a different colour**, and an item that has subtasks gets a **marker** showing that subtasks exist. |
+| 7 | **Basic rule: the student decides** about their own study plan and time. The parent and the coach support. |
+| 8 | The coach may **propose** a change to the daily maximum, in consultation with the student or a parent, e.g. for a test week. **The student must accept it.** Until then it has no effect. This applies to a period (a circumstance) **and** to the weekday values. |
+| 9 | The student accepts **on the card or in the conversation**; in the conversation only after an explicit "yes". A proposal made through a **parent's** AI also needs the student's acceptance. |
+| 10 | A proposal that is not answered **expires** (a period proposal when the period starts; a weekday proposal after 7 days). |
 
 ## Design
 ### Daily maximum per weekday
@@ -37,9 +41,27 @@ the maximum only covers extra study time. The PM decided how time planning shoul
   - `list_children` returns `daily_max_weekdays`;
   - `get_overview` days already carry `daily_max_minutes`, which is now the effective value for that date.
 
-### Who may set a maximum on a circumstance (open point from M13)
-- Proposal (Architect's recommendation **c**): a student's AI may only **lower** the maximum through a circumstance. That means `daily_max_minutes` must not be above that weekday's normal value on any day of the period; otherwise the tool returns `not_allowed_for_role`.
-- A parent's AI may raise or lower it.
+### Proposals for the daily maximum (PM decisions 7–10)
+- **The AI never changes a daily maximum directly.** Every change through the AI is a **proposal**. This replaces M13's direct `daily_max_minutes` on circumstances: a circumstance written through the AI can still be added without a maximum. A maximum is always a proposal.
+- **Two kinds of proposal:**
+  - **period:** a date range inside the sync window, a maximum per day (one value for all days of the period), and a short reason ("Toetsweek"). Once accepted, it becomes a circumstance with that maximum, as in M13.
+  - **weekdays:** seven new weekday values and a reason. Once accepted, they replace the child's weekday maximums.
+- **States:** `proposed` → `accepted` | `rejected` | `expired`. A period proposal expires when its first day starts unanswered. A weekday proposal expires 7 days after it was made.
+  - Each child has at most 5 open proposals.
+  - Answered and expired proposals are kept for 14 days for the history, then pruned.
+- **Who may accept or reject:**
+  - a Home Assistant user linked as **Leerling** for that child, on the card or through their AI;
+  - when the child has **no** Leerling user linked (a child who does not use the app), a user linked as **Ouder**, or an administrator, may answer on the child's behalf. The logbook says so.
+  - A parent's AI can make a proposal, but cannot answer it while the child has a Leerling user.
+- **Through the AI:**
+  - `propose_daily_max(child?, kind, start?, end?, minutes? | weekdays?, reason)`;
+  - `respond_to_proposal(child?, id, answer: accept|reject)`. Its description says: only call this after the student has said yes or no explicitly in this conversation;
+  - `list_proposals(child?, include_closed?)`.
+  - `get_overview` days show any open proposal that covers them (`proposal: {id, minutes}`).
+  - The prompt lists the open proposals.
+- **WebSocket and card:** a new command `magister/homework/respond_proposal` (`entity_id`, `id`, `answer`) with the same rights check, using `connection.user`. The payload gains `proposals` (open ones, plus those answered in the last 14 days).
+- **Logbook:** "AI-coach: voorstel dagmaximum (Toetsweek)", "Voorstel dagmaximum geaccepteerd door <first name of the HA user>" / "afgewezen", "… namens het kind" and "verlopen". No other personal data.
+- **Options flow:** the weekday maximums stay editable by an administrator under Configureer → Dagmaximum studietijd ("beheer"). The README explains that, following the basic rule, changes are best made with the student, through a proposal.
 
 ### Coaching guidelines and prompt
 - The planner rules in the prompt and the tool descriptions say:
@@ -53,6 +75,10 @@ the maximum only covers extra study time. The PM decided how time planning shoul
 
 ### Card
 - **Subtask rows** get a distinct colour: a left border and a light tint, using a theme colour (e.g. `--info-color`) with a fallback. They stay readable in light and dark, with sufficient contrast. The "AI" and "Ouder" chips stay.
+- **Proposals:** at the top of the card, each open proposal shows as a block in the subtask colour: "Voorstel van de coach: Toetsweek 23–27 nov, max 2 u per dag", or the seven weekday values. It has **Accepteren** and **Afwijzen** buttons, with a confirm step for accepting.
+  - The buttons are shown to everyone. The backend enforces who may answer and shows a translated message when someone is not allowed.
+  - Days covered by an open period proposal show "voorstel: max 2 u" next to the day total.
+  - Answered proposals are listed with the "Eerder" switch.
 - **Items with subtasks** get a marker next to the title: an icon plus "3 deelstappen" / "3 subtasks", in the same colour as the subtasks. It has an accessible label ("heeft 3 deelstappen") and is visible on touch devices.
   - The existing "x van y deelstappen" progress line stays.
   - The marker is also shown on the item when it appears on a day other than its subtasks' days.
@@ -66,11 +92,11 @@ the maximum only covers extra study time. The PM decided how time planning shoul
 ## Phases
 - **A, backend:**
   - weekday maximums (store, migration, options flow, effective maximum, payload, tools);
-  - the rule for students' circumstance maximums;
+  - proposals (store, states and expiry, rights, the AI tools, the WebSocket command, logbook);
   - prompt, rules and default guidelines;
   - contract, translations, tests.
 - **B, card and docs:**
-  - subtask colour, the item marker, the day total per weekday;
+  - subtask colour, the item marker, the day total per weekday, proposals with accept/reject;
   - Vitest tests, bundle, screenshots;
   - README NL/EN: time planning, the weekday maximum, an example ("plan de toetsweek met tijd").
   - Then release **1.9.0**.
@@ -81,4 +107,6 @@ the maximum only covers extra study time. The PM decided how time planning shoul
   - set different maximums for weekdays and the weekend;
   - ask the AI for a time plan for a test week, and check that regular homework gets subtasks with estimated times on the days before it is due;
   - check the colours and markers on the card, and the day totals against each weekday's maximum;
-  - as a student, try to raise a day's maximum through a circumstance; this must be refused.
+  - let the parent's AI propose a test-week maximum, check that it has no effect until the student accepts it (on the card, or with an explicit "yes" in the student's conversation), and check the logbook;
+  - let the coach propose new weekday values, reject them, and check that nothing changed;
+  - leave a proposal unanswered until its period starts, and check that it expires.
