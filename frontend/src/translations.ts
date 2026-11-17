@@ -88,6 +88,7 @@ const nl = {
     marker_aria: "heeft {n} deelstappen",
     marker_aria_one: "heeft {n} deelstap",
     over_zero_max: "geen studietijd ingesteld voor deze dag ({max})",
+    over_zero_adjusted_max: "geen studietijd ingesteld voor deze dag, aangepast dagmaximum ({max})",
     count: "{done} van {total} deelstappen",
     count_one: "{done} van {total} deelstap",
     derived_check: "Voortgang van {subject} volgt uit de deelstappen",
@@ -117,6 +118,7 @@ const nl = {
     none: "geen",
     weekdays_short: ["ma", "di", "wo", "do", "vr", "za", "zo"],
     expires: "Verloopt op {date}",
+    answer_by: "Beantwoorden kan t/m {date}",
     accept: "Accepteren",
     reject: "Afwijzen",
     accept_aria: "Voorstel accepteren: {summary}",
@@ -136,7 +138,8 @@ const nl = {
     accepted_toast: "Voorstel geaccepteerd.",
     rejected_toast: "Voorstel afgewezen.",
     errors: {
-      not_allowed_for_role: "Alleen de leerling kan dit voorstel beantwoorden.",
+      not_allowed_for_role:
+        "Alleen de leerling (of, als het kind geen eigen account heeft, een ouder) kan dit voorstel beantwoorden.",
       proposal_closed: "Dit voorstel is al beantwoord of verlopen.",
       too_many_notes:
         "Het voorstel kan niet worden geaccepteerd: er zijn al 50 notities voor dit kind. Verwijder eerst een notitie.",
@@ -288,6 +291,7 @@ const en: Texts = {
     marker_aria: "has {n} subtasks",
     marker_aria_one: "has {n} subtask",
     over_zero_max: "no study time set for this day ({max})",
+    over_zero_adjusted_max: "no study time set for this day, adjusted daily maximum ({max})",
     count: "{done} of {total} subtasks",
     count_one: "{done} of {total} subtask",
     derived_check: "Progress of {subject} follows from the subtasks",
@@ -317,6 +321,7 @@ const en: Texts = {
     none: "none",
     weekdays_short: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     expires: "Expires on {date}",
+    answer_by: "Answer by {date}",
     accept: "Accept",
     reject: "Reject",
     accept_aria: "Accept proposal: {summary}",
@@ -336,7 +341,8 @@ const en: Texts = {
     accepted_toast: "Proposal accepted.",
     rejected_toast: "Proposal rejected.",
     errors: {
-      not_allowed_for_role: "Only the student can answer this proposal.",
+      not_allowed_for_role:
+        "Only the student (or, for a child without their own account, a parent) can answer this proposal.",
       proposal_closed: "This proposal has already been answered or has expired.",
       too_many_notes:
         "The proposal cannot be accepted: there are already 50 notes for this child. Delete a note first.",

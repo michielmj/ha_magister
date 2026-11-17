@@ -420,6 +420,8 @@ Home Assistant-integratie **Model Context Protocol Server**.
 - **Wijzigen, in de planner:** deelstappen toevoegen, aanpassen en verwijderen; de voortgang van een item of
   deelstap instellen; handmatige labels toevoegen en verwijderen; het Magister-label van een les vervangen,
   uitschakelen of herstellen.
+- **Voorstellen, niet beslissen:** een ander dagmaximum voorstellen (`propose_daily_max`), de voorstellen tonen
+  (`list_proposals`) en er een beantwoorden (`respond_to_proposal`), pas nadat jij uitdrukkelijk ja of nee hebt gezegd (zie *Plannen met tijd*).
 - **Niet:** iets naar Magister schrijven, of instellingen van de integratie, vakgewichten of
   coach-instellingen wijzigen.
 - Elke wijziging komt in het **logboek** van Home Assistant ("AI-coach: deelstap 'H4 woordjes' toegevoegd aan
@@ -636,7 +638,9 @@ docenten), alleen voor de kinderen waaraan jouw gebruiker is gekoppeld. Ze kan:
   opdrachten, het aantal openstaande huiswerkitems, de geplande minuten en het dagmaximum per dag;
 - het rooster, het huiswerk met deelstappen en de voortgang lezen;
 - **plannen**: deelstappen met een geschatte tijd (`minutes`, 5 tot 240 in stappen van 5) toevoegen, aanpassen en
-  verwijderen, en labels toevoegen of wijzigen zoals de coach van de leerling.
+  verwijderen, en labels toevoegen of wijzigen zoals de coach van de leerling;
+- een ander dagmaximum **voorstellen** (`propose_daily_max`) en voorstellen tonen (`list_proposals`). Beantwoorden
+  (`respond_to_proposal`) kan alleen voor een kind zonder actieve leerlinggebruiker, en pas nadat jij ja of nee hebt gezegd.
 
 Ze **leest de voortgang maar kan die niet instellen**: de leerling geeft de voortgang zelf aan, in de planner of via
 de eigen coach. Deelstappen die de AI van de ouder maakt, krijgen in de kaart het label **Ouder** (het kind kan ze
@@ -783,8 +787,8 @@ omstandigheden tellen niet mee; notities alleen voor ouders wel, ook als een lee
 > **Ouder:** Zet erbij dat mijn kind volgende week ADHD-medicatie krijgt en daarom moe is.
 >
 > **Assistent:** Dat sla ik niet op: gezondheidsinformatie hoort niet in de notities. Wil je wel dat ik rekening houd met
-> de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, eventueel met een lager
-> dagmaximum, en alleen zichtbaar voor ouders.
+> de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, alleen zichtbaar voor ouders.
+> Een lager dagmaximum kan ik alleen voorstellen (propose_daily_max); dat moet je kind dan zelf accepteren.
 
 ### Plannen met tijd
 
@@ -826,7 +830,7 @@ geaccepteerd.
 Alleen als het kind **geen actieve leerlinggebruiker** heeft (er is er geen gekoppeld, of de gebruiker is gedeactiveerd, een systeemgebruiker of
 verwijderd, bijvoorbeeld bij een kind dat de app niet gebruikt), mag een als **Ouder** gekoppelde gebruiker, of een beheerder, namens het kind antwoorden;
 het logboek zegt dan "namens het kind". De AI van een ouder kan niet antwoorden zolang het kind een actieve leerlinggebruiker heeft. De knoppen in de kaart zijn voor
-iedereen zichtbaar; mag je niet antwoorden, dan zie je "Alleen de leerling kan dit voorstel beantwoorden".
+iedereen zichtbaar; mag je niet antwoorden, dan zie je "Alleen de leerling (of, als het kind geen eigen account heeft, een ouder) kan dit voorstel beantwoorden".
 
 **Verlopen.** Een voorstel waarop niet wordt geantwoord, verloopt: een periodevoorstel als de eerste dag begint, een weekdagvoorstel na 7
 dagen. Per kind staan er maximaal 5 open. Beantwoorde en verlopen voorstellen blijven 14 dagen bewaard en staan in de kaart onder de schakelaar
@@ -834,7 +838,7 @@ dagen. Per kind staan er maximaal 5 open. Beantwoorde en verlopen voorstellen bl
 
 **Logboek.** "AI-coach: voorstel dagmaximum (Toetsweek)" (de AI van een ouder: "Ouder via AI: ..."), "voorstel dagmaximum geaccepteerd
 door Anna" of "afgewezen door Anna" (met " namens het kind" als namens het kind is geantwoord) en "voorstel dagmaximum verlopen
-(Toetsweek)". Alleen de voornaam van de Home Assistant-gebruiker wordt vastgelegd.
+(Toetsweek)". Alleen de voornaam van de Home Assistant-gebruiker wordt vastgelegd. Een antwoord dat via de AI is gegeven begint met "AI-coach: " of "Ouder via AI: ".
 
 **Wat de AI niet kan.** Ze stelt nooit zelf een dagmaximum in: een omstandigheid zonder maximum kan ze nog wel toevoegen, maar een
 maximum is altijd een voorstel. Ze kan ook de dagen van een omstandigheid met een maximum niet verplaatsen of verlengen (inkorten, of het maximum
@@ -848,17 +852,13 @@ weghalen, mag wel) en ze kan zo'n omstandigheid niet voor de leerling verbergen.
 > proefwerk biologie op donderdag, plus gewoon huiswerk. Ik stel voor: voor het proefwerk Engels woordjes leren (30 min,
 > zaterdag), grammatica oefenen (30 min, zondag) en een oefentoets (45 min, maandag); voor biologie hoofdstuk 2 samenvatten
 > (45 min, maandag) en de samenvatting herhalen (30 min, woensdag). Ook voor het gewone huiswerk maak ik deelstappen, een
-> dag eerder (maandag, 30 min), met een schatting op basis van het aantal opdrachten. Dit zijn schattingen; pas ze gerust aan. Zal ik dit toevoegen?
+> dag eerder (maandag, 30 min), met een schatting op basis van het aantal opdrachten. Dit zijn schattingen; pas ze gerust aan.
+> Maandag komt dan op 2 uur, boven je maximum van 1 u 30 op maandag. Ik kan 30 min naar zondag schuiven, of een voorstel
+> doen voor 2 uur per dag van 16 t/m 20 november; dat geldt pas als jij het accepteert. Wat wil je?
 >
-> **Leerling:** Ja.
+> **Leerling:** Doe maar het voorstel, en voeg de deelstappen toe.
 >
-> **Assistent:** Gedaan: ik heb deelstappen met een geschatte tijd toegevoegd aan het gewone huiswerk en aan beide proefwerken.
-> Maandag komt dan op 2 uur terwijl je maximum op maandag 1 u 30 is. Wil je voor die week een hoger maximum? Dan doe ik een
-> voorstel van 2 uur per dag voor 16 t/m 20 november; het geldt pas als jij het accepteert.
->
-> **Leerling:** Ja, doe maar.
->
-> **Assistent:** Ik heb het voorstel gedaan: "Toetsweek 16–20 nov, max 2 u per dag". Je ziet het bovenaan de kaart. Wil je het nu accepteren?
+> **Assistent:** Gedaan: ik heb deelstappen met een geschatte tijd toegevoegd aan het gewone huiswerk en aan beide proefwerken. Ik heb ook het voorstel gedaan: "Toetsweek 16–20 nov, max 2 u per dag". Je ziet het bovenaan de kaart. Wil je het nu accepteren?
 >
 > **Leerling:** Ja, accepteer maar.
 >

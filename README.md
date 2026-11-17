@@ -393,6 +393,8 @@ Server** integration.
   due dates, progress and subtasks, the progress values and the label options of the child it is linked to.
 - **It can change, in the planner:** add, change and delete subtasks; set the progress of an item or
   subtask; add and remove manual labels; replace, disable or restore the Magister label of a lesson.
+- **It can propose, not decide:** propose another daily maximum (`propose_daily_max`), list the proposals (`list_proposals`),
+  and answer one (`respond_to_proposal`) only after you have said yes or no explicitly (see *Planning with time*).
 - **It cannot** write anything to Magister, and it cannot change the integration's settings, the subject
   weights or the coach settings.
 - Every change is written to the Home Assistant **logbook** ("AI-coach: subtask 'H4 words' added to Proefwerk
@@ -613,7 +615,9 @@ the children your user is linked to. It can:
   assignments due, the open homework count, the planned minutes and the daily maximum of every day;
 - read the schedule, the homework with its subtasks and the progress;
 - **plan**: add, change and delete subtasks with an estimated time (`minutes`, 5 to 240 in steps of 5), and
-  add or change labels like the student coach.
+  add or change labels like the student coach;
+- **propose** another daily maximum (`propose_daily_max`) and list proposals (`list_proposals`). Answering one
+  (`respond_to_proposal`) is only possible for a child without an active student user, and only after you said yes or no.
 
 It **reads progress but cannot set it**: the student reports progress, in the planner or through their own
 coach. Subtasks the parent's AI creates are marked **Parent** in the card (the child can still edit and tick
@@ -765,8 +769,8 @@ asks you to delete a note first.
 > **Parent:** Zet erbij dat mijn kind volgende week ADHD-medicatie krijgt en daarom moe is.
 >
 > **Assistant:** Dat sla ik niet op: gezondheidsinformatie hoort niet in de notities. Wil je wel dat ik rekening houd met
-> de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, eventueel met een lager
-> dagmaximum, en alleen zichtbaar voor ouders.
+> de drukte? Dan kan ik bijvoorbeeld voor die week "weinig tijd" of "rustige week" opslaan, alleen zichtbaar voor ouders.
+> Een lager dagmaximum kan ik alleen voorstellen (propose_daily_max); dat moet je kind dan zelf accepteren.
 
 ### Planning with time
 
@@ -808,7 +812,7 @@ acceptance too.
 Only when the child has **no active student user** (none linked, or the user is deactivated, a system user or deleted, for
 example a child who does not use the app), a user linked as **Ouder** (parent) for the child, or an administrator, may answer on the child's behalf;
 the logbook then says "namens het kind". A parent's AI cannot answer while the child has an active student user. On the card,
-the buttons are shown to everyone; when you are not allowed you see "Only the student can answer this proposal".
+the buttons are shown to everyone; when you are not allowed you see "Only the student (or, for a child without their own account, a parent) can answer this proposal".
 
 **Expiry.** A proposal that is not answered expires: a period proposal when its first day starts, a weekday proposal after 7
 days. At most 5 are open per child. Answered and expired proposals are kept for 14 days and show on the card under the
@@ -816,7 +820,7 @@ days. At most 5 are open per child. Answered and expired proposals are kept for 
 
 **Logbook.** "AI-coach: voorstel dagmaximum (Toetsweek)" (a parent's AI: "Ouder via AI: ..."), "voorstel dagmaximum geaccepteerd
 door Anna" or "afgewezen door Anna" (with " namens het kind" when answered on behalf), and "voorstel dagmaximum verlopen
-(Toetsweek)". Only the first name of the Home Assistant user is written.
+(Toetsweek)". Only the first name of the Home Assistant user is written. An answer given through the AI starts with "AI-coach: " or "Ouder via AI: ".
 
 **What the AI cannot do.** It never sets a daily maximum itself: it can still add a circumstance without a maximum, but a
 maximum is always a proposal. It also cannot move or extend the days of a circumstance that has a maximum (shortening it, or
@@ -830,17 +834,13 @@ removing its maximum, is allowed), and it cannot hide such a circumstance from t
 > proefwerk biologie op donderdag, plus gewoon huiswerk. Ik stel voor: voor het proefwerk Engels woordjes leren (30 min,
 > zaterdag), grammatica oefenen (30 min, zondag) en een oefentoets (45 min, maandag); voor biologie hoofdstuk 2 samenvatten
 > (45 min, maandag) en de samenvatting herhalen (30 min, woensdag). Ook voor het gewone huiswerk maak ik deelstappen, een
-> dag eerder (maandag, 30 min), met een schatting op basis van het aantal opdrachten. Dit zijn schattingen; pas ze gerust aan. Zal ik dit toevoegen?
+> dag eerder (maandag, 30 min), met een schatting op basis van het aantal opdrachten. Dit zijn schattingen; pas ze gerust aan.
+> Maandag komt dan op 2 uur, boven je maximum van 1 u 30 op maandag. Ik kan 30 min naar zondag schuiven, of een voorstel
+> doen voor 2 uur per dag van 16 t/m 20 november; dat geldt pas als jij het accepteert. Wat wil je?
 >
-> **Student:** Ja.
+> **Student:** Doe maar het voorstel, en voeg de deelstappen toe.
 >
-> **Assistant:** Gedaan: ik heb deelstappen met een geschatte tijd toegevoegd aan het gewone huiswerk en aan beide proefwerken.
-> Maandag komt dan op 2 uur terwijl je maximum op maandag 1 u 30 is. Wil je voor die week een hoger maximum? Dan doe ik een
-> voorstel van 2 uur per dag voor 16 t/m 20 november; het geldt pas als jij het accepteert.
->
-> **Student:** Ja, doe maar.
->
-> **Assistant:** Ik heb het voorstel gedaan: "Toetsweek 16–20 nov, max 2 u per dag". Je ziet het bovenaan de kaart. Wil je het nu accepteren?
+> **Assistant:** Gedaan: ik heb deelstappen met een geschatte tijd toegevoegd aan het gewone huiswerk en aan beide proefwerken. Ik heb ook het voorstel gedaan: "Toetsweek 16–20 nov, max 2 u per dag". Je ziet het bovenaan de kaart. Wil je het nu accepteren?
 >
 > **Student:** Ja, accepteer maar.
 >

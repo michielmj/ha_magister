@@ -109,6 +109,22 @@ describe("the effective maximum of a date", () => {
     expect(weekdayIndex("nonsense")).toBe(-1);
   });
 
+  it.each(["Pacific/Auckland", "America/Los_Angeles", "Asia/Kolkata"])(
+    "gives the same weekday in the time zone %s",
+    (zone) => {
+      const previous = process.env.TZ;
+      process.env.TZ = zone;
+      try {
+        expect(weekdayIndex("2026-11-16")).toBe(0);
+        expect(weekdayIndex("2026-11-22")).toBe(6);
+        expect(weekdayIndex("2026-03-29")).toBe(6);
+      } finally {
+        if (previous === undefined) delete process.env.TZ;
+        else process.env.TZ = previous;
+      }
+    },
+  );
+
   it("uses the weekday value, an override of that date, or the old single maximum", () => {
     const data = plan([], { daily_max_overrides: { "2026-11-17": 30, "2026-11-21": 150 } });
     expect(dayMaximum(data, MONDAY)).toEqual({ max: 90, normal: 90, adjusted: false });
@@ -247,6 +263,18 @@ describe("the day total per weekday", () => {
     expect(node?.querySelector(".sr-only")?.textContent).toBe(", no study time set for this day (0 min)");
   });
 
+  it("keeps the adjusted meaning when the 0 maximum comes from an adjustment", async () => {
+    const { card } = await setup(
+      plan([withSubs([SAT])], { daily_max_overrides: { [SATURDAY]: 0 } }),
+    );
+    const node = total(card, SATURDAY);
+    expect(node?.getAttribute("class")).toBe("planned over adjusted");
+    expect(node?.getAttribute("title")).toBe("no study time set for this day, adjusted daily maximum (0 min)");
+    expect(node?.querySelector(".sr-only")?.textContent).toBe(
+      ", no study time set for this day, adjusted daily maximum (0 min)",
+    );
+  });
+
   it("falls back to daily_max_minutes for an old payload", async () => {
     const old: HomeworkPayload = { available: true, items: [withSubs([MON, SAT])], daily_max_minutes: 60 };
     const { card } = await setup(old);
@@ -273,7 +301,7 @@ describe("proposals", () => {
     const block = q(card, ".proposal");
     expect(block.getAttribute("role")).toBe("group");
     expect(block.querySelector(".proposal-text")?.textContent.replace(/\s+/g, " ").trim()).toBe(
-      "Proposal from the coach: Toetsweek 16–20 Nov, max 2 h per day Expires on Mon 16 Nov",
+      "Proposal from the coach: Toetsweek 16–20 Nov, max 2 h per day Answer by Sun 15 Nov",
     );
     expect(qa(card, ".proposal button").map((b) => b.textContent.trim())).toEqual(["Accept", "Reject"]);
     // it is the first thing in the card
@@ -284,6 +312,18 @@ describe("proposals", () => {
     expect(qb(card, "[data-accept]").getAttribute("aria-label")).toBe(
       "Accept proposal: Toetsweek 16–20 Nov, max 2 h per day",
     );
+  });
+
+  it("says until when a period proposal can be answered, and when a weekday proposal expires", async () => {
+    const { card } = await setup(plan([], { proposals: [proposal(), WEEKDAY_PROPOSAL] }), { language: "nl" });
+    const texts = qa(card, ".proposal-expires").map((e) => e.textContent.trim());
+    expect(texts).toEqual(["Beantwoorden kan t/m zo 15 nov", "Verloopt op vr 20 nov"]);
+    expect(q(card, ".proposal .nowrap").textContent).toBe("16–20 nov");
+  });
+
+  it("shows the answer-by text in English", async () => {
+    const { card } = await setup(plan([], { proposals: [proposal({ expires: "2026-12-01", start: "2026-12-01", end: "2026-12-04" })] }));
+    expect(q(card, ".proposal-expires").textContent.trim()).toBe("Answer by Mon 30 Nov");
   });
 
   it("shows the seven values of a weekday proposal, in Dutch", async () => {
@@ -362,7 +402,10 @@ describe("proposals", () => {
   });
 
   it.each([
-    ["not_allowed_for_role", "Only the student can answer this proposal."],
+    [
+      "not_allowed_for_role",
+      "Only the student (or, for a child without their own account, a parent) can answer this proposal.",
+    ],
     ["proposal_closed", "This proposal has already been answered or has expired."],
     [
       "too_many_notes",
@@ -391,8 +434,21 @@ describe("proposals", () => {
     await flush(card);
     qb(card, ".proposal .confirm .primary").click();
     await flush(card);
-    expect(q(card, ".toast span").textContent).toBe("Alleen de leerling kan dit voorstel beantwoorden.");
+    expect(q(card, ".toast span").textContent).toBe(
+      "Alleen de leerling (of, als het kind geen eigen account heeft, een ouder) kan dit voorstel beantwoorden.",
+    );
     expect(qa(card, ".proposal")).toHaveLength(1);
+  });
+
+  it("puts the focus back on the button after a rollback", async () => {
+    const callWS = vi.fn().mockRejectedValue(wsError("proposal_closed"));
+    const { card } = await setup(plan([], { proposals: [proposal()] }), { callWS });
+    qb(card, "[data-reject]").click();
+    await flush(card);
+    await flush(card);
+    expect(qa(card, ".proposal")).toHaveLength(1);
+    expect(root(card).activeElement?.closest(".proposal")?.getAttribute("data-proposal")).toBe("a1b2c3d4");
+    expect(root(card).activeElement?.tagName).toBe("BUTTON");
   });
 
   it("moves the focus to the next proposal when one is answered", async () => {

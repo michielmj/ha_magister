@@ -11,6 +11,7 @@ import {
   formatDay,
   formatMinutes,
   formatMinutesShort,
+  addDays,
   formatRange,
   formatShortDay,
   groupEntries,
@@ -670,6 +671,29 @@ export class MagisterHomeworkCard extends LitElement {
     });
   }
 
+  /** The summary with the date range kept on one line. */
+  private _proposalSummaryHtml(proposal: Proposal, texts: Texts): TemplateResult | string {
+    if (proposal.kind === "weekdays") return this._proposalSummary(proposal, texts);
+    const lang = this._language() === "nl" ? "nl" : "en";
+    const marker = "\u0000";
+    const range = formatRange(proposal.start ?? "", proposal.end ?? "", lang === "nl" ? "nl" : "en-GB");
+    const parts = format(texts.proposal.period, {
+      reason: proposal.reason,
+      range: marker,
+      max: formatMinutes(proposal.minutes ?? 0, lang),
+    }).split(marker);
+    if (parts.length !== 2) return this._proposalSummary(proposal, texts);
+    return html`${parts[0]}<span class="nowrap">${range}</span>${parts[1]}`;
+  }
+
+  /** A period proposal can be answered until the day before it starts; a weekdays proposal expires on a date. */
+  private _expiryText(proposal: Proposal, texts: Texts, lang: string): string {
+    if (proposal.kind === "period") {
+      return format(texts.proposal.answer_by, { date: formatShortDay(addDays(proposal.expires, -1), lang) });
+    }
+    return format(texts.proposal.expires, { date: formatShortDay(proposal.expires, lang) });
+  }
+
   private _askAccept(id: string): void {
     this._toast = "";
     this._proposalConfirm = id;
@@ -757,10 +781,8 @@ export class MagisterHomeworkCard extends LitElement {
           aria-label=${format(texts.proposal.group_aria, { summary })}
         >
           <p class="proposal-text">
-            <span class="proposal-title">${texts.proposal.title}:</span> ${summary}
-            <span class="proposal-expires">${format(texts.proposal.expires, {
-              date: formatShortDay(proposal.expires, lang),
-            })}</span>
+            <span class="proposal-title">${texts.proposal.title}:</span> ${this._proposalSummaryHtml(proposal, texts)}
+            <span class="proposal-expires">${this._expiryText(proposal, texts, lang)}</span>
           </p>
           ${confirming
             ? html`<div
@@ -830,7 +852,7 @@ export class MagisterHomeworkCard extends LitElement {
             : `${status}${behalf}`;
           return html`<li class="closed-proposal" data-proposal=${proposal.id}>
             <span class="proposal-status ${proposal.status}">${when}</span>
-            <span>${this._proposalSummary(proposal, texts)}</span>
+            <span>${this._proposalSummaryHtml(proposal, texts)}</span>
           </li>`;
         })}
       </ul>
@@ -1087,7 +1109,9 @@ export class MagisterHomeworkCard extends LitElement {
     // No reason is shown: the payload has none.
     const tip = format(
       over && max === 0
-        ? texts.sub.over_zero_max
+        ? adjusted
+          ? texts.sub.over_zero_adjusted_max
+          : texts.sub.over_zero_max
         : adjusted
           ? over
             ? texts.sub.over_adjusted_max
@@ -2611,6 +2635,9 @@ export class MagisterHomeworkCard extends LitElement {
       font-weight: 600;
       color: var(--sub-text);
     }
+    .nowrap {
+      white-space: nowrap;
+    }
     .proposal-expires {
       display: block;
       font-size: 0.8em;
@@ -2669,6 +2696,7 @@ export class MagisterHomeworkCard extends LitElement {
     }
     .item.subtask {
       padding-left: 24px;
+      padding-right: 8px;
     }
     .item.overdue .ref {
       color: var(--error-color);

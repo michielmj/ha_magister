@@ -361,7 +361,7 @@ Changes to the coach tools:
   refuses with `use_proposal` (nothing changes) a change of `start`/`end` of a circumstance that has a maximum when the new
   days include a day outside the current days (moving or extending); shortening is allowed, and so is changing the days
   together with `daily_max_minutes: null`. Circumstances without a maximum can be moved freely.
-  A circumstance with a maximum always has `visibility: "all"` (the student decides about their own time): `update_context`
+  A circumstance with a maximum always has `visibility: "all"` (the student decides about their own time; notes stored before 1.9.0 can still be parents-only, and their text can be edited): `update_context`
   refuses `visibility: "parents"` for it with `invalid_format`, unless the same call sets `daily_max_minutes: null`. An accepted
   proposal creates a visible note.
 - New tools (all take the optional `child`):
