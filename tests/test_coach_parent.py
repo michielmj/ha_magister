@@ -125,12 +125,30 @@ async def test_roles_in_list_children(hass: HomeAssistant, family: Family) -> No
     """Each child shows the caller's role and the daily maximum (default 90)."""
     data = await ok(hass, family.parent.id, "list_children")
     assert data["children"] == [
-        {"id": "1001", "name": "Anna", "role": "parent", "daily_max_minutes": 90},
-        {"id": "1002", "name": "Bram", "role": "parent", "daily_max_minutes": 90},
+        {
+            "id": "1001",
+            "name": "Anna",
+            "role": "parent",
+            "daily_max_minutes": 90,
+            "daily_max_weekdays": [90] * 7,
+        },
+        {
+            "id": "1002",
+            "name": "Bram",
+            "role": "parent",
+            "daily_max_minutes": 90,
+            "daily_max_weekdays": [90] * 7,
+        },
     ]
     data = await ok(hass, family.student.id, "list_children")
     assert data["children"] == [
-        {"id": "1001", "name": "Anna", "role": "student", "daily_max_minutes": 90}
+        {
+            "id": "1001",
+            "name": "Anna",
+            "role": "student",
+            "daily_max_minutes": 90,
+            "daily_max_weekdays": [90] * 7,
+        }
     ]
     with_weights(family, hass, {"1001": {"daily_max_minutes": 135}})
     data = await ok(hass, family.parent.id, "list_children")
@@ -805,8 +823,11 @@ async def test_prompt_per_role(hass: HomeAssistant, family: Family) -> None:
     assert "Always pass `child`" in prompt
     assert "You are the parent (role Ouder) of Anna (id 1001)" in prompt
     assert "You are the parent (role Ouder) of Bram (id 1002)" in prompt
-    assert "Daily maximum: 90 study minutes per school day." in prompt
-    assert "Daily maximum: 150 study minutes per school day." in prompt
+    week90 = "monday 90, tuesday 90, wednesday 90, thursday 90, friday 90, "
+    assert f"Daily maximum (study minutes) per weekday: {week90}saturday 90" in prompt
+    assert (
+        "Daily maximum (study minutes) per weekday: monday 150, tuesday 150" in prompt
+    )
     # One text for both children: emitted once.
     assert (
         "Parent guidelines (for Anna (id 1001), Bram (id 1002)):\nKort en bondig."
@@ -822,7 +843,7 @@ async def test_prompt_per_role(hass: HomeAssistant, family: Family) -> None:
     api = await llm.async_get_api(hass, COACH_API_ID, llm_context(family.student.id))
     prompt = api.api_prompt
     assert "You coach the student (role Leerling) Anna (id 1001)." in prompt
-    assert "Daily maximum: 90 study minutes per school day." in prompt
+    assert "Daily maximum (study minutes) per weekday: monday 90" in prompt
     assert "Coaching guidelines (for Anna (id 1001)):\n" + DEFAULT_GUIDELINES in prompt
     assert "Kort en bondig." not in prompt
     assert "Parent guidelines" not in prompt

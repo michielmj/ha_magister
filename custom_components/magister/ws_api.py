@@ -15,6 +15,9 @@ Commands (any authenticated user, like HA's own ``todo/item/*``):
 * ``magister/homework/update_subtask``: ``{"entity_id", "subtask", "title"?, "date"?,
   "minutes"?}`` (``minutes`` null clears the estimate).
 * ``magister/homework/delete_subtask``: ``{"entity_id", "subtask"}``.
+* ``magister/homework/respond_proposal``: ``{"entity_id", "proposal", "answer"}`` with
+  answer ``accept`` or ``reject`` (since 1.9.0): the student answers a proposal for the
+  daily maximum; a parent or an administrator only when the child has no student user.
 
 The label, override and subtask commands need control permission.
 See docs/reference/homework-websocket.md.
@@ -38,6 +41,7 @@ from homeassistant.exceptions import ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv
 
 from .api.homework import MODE_CLEAR, MODE_DISABLE, MODE_REPLACE
+from .context import ContextError
 from .homework import (
     ERR_INVALID_DATE,
     ERR_ITEM_DISABLED,
@@ -53,6 +57,7 @@ from .homework import (
     strict_progress,
     subtask_title,
 )
+from .proposals import ANSWERS
 from .todo import HomeworkItemDisabled, HomeworkItemHasSubtasks, MagisterHomeworkTodo
 
 SUBSCRIBE = "magister/homework/subscribe"
@@ -64,6 +69,7 @@ SET_OVERRIDE = "magister/homework/set_override"
 ADD_SUBTASK = "magister/homework/add_subtask"
 UPDATE_SUBTASK = "magister/homework/update_subtask"
 DELETE_SUBTASK = "magister/homework/delete_subtask"
+RESPOND_PROPOSAL = "magister/homework/respond_proposal"
 
 ERR_NOT_FOUND = "not_found"
 ERR_ITEM_HAS_SUBTASKS = "item_has_subtasks"
@@ -85,6 +91,7 @@ def async_register_websocket_api(hass: HomeAssistant) -> None:
     async_register_command(hass, websocket_add_subtask)
     async_register_command(hass, websocket_update_subtask)
     async_register_command(hass, websocket_delete_subtask)
+    async_register_command(hass, websocket_respond_proposal)
 
 
 @callback
@@ -363,6 +370,38 @@ def websocket_delete_subtask(
         _subtask_error(connection, msg, err)
         return
     connection.send_result(msg["id"], item)
+
+
+@websocket_command(
+    {
+        probatio.Required("type"): RESPOND_PROPOSAL,
+        probatio.Required("entity_id"): cv.entity_domain(TODO_DOMAIN),
+        probatio.Required("proposal"): cv.string,
+        probatio.Required("answer"): probatio.In(list(ANSWERS)),
+    }
+)
+@callback
+def websocket_respond_proposal(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Accept or reject a proposal for the daily maximum, as the connected user."""
+    entity = _controlled_entity(hass, connection, msg)
+    if entity is None:
+        return
+    user = connection.user
+    try:
+        proposal = entity.respond_proposal(
+            msg["proposal"],
+            msg["answer"],
+            user_id=user.id,
+            user_name=user.name,
+            is_admin=user.is_admin,
+            context=connection.context(msg),
+        )
+    except ContextError as err:
+        connection.send_error(msg["id"], err.code, err.message)
+        return
+    connection.send_result(msg["id"], {"proposal": proposal})
 
 
 @callback

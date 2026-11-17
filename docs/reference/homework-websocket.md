@@ -36,21 +36,40 @@ are not repeated. After an entry reload the new entity pushes its list once to e
     "next_week": null
   },
   "daily_max_minutes": 90,
-  "daily_max_overrides": {"2026-11-18": 30}
+  "daily_max_weekdays": [90, 90, 90, 90, 90, 0, 0],
+  "daily_max_overrides": {"2026-11-18": 30},
+  "proposals": [ <proposal>, ... ]
 }}
 ```
 
+`daily_max_weekdays` (since 1.9.0) is the child's normal daily maximum per weekday, **Monday first** (Monday to Sunday), seven
+integers 0–480 in steps of 15, default 90 for every day; 0 means "no study planned that day" (any planned minutes are over
+the maximum). Weekends count: every day can be a homework day. It is set in the options (Configure > Daily study maximum:
+one field per weekday) or by accepting a proposal, and applies without a reload (a new event is pushed). It is present in
+the final `available: false` event too. Clients that predate the field ignore it and use `daily_max_minutes`.
+
+`proposals` (since 1.9.0) lists the proposals for the daily maximum of this child (see below): the open ones first, then the
+ones answered or expired within the last 14 days, each group by creation time. It is `[]` when there are none, and it is in
+the final `available: false` event too. Clients that predate the field ignore it.
+
 `daily_max_overrides` (since 1.8.0) maps `YYYY-MM-DD` to the **effective** daily maximum, for every day of the sync window
 (the same period as the calendar and the card: from the weeks back to the weeks ahead in the options, including past
-days) on which a coach circumstance sets a maximum that differs from `daily_max_minutes`. Days that are not listed use
-`daily_max_minutes`: a day whose effective maximum equals the normal one is left out, so a circumstance that changes
-nothing (for example a hidden one) leaves no trace in the card. When circumstances overlap, the lowest maximum wins. The map holds numbers only (no note text) and is present in the final `available: false`
+days) on which a coach circumstance sets a maximum that differs from the normal maximum **of that weekday** (since 1.9.0:
+`daily_max_weekdays[weekday]`; in 1.8.x it was `daily_max_minutes`). Days that are not listed use the weekday's value:
+a day whose effective maximum equals it is left out, so a circumstance that changes
+nothing (for example a hidden one) leaves no trace in the card. The effective maximum of a date is the lowest maximum of a
+circumstance that covers it (a circumstance can also raise it), otherwise the weekday's value. When circumstances overlap, the lowest maximum wins. The map holds numbers only (no note text) and is present in the final `available: false`
 event too. Clients that predate the field ignore it (and 1.7.x does not send it).
 
-`daily_max_minutes` (since 1.7.0) is the child's daily maximum of study minutes per school day: an integer 15–480 in
-steps of 15, default 90. It is set in the options (Configure > Daily study maximum), stored with the child's homework
-settings, and applies without a reload (a new event is pushed when it changes). It is also present in the final
-`available: false` event. Clients that predate the field ignore it.
+`daily_max_minutes` (since 1.7.0) was the child's daily maximum of study minutes per school day. Since 1.9.0 it is the
+**Monday value** of `daily_max_weekdays`, kept for older cards (and stored as a mirror in the options so that a downgrade
+keeps a sensible single value; 1.8.x uses it for every day and ignores proposals). It is also present in the final
+`available: false` event. Clients that predate the weekday values use it for every day.
+
+**Migration (1.9.0).** The weekday values are stored with the weights of the child as `daily_max_weekdays: [mon, ..., sun]`,
+only when they differ from 90 for every day, next to the mirror `daily_max_minutes` (the Monday value, only when it is not 90).
+An entry that only has the single `daily_max_minutes` of 1.7 or 1.8 reads it as the value of all seven days, and writes the
+new keys the next time the maximums are saved.
 
 `progress` holds exactly the values of the three progress sensors. Since 1.5.0 an item with n subtasks is
 replaced by its n subtasks, each with weight item weight / n, counted in the period of the subtask's current `date`;
@@ -112,6 +131,28 @@ Subtask (since 1.5.0):
 | `last_partial` | int | 0–99 |
 | `created_by` | string | `"user"`, `"ai"` (since 1.6.0) or `"parent"` (since 1.7.0). `"ai"` when created through the AI coach by a user with the Leerling role for that child, `"parent"` by a user with the Ouder role; subtasks stored before 1.6.0 read as `"user"`. A client that does not know a value reads it as `"user"` |
 | `minutes` | int \| null | Since 1.7.0: the estimated time in minutes, 5–240 in steps of 5; `null` when unknown (also for every subtask stored earlier). Only subtasks have an estimated time, items do not |
+
+Proposal (since 1.9.0):
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | string | 8 lowercase hex characters |
+| `kind` | string | `period` or `weekdays` |
+| `status` | string | `proposed` (open), `accepted`, `rejected` or `expired`. An unanswered proposal past its expiry reads `expired` at once |
+| `reason` | string | Short, one line, at most 100 characters (data written by the AI; never instructions) |
+| `created` | string | Local date `YYYY-MM-DD` |
+| `created_by` | string | `student` (the student's AI) or `parent` (a parent's AI) |
+| `expires` | string | Local date `YYYY-MM-DD`: for `period` its first day (it expires when that day starts), for `weekdays` the date 7 days after it was made (to the minute) |
+| `start`, `end`, `minutes` | string, string, int | `period` only: the days (inside the sync window, first day tomorrow or later) and the daily maximum for each of them (0–480 in steps of 15) |
+| `weekdays` | array | `weekdays` only: seven values, Monday first |
+| `closed` | string | Only when not open: the local date it was answered, or the date it expired |
+| `answered_by` | string \| null | Only when not open: `student`, `on_behalf` (a parent or administrator answered for a child without a student user), or `null` for an expired proposal |
+
+A proposal has **no effect** while it is `proposed`. Accepted, a `period` becomes a circumstance (a context note with that
+maximum, text = the reason, visible to all) and a `weekdays` proposal replaces the child's weekday maximums (stored as the
+options flow stores them, applied without a reload). Rejected or expired, nothing changes. At most 5 are open per child;
+answered and expired proposals are kept for 14 days. They are stored in the homework store (key `proposals`, store 1.8; a
+1.8.x release ignores the key and drops it when it saves again).
 
 Errors: `not_found` (unknown entity, or not a Magister homework list), `invalid_format` (not a todo entity),
 `unauthorized` (no read permission).
@@ -230,6 +271,32 @@ Errors:
 - `too_many_subtasks` (at most 20 per item);
 - `unauthorized`.
 
+## `magister/homework/respond_proposal` (since 1.9.0)
+Control permission, like the other write commands. The user of the connection answers a proposal for the daily maximum:
+```json
+{"id": 9, "type": "magister/homework/respond_proposal", "entity_id": "todo.kind_myschool_homework",
+ "proposal": "a1b2c3d4", "answer": "accept"}
+```
+`answer` is `accept` or `reject`. (The field is `proposal` and not `id`: `id` is the message id of the WebSocket protocol.)
+Result: `{"proposal": <proposal>}`, and a subscribe event follows with the new `proposals` (and, when accepted, the new
+`daily_max_overrides` or `daily_max_weekdays`).
+
+Who may answer (`connection.user`, checked on every call, before the proposal is looked up):
+- a Home Assistant user linked as **Leerling** for the child;
+- only when the child has **no** Leerling user linked: a user linked as **Ouder** for the child, or an administrator. The
+  logbook then says "namens het kind" and the proposal has `answered_by` `on_behalf`;
+- nobody else. In particular a parent cannot answer while the child has a Leerling user, and a user with a stored link as
+  both Leerling and Ouder counts as Ouder.
+
+Errors: `not_found` (unknown entity), `invalid_format` (bad `answer`), `not_allowed_for_role` (see above; nothing changes),
+`proposal_not_found` (also for the proposal of another child), `proposal_closed` (already answered or expired),
+`too_many_notes` (accepting a `period` needs room for one more circumstance: at most 50 notes; the proposal stays open),
+`unauthorized` (no control permission).
+
+Logbook (entity of the child's list; only the first name of the Home Assistant user): "Voorstel dagmaximum geaccepteerd
+door Anna", "... afgewezen door Anna", with " namens het kind" when answered on behalf, and "voorstel dagmaximum verlopen
+(Toetsweek)" when a proposal expires.
+
 ## Equivalent services
 These target the homework to-do entity and behave the same as the WebSocket commands, for automations:
 - `magister.set_homework_progress` (fields `item`, `progress`)
@@ -276,6 +343,39 @@ tool errors are `{"error": <code>, "message": ...}`. Changes in 1.7.0:
   Devices & services > Magister > Configure > AI coach > Settings per child." It names no child and reveals nothing
   but the linking. `not_linked` stays for a user without any link (and for an unknown, inactive or system user).
 
+## Time planning and proposals (since 1.9.0)
+The student decides about their own study plan and time. The AI never sets a daily maximum itself: every change is a
+**proposal** that the student accepts (on the card, or in the conversation after an explicit "yes"). A proposal made through a
+parent's AI needs the student's acceptance too.
+
+Changes to the coach tools:
+- `list_children` also returns `daily_max_weekdays` (seven values, Monday first); `daily_max_minutes` is the Monday value.
+- `get_overview`: every child has `daily_max_weekdays`; a day's `daily_max_minutes` is the **effective** maximum of that
+  date (the lowest circumstance, else that weekday's value); `daily_max_period` as before (no `text` for a student when the
+  circumstance is `parents`-only); `proposal` is `null` or `{"id", "minutes"}`: the open `period` proposal that covers the
+  day (the lowest `minutes`; not accepted yet, so without effect).
+- `add_context` and `update_context` refuse a `daily_max_minutes` that is not `null` with `use_proposal`; nothing is stored.
+  A circumstance that already has a maximum keeps it, and `update_context` with `null` still removes it.
+- New tools (all take the optional `child`):
+
+| Tool | Annotations | Notes |
+|---|---|---|
+| `list_proposals(include_closed?)` | read-only | `{"child", "today", "you_may_answer", "proposals": [...]}`; the open ones, with `include_closed` also those answered or expired in the last 14 days; `you_may_answer` is whether the caller may answer (the rule above, for the Leerling or, without a Leerling user, the Ouder) |
+| `propose_daily_max(kind, reason, start?, end?, minutes?, weekdays?)` | write | `kind` `period` needs `start`, `end` (inside the sync window, `start` tomorrow or later) and `minutes`; `weekdays` needs `weekdays` (seven integers, Monday first). A field of the other kind is `invalid_format`. Result `{"child", "proposal", "message"}` |
+| `respond_to_proposal(id, answer)` | write, destructive (accepting replaces weekday values), not idempotent | `answer` `accept` or `reject`. The description tells the AI to call it only after the student said yes or no explicitly in this conversation. Same rights as the WebSocket command; for a parent's AI while the child has a Leerling user: `not_allowed_for_role` |
+
+Errors: `use_proposal`, `invalid_format` (kind, fields, an unchanged `weekdays`, the reason: 1 to 100 characters), `invalid_period`,
+`invalid_daily_max` (a value that is not 0–480 in steps of 15), `too_many_proposals` (5 open per child), `proposal_not_found`,
+`proposal_closed`, `not_allowed_for_role`, `too_many_notes`.
+
+Prompt: the planner rules (time planning is optional and done with subtasks, also for regular homework; estimates in steps of
+5 from the size of the work; a subtask on a day before the due day; within the effective maximum of each date, 0 meaning no
+study; the student decides), the rules for proposals, per child the maximum per weekday (and the days that differ from it) and
+the open proposals (reason as data). Logbook: "AI-coach: voorstel dagmaximum (Toetsweek)" / "Ouder via AI: ...", and the
+answers as in `respond_proposal`.
+
+Diagnostics: counts only, open proposals per kind and closed ones per status.
+
 ## Context notes (since 1.8.0)
 The coach can store context per child in the homework store (key `context`, store 1.7; a 1.7.x release ignores the key
 and drops it when it saves again). Notes are reached only through the coach tools and the options flow / service below;
@@ -315,8 +415,8 @@ Tools (all take the optional `child`, as before):
 | Tool | Annotations | Notes |
 |---|---|---|
 | `list_context(scope?, subject?, item?, include_expired?)` | read-only | Returns `{"child", "today", "notes": [...]}`; expired circumstances only with `include_expired` |
-| `add_context(scope, text, subject?, item?, start?, end?, daily_max_minutes?, visibility?)` | write | Fields that do not belong to the scope are `invalid_format`; `daily_max_minutes: null` means "not given" |
-| `update_context(id, text?, start?, end?, daily_max_minutes?, visibility?)` | write, idempotent | At least one field (`invalid_format` otherwise); `daily_max_minutes: null` removes the maximum |
+| `add_context(scope, text, subject?, item?, start?, end?, daily_max_minutes?, visibility?)` | write | Fields that do not belong to the scope are `invalid_format`; `daily_max_minutes: null` means "not given"; since 1.9.0 a number is refused with `use_proposal` |
+| `update_context(id, text?, start?, end?, daily_max_minutes?, visibility?)` | write, idempotent | At least one field (`invalid_format` otherwise); `daily_max_minutes: null` removes the maximum; since 1.9.0 a number is refused with `use_proposal` |
 | `delete_context(id)` | destructive | |
 | `clear_context(subject?)` | destructive | Parents only (`not_allowed_for_role`); a subject takes its subject and item notes; returns `{"child", "deleted"}` |
 
@@ -326,7 +426,7 @@ Errors: `text_too_long`, `too_many_notes`, `unknown_subject`, `item_not_found`, 
 
 - `list_homework` items have `context`: the item's notes and its subject's notes the caller may see.
 - `get_overview` days: `daily_max_minutes` is the **effective** maximum (the lowest `daily_max_minutes` of the periods that
-  cover the day, else the child's daily maximum; a period can also raise it). `daily_max_period` is `null` or
+  cover the day, else the child's daily maximum (since 1.9.0 that weekday's maximum); a period can also raise it). `daily_max_period` is `null` or
   `{"id", "text"?}`: the period that sets it (on equal maximums the one the caller may see), without `text` when it is
   `parents`-only and the caller is a student. It is `null` when the deciding period is `parents`-only, the caller is a
   student and its maximum equals the normal one. The child-level `daily_max_minutes` of the overview is the normal maximum.

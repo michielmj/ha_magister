@@ -10,7 +10,6 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from .coach import parent_users, student_users
 from .const import (
     CHILD_ID,
     COACH_ENABLED,
@@ -25,6 +24,7 @@ from .const import (
     CONF_WEIGHTS,
 )
 from .coordinator import MagisterConfigEntry
+from .roles import parent_users, student_users
 
 # Redacted wherever they could turn up (also nested), in addition to leaving them out.
 TO_REDACT = {
@@ -114,6 +114,8 @@ async def async_get_config_entry_diagnostics(
         "coach": _coach_counts(entry),
         # Counts only: notes per scope and how many are for parents only.
         "coach_context": runtime.homework.context.statistics(),
+        # Counts only: open proposals per kind, closed ones per status.
+        "coach_proposals": runtime.homework.proposals.statistics(dt_util.utcnow()),
         "homework_store": {"stored_entries": runtime.homework.stored_entries},
         "sensors": [
             {

@@ -14,13 +14,17 @@ from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final
 
 import probatio
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.components.logbook import async_log_entry
+from homeassistant.components.todo.const import DOMAIN as TODO_DOMAIN
+from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .api.homework import (
     CREATED_BY,
     CREATED_BY_USER,
+    DAILY_MAX_DEFAULT,
     LABEL_KINDS,
     MAX_SUBTASKS,
     MODE_DISABLE,
@@ -30,6 +34,7 @@ from .api.homework import (
     PERIOD_NEXT_WEEK,
     PERIODS,
     SUBTASK_TITLE_MAX,
+    WEEKDAYS,
     EffectiveState,
     Entry,
     HomeworkItem,
@@ -66,16 +71,34 @@ from .api.homework import (
 )
 from .api.mapping import CANCELLED_STATUSES, LOCAL_TZ
 from .api.models import Appointment
-from .const import CONF_HOST, CONF_LABELS, CONF_WEIGHTS, DOMAIN
+from .const import (
+    CONF_DAILY_MAX,
+    CONF_DAILY_MAX_WEEKDAYS,
+    CONF_HOST,
+    CONF_LABELS,
+    CONF_WEIGHTS,
+    DOMAIN,
+)
 from .context import STORE_KEY as CONTEXT_KEY
-from .context import ContextBook
+from .context import ContextBook, ContextError
 from .coordinator import fetch_window
+from .proposals import (
+    ANSWER_ACCEPT,
+    ERR_NOT_ALLOWED_TO_ANSWER,
+    NOT_ALLOWED_MESSAGE,
+    Proposal,
+    ProposalBook,
+    answer_message,
+    first_name_of,
+)
+from .proposals import STORE_KEY as PROPOSALS_KEY
+from .roles import coach_settings, proposal_answerer
 
 if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
 
 STORE_VERSION: Final = 1
-STORE_MINOR_VERSION: Final = 7
+STORE_MINOR_VERSION: Final = 8
 SAVE_DELAY: Final = 5.0
 PRUNE_AFTER: Final = timedelta(days=14)
 
@@ -208,9 +231,11 @@ class _HomeworkStore(Store[dict[str, Any]]):
         1.2 to 1.3 adds the optional ``override`` per item, 1.3 to 1.4 the optional
         ``subtasks`` list, 1.4 to 1.5 the optional ``created_by`` of a subtask (a
         missing value reads as ``"user"``) and 1.5 to 1.6 the optional ``minutes`` of
-        a subtask (missing reads as unknown) and 1.6 to 1.7 the optional ``context`` key
-        (the coach's context notes): none of these needs a migration. A release before
-        1.8.0 ignores ``context`` and drops it when it saves again.
+        a subtask (missing reads as unknown), 1.6 to 1.7 the optional ``context`` key
+        (the coach's context notes) and 1.7 to 1.8 the optional ``proposals`` key
+        (proposals for the daily maximum): none of these needs a migration. A release
+        before 1.8.0 ignores ``context`` and one before 1.9.0 ignores ``proposals``,
+        and each drops its key when it saves again.
         The major version stays 1 so that an older release can still read the file.
         """
         if old_major_version == 1:
@@ -266,12 +291,14 @@ class HomeworkManager:
         self._effective: dict[str, EffectiveState] = {}
         self._dirty = False
         self.context = ContextBook(self, self._changed)
+        self.proposals = ProposalBook(self, self._changed, self._proposal_expired)
 
     async def async_load(self) -> None:
         """Read the stored progress and the context notes."""
         stored = await self._store.async_load()
         if isinstance(stored, dict):
             self.context.load(stored.get(CONTEXT_KEY), self.today())
+            self.proposals.load(stored.get(PROPOSALS_KEY))
         raw = stored.get("items") if isinstance(stored, dict) else None
         if isinstance(raw, dict):
             for uid, entry in raw.items():
@@ -886,6 +913,7 @@ class HomeworkManager:
         )
         if self.context.prune(today, self.window_dates()[0], present):
             self._schedule_save()
+        self.async_expire_proposals()
         if present is None:
             return
         changed = False
@@ -907,8 +935,74 @@ class HomeworkManager:
     # -- weights ------------------------------------------------------------
 
     def daily_max(self, child_id: int) -> int:
-        """The daily maximum of study minutes of a child (default 90)."""
+        """The Monday value of the daily maximum (what 1.8 knew; default 90)."""
         return self.weights(child_id).daily_max_minutes
+
+    def daily_max_weekdays(self, child_id: int) -> tuple[int, ...]:
+        """The daily maximum of study minutes per weekday, Monday first (default 90)."""
+        return self.weights(child_id).daily_max_weekdays
+
+    def weekday_max(self, child_id: int, day: date) -> int:
+        """The normal maximum of the weekday of ``day`` (before any circumstance)."""
+        return self.weights(child_id).weekday_max(day)
+
+    @callback
+    def set_weekday_max(self, child_id: int, weekdays: tuple[int, ...]) -> None:
+        """Store weekday maximums as the options flow does (applied without reload)."""
+        options = options_with_weekdays(self._entry.options, child_id, weekdays)
+        self.hass.config_entries.async_update_entry(self._entry, options=options)
+
+    # -- proposals ------------------------------------------------------------
+
+    @callback
+    def async_expire_proposals(self) -> None:
+        """Close the proposals that ran out and prune old ones (saved if changed)."""
+        if self.proposals.sync(dt_util.utcnow()):
+            self._schedule_save()
+
+    def answer_proposal(
+        self,
+        child_id: int,
+        proposal_id: Any,
+        answer: Any,
+        *,
+        user_id: str | None,
+        user_name: str | None,
+        is_admin: bool = False,
+        context: Context | None = None,
+        prefix: str = "",
+    ) -> Proposal:
+        """Accept or reject a proposal as this user, if the user may answer it.
+
+        The student of the child answers; when the child has no student user linked, a
+        parent (or an administrator) answers on the child's behalf. Checked first, so
+        a user who may not answer learns nothing about the proposals.
+        """
+        mode = proposal_answerer(
+            coach_settings(self._entry, child_id), user_id, is_admin=is_admin
+        )
+        if mode is None:
+            raise ContextError(ERR_NOT_ALLOWED_TO_ANSWER, NOT_ALLOWED_MESSAGE)
+        proposal = self.proposals.respond(
+            child_id, proposal_id, answer, answered_by=mode
+        )
+        message = answer_message(
+            first_name_of(user_name), mode, accepted=answer == ANSWER_ACCEPT
+        )
+        self.log_entry(child_id, prefix + message, context)
+        return proposal
+
+    def _proposal_expired(self, child_id: int, proposal: Proposal) -> None:
+        self.log_entry(child_id, f"voorstel dagmaximum verlopen ({proposal.reason})")
+
+    def log_entry(
+        self, child_id: int, message: str, context: Context | None = None
+    ) -> None:
+        """Write a logbook entry on the child's homework list (no personal data)."""
+        entity_id = er.async_get(self.hass).async_get_entity_id(
+            TODO_DOMAIN, DOMAIN, f"{self._host}:{child_id}:homework"
+        )
+        async_log_entry(self.hass, "Magister", message, DOMAIN, entity_id, context)
 
     def weights(self, child_id: int) -> Weights:
         """The weights of a child from the entry options (and the daily maximum)."""
@@ -969,6 +1063,8 @@ class HomeworkManager:
         }
         if context := self.context.to_stored():
             data[CONTEXT_KEY] = context
+        if proposals := self.proposals.to_stored():
+            data[PROPOSALS_KEY] = proposals
         return data
 
     @callback
@@ -1019,6 +1115,7 @@ class HomeworkManager:
                 "subjects_set": len(weights.subjects),
             },
             "daily_max_minutes": weights.daily_max_minutes,
+            "daily_max_weekdays": list(weights.daily_max_weekdays),
         }
 
     def _subtask_statistics(self, items: list[HomeworkItem]) -> dict[str, int]:
@@ -1052,6 +1149,47 @@ async def async_remove_store(hass: HomeAssistant, entry_id: str) -> None:
         f"{DOMAIN}.homework.{entry_id}",
         minor_version=STORE_MINOR_VERSION,
     ).async_remove()
+
+
+def weekday_options(weekdays: tuple[int, ...]) -> dict[str, Any]:
+    """The option keys of the weekday maximums; empty when every day is the default.
+
+    ``daily_max_minutes`` is kept as the 1.8 mirror: the Monday value.
+    """
+    if all(value == DAILY_MAX_DEFAULT for value in weekdays):
+        return {}
+    result: dict[str, Any] = {CONF_DAILY_MAX_WEEKDAYS: list(weekdays)}
+    if weekdays[0] != DAILY_MAX_DEFAULT:
+        result[CONF_DAILY_MAX] = weekdays[0]
+    return result
+
+
+def options_with_weekdays(
+    options: Mapping[str, Any], child_id: int, weekdays: tuple[int, ...]
+) -> dict[str, Any]:
+    """The entry options with the weekday maximums of one child replaced.
+
+    Used by the options flow and by an accepted proposal, so both store the same way.
+    """
+    assert len(weekdays) == WEEKDAYS
+    weights = {
+        key: dict(value) for key, value in (options.get(CONF_WEIGHTS) or {}).items()
+    }
+    child_key = str(child_id)
+    child = weights.get(child_key, {})
+    child.pop(CONF_DAILY_MAX, None)
+    child.pop(CONF_DAILY_MAX_WEEKDAYS, None)
+    child.update(weekday_options(weekdays))
+    if child:
+        weights[child_key] = child
+    else:
+        weights.pop(child_key, None)
+    result = dict(options)
+    if weights:
+        result[CONF_WEIGHTS] = weights
+    else:
+        result.pop(CONF_WEIGHTS, None)
+    return result
 
 
 def _subtask_from_stored(stored: dict[str, Any]) -> Subtask:
@@ -1278,7 +1416,9 @@ def build_payload(
         ],
         "progress": progress_payload(manager, child_id, available=available),
         "daily_max_minutes": manager.daily_max(child_id),
+        "daily_max_weekdays": list(manager.daily_max_weekdays(child_id)),
         "daily_max_overrides": manager.context.daily_max_overrides(child_id),
+        "proposals": manager.proposals.payload(child_id, dt_util.utcnow()),
     }
 
 

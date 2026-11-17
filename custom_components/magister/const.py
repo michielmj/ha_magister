@@ -48,6 +48,7 @@ COACH_RESET: Final = "reset_guidelines"
 CONF_PARENT_GUIDELINES: Final = "parent_guidelines"
 # The daily maximum of study minutes of a child is stored in the child's weights.
 CONF_DAILY_MAX: Final = "daily_max_minutes"
+CONF_DAILY_MAX_WEEKDAYS: Final = "daily_max_weekdays"
 
 GUIDELINES_MAX: Final = 4000
 WEEKS_AHEAD: Final = 3

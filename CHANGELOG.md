@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+Time planning with subtasks, a daily maximum per weekday and proposals for the daily maximum (M14, phase A: backend). The
+card and the README follow in phase B.
+
+- **Daily maximum per weekday.** Every child has seven maximums (Monday to Sunday), each 0 to 480 minutes in steps of 15; 0
+  means no study planned that day, and weekends count. The options (Configure, Dagmaximum studietijd) show one field per
+  weekday. The single value of 1.7 and 1.8 becomes the value of all seven days (read-time migration, written in the new form
+  the next time the maximums are saved). They are stored with the weights as `daily_max_weekdays`, only when they differ
+  from 90 for every day, and `daily_max_minutes` stays as a mirror of the Monday value.
+- **Effective maximum.** One function for `get_overview`, the prompt and the card: the lowest circumstance maximum on a
+  date, otherwise that weekday's value. The WebSocket payload has the new `daily_max_weekdays` (and `proposals`);
+  `daily_max_minutes` is the Monday value; `daily_max_overrides` lists only dates where a circumstance differs from **that
+  weekday's** value. `list_children` and `get_overview` return `daily_max_weekdays`.
+- **Proposals.** The student decides about their own study time. The AI can no longer set a maximum: `add_context` and
+  `update_context` refuse `daily_max_minutes` with `use_proposal` (existing circumstance maximums keep working). New tools
+  `propose_daily_max` (a `period` or the seven `weekdays`, with a reason), `list_proposals` and `respond_to_proposal`
+  (only after an explicit yes or no from the student). A proposal has no effect until the student accepts it: an accepted
+  period becomes a circumstance, accepted weekdays replace the child's weekday maximums (no reload). It expires when the
+  period starts unanswered, or after 7 days for weekdays; at most 5 are open per child; closed ones are kept for 14 days.
+  Only a user linked as Leerling answers; when the child has no Leerling user, a user linked as Ouder or an administrator
+  answers on the child's behalf ("namens het kind" in the logbook). A parent's AI cannot answer while the child has a
+  Leerling user. `get_overview` days show the open proposal that covers them; the prompt lists the open proposals.
+- **WebSocket.** New command `magister/homework/respond_proposal` (`entity_id`, `proposal`, `answer`) with the same rights
+  check, using the user of the connection. The payload has `proposals`: the open ones and those answered or expired in the last
+  14 days. New errors: `use_proposal`, `proposal_not_found`, `proposal_closed`, `too_many_proposals`. See
+  `docs/reference/homework-websocket.md`.
+- **Logbook.** "AI-coach: voorstel dagmaximum (Toetsweek)", "Voorstel dagmaximum geaccepteerd/afgewezen door Anna", "... namens
+  het kind", "... verlopen". Only the first name of the Home Assistant user.
+- **Prompt and guidelines.** The planner rules say that planning with time is optional and done with subtasks (also for
+  regular homework), with estimates from the size of the work in steps of 5, on a day before the due day, within each
+  date's maximum. The default guidelines no longer say "ongeveer 1,5 uur extra werk per schooldag" but follow the child's
+  daily maximum for that day, and tell the AI to propose changes. Guidelines you edited are not changed; empty or default
+  guidelines follow the new default.
+- **Tool descriptions.** `get_overview` explains that a circumstance can raise or lower the maximum and that
+  `daily_max_period` has no text for a student when the circumstance is parents-only.
+- **Diagnostics.** Counts only: open proposals per kind, closed ones per status.
+- **Downgrade note.** The homework store is now minor version 8 (the major version stays 1). 1.8.x ignores `proposals`, uses
+  the Monday value (`daily_max_minutes`) for every day and drops the new keys when it saves again; proposals that were open
+  are lost then.
+
 ## 1.8.0
 
 Context notes for the AI coach. Released 2026-11-16.
