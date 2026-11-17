@@ -42,7 +42,10 @@ the maximum only covers extra study time. The PM decided how time planning shoul
   - `get_overview` days already carry `daily_max_minutes`, which is now the effective value for that date.
 
 ### Proposals for the daily maximum (PM decisions 7–10)
-- **The AI never changes a daily maximum directly.** Every change through the AI is a **proposal**. This replaces M13's direct `daily_max_minutes` on circumstances: a circumstance written through the AI can still be added without a maximum. A maximum is always a proposal.
+- **The AI never changes a daily maximum directly.** It also cannot move or extend a circumstance that has a maximum
+  (shrinking, or removing the maximum, is allowed). A circumstance with a maximum is always visible to the student
+  (`visibility: "all"`), because the student decides about their own time (Architect decision after review).
+- The rest of this rule: Every change through the AI is a **proposal**. This replaces M13's direct `daily_max_minutes` on circumstances: a circumstance written through the AI can still be added without a maximum. A maximum is always a proposal.
 - **Two kinds of proposal:**
   - **period:** a date range inside the sync window, a maximum per day (one value for all days of the period), and a short reason ("Toetsweek"). Once accepted, it becomes a circumstance with that maximum, as in M13.
   - **weekdays:** seven new weekday values and a reason. Once accepted, they replace the child's weekday maximums.
@@ -55,7 +58,7 @@ the maximum only covers extra study time. The PM decided how time planning shoul
   - A parent's AI can make a proposal, but cannot answer it while the child has an active Leerling user.
 - **Through the AI:**
   - `propose_daily_max(child?, kind, start?, end?, minutes? | weekdays?, reason)`;
-  - `respond_to_proposal(child?, id, answer: accept|reject)`. Its description says: only call this after the student has said yes or no explicitly in this conversation;
+  - `respond_to_proposal(child?, id, answer: accept|reject)`. Its description says: only call this after the person who may answer (the student, or a parent for a child without an active student user) has said yes or no explicitly in this conversation;
   - `list_proposals(child?, include_closed?)`.
   - `get_overview` days show any open proposal that covers them (`proposal: {id, minutes}`).
   - The prompt lists the open proposals.
