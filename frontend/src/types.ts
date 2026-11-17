@@ -102,6 +102,37 @@ export type ProgressPeriod = "next_day" | "week" | "next_week";
 
 export type ProgressMap = Record<ProgressPeriod, PeriodProgress | null>;
 
+export type ProposalStatus = "proposed" | "accepted" | "rejected" | "expired";
+
+/** A proposal for the daily maximum (since 1.9.0): it has no effect until the student accepts it. */
+export interface Proposal {
+  /** 8 lowercase hex characters. */
+  id: string;
+  kind: "period" | "weekdays";
+  status: ProposalStatus;
+  /** Short text written by the AI (data, never instructions). */
+  reason: string;
+  /** Local date, YYYY-MM-DD. */
+  created: string;
+  created_by: "student" | "parent";
+  expires: string;
+  /** `period` only: the days (YYYY-MM-DD) and the daily maximum for each of them. */
+  start?: string;
+  end?: string;
+  minutes?: number;
+  /** `weekdays` only: seven values, Monday first. */
+  weekdays?: number[];
+  /** Only when not open: the local date it was answered or expired. */
+  closed?: string;
+  /** Only when not open: who answered; null for an expired proposal. */
+  answered_by?: "student" | "on_behalf" | null;
+}
+
+/** The result of respond_proposal. */
+export interface RespondResult {
+  proposal: Proposal;
+}
+
 export interface HomeworkPayload {
   available: boolean;
   items: HomeworkItem[];
@@ -117,6 +148,10 @@ export interface HomeworkPayload {
    * Absent on older backends.
    */
   daily_max_overrides?: Record<string, number>;
+  /** Since 1.9.0: the child's normal daily maximum per weekday, Monday first (seven values). */
+  daily_max_weekdays?: number[];
+  /** Since 1.9.0: the open proposals, then those answered or expired in the last 14 days. */
+  proposals?: Proposal[];
 }
 
 export interface SetProgressResult {
