@@ -378,7 +378,108 @@ show_progress_next_week: false
   too; screen readers say "has 3 subtasks"), next to the existing "1 of 3 subtasks" line. A coach **proposal** for the daily
   maximum shows at the top of the card in the same colour, with **Accept** (after a confirmation) and **Reject**; the days it covers show "proposal: max 2 h" next to
   the day total. Answered and expired proposals show under the **Earlier** switch. See *Planning with time*.
+- **Study timer** (since 1.10.0): subtasks with a time get a ▶ button, with a timer bar, a ⚙ settings panel and a progress question on stop. See *Study timer*.
 - An item you tick off stays visible until you reload the dashboard, so you can undo a slip.
+
+## Study timer
+
+*Since 1.10.0.* A student can start a **timer on a subtask** that has an estimated time. When the time is up, the student
+gets a notification on their phone (the Home Assistant companion app) and in Home Assistant, and can mark the subtask as
+done straight from the notification. The timer lives in the integration, so it keeps running when the card or the app is
+closed and it survives a restart of Home Assistant (an end that passed in the meantime finishes at once and notifies).
+There is one timer per child at a time.
+
+<p>
+  <img src="docs/assets/timer-card-en-light.png" alt="Study timer card: a running timer and one that has run out, light theme" width="300">
+  <img src="docs/assets/timer-card-en-dark.png" alt="Study timer card: a running timer and one that has run out, dark theme" width="300">
+</p>
+
+### Using it
+
+- **Start.** On the homework card every subtask with a time (see *Planning with time*) has a **▶** button. The length is the
+  subtask's estimated time. Starting while another timer runs (or is paused) asks whether to replace it.
+- **Pause and stop.** While a timer runs the row shows the countdown with **⏸** / **▶** (pause, resume) and **■** (stop).
+  A timer bar at the top of the card shows the subtask and the countdown too, also when the subtask is on another day.
+- **Progress on stop.** **■** opens the question **How far are you?** (0, 25, 50, 75 or 100 %, the current progress
+  preselected). **Save and stop** sets the subtask's progress and stops the timer; **Stop without progress** only stops it.
+- **When the time is up** the row (and the card) shows **Time is up** with **Done** (the subtask becomes 100 % and the timer
+  ends), **+x min** and **Not yet**. **+x min** appears only now, and only when the student set extra minutes: it runs the
+  timer again for x minutes, and can be used each time the time runs out (the pre-warning does not repeat). **Not yet** opens
+  the same question "How far are you?", so the student can register progress and stop the timer.
+- **Timer settings.** The **⚙** button on the card opens the student's settings: the **pre-warning** (*Warning beforehand* on the card; off, or 1 to 15 minutes
+  before the end) and the **extra minutes** (off, or 1 to 30). They are per child. The student can also ask the AI coach
+  to change them (the coach cannot start or stop a timer).
+- The countdown is computed from the end time, ticks once a second only while a timer runs, and a screen reader is told
+  about the pre-warning and the end (politely, not every second).
+
+### Set up the iPhone
+
+1. Install the **Home Assistant companion app** on the student's iPhone and log in with the **student's Home Assistant
+   user**. Allow notifications when the app asks.
+2. As administrator open **Settings > Devices & services > Magister > Configure > Study timer**, choose the **child**, and
+   under **Devices** choose the `notify.mobile_app_...` service of that iPhone (only `notify.mobile_app_*` services are listed;
+   you can choose more than one; leave it empty for no phone notifications). It applies at once.
+
+### Notifications
+
+- **Pre-warning** (when set): "Nog 5 minuten: *subtask* (*subject*)", without buttons.
+- **End:** "Tijd is om: *subtask* (*subject*)" with the buttons **Klaar**, **+x min** (only when the student set extra
+  minutes) and **Nog niet**. **Nog niet** on the phone only stops the timer; the student can register progress on a card.
+  The notification is time-sensitive on iOS, and a new one replaces the old one (one per child).
+- **In Home Assistant** the end also creates a notification (the bell). **It is visible to every Home Assistant user**,
+  not only the student; its title has the child's **first name** only ("Studietimer *name*: tijd is om"). It goes away when the
+  timer is extended, stopped or completed. Home Assistant cannot show a pop-up in a browser unless the page is open, so the
+  website shows nothing by itself.
+- **Privacy.** A phone notification shows the subtask's title and the subject, so anyone who holds the phone can read it on
+  the **lock screen**. Phone notifications go **only** to the devices you chose for that child, **never to parents**.
+
+### Who may operate it
+
+The same rule as for proposals: a Home Assistant user linked as **Leerling** (student) for the child. Only when the child
+has no active student user, a user linked as **Ouder** (parent) or an administrator may do it on the child's behalf. The
+control permission on the child's to-do list is needed as well. Everyone can see the timer and open the settings panel; a
+refused action is rolled back with a message. Automations (the services below) always work.
+
+### The timer card
+
+A separate card for a dashboard (for example on a wall tablet) with a large countdown in a ring, the subtask, subject, label
+and due day, **Pause** / **Resume**, **Stop** (with the progress question) and, when the time is up, **Done**, **+x min** and
+**Not yet**. It needs no extra resource: it is in the same file as the homework card. Add it with *Edit dashboard > Add card >
+Magister Study timer*, or in YAML:
+
+```yaml
+type: custom:magister-timer-card
+entity: todo.kind_myschool_homework
+title: Study timer          # optional
+show_when_idle: true        # optional; false hides the card while no timer runs
+```
+
+Without a timer it says "No timer active" (or hides itself with `show_when_idle: false`). A user who may not control the
+timer sees it read-only, with an explanation, after the first refused press. The buttons are large, and the card follows the
+Home Assistant language. Two cards on one page each announce for screen readers, so add the timer card only where it is needed.
+
+### Automations
+
+When the time runs out the integration fires the event `magister_study_timer_finished` with `child` (the child's id),
+`subtask` and `entity_id` (the child's Homework list). For example, let a light flash:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: magister_study_timer_finished
+    event_data:
+      entity_id: todo.kind_myschool_homework
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.desk_lamp
+    data:
+      flash: long
+```
+
+The services `magister.start_study_timer` (fields `subtask`, `replace`) and `magister.stop_study_timer` (field `progress`:
+0, 25, 50, 75 or 100, optional) target the child's Homework list. See `docs/reference/homework-websocket.md` for the
+WebSocket commands.
 
 ## AI homework coach
 

@@ -20,6 +20,13 @@ Commands (any authenticated user, like HA's own ``todo/item/*``):
   daily maximum; a parent or an administrator only when the child has no active student
   user.
 
+* ``magister/homework/timer``: ``{"entity_id", "action", "subtask"?, "replace"?,
+  "progress"?}`` (since 1.10.0) with action ``start`` (needs ``subtask``; ``replace``
+  stops a running timer), ``pause``, ``resume``, ``stop`` (``progress`` 0/25/50/75/100
+  sets the subtask's progress too), ``extend`` (only when finished) and ``done``.
+* ``magister/homework/timer_settings``: ``{"entity_id", "prewarn_minutes"?,
+  "extra_minutes"?}`` (since 1.10.0; null switches a setting off).
+
 The label, override and subtask commands need control permission.
 See docs/reference/homework-websocket.md.
 """
@@ -62,6 +69,14 @@ from .homework import (
     subtask_title,
 )
 from .proposals import ANSWERS
+from .timer import (
+    ACTION_START,
+    ACTIONS,
+    TimerError,
+    extra_value,
+    prewarn_value,
+    progress_step,
+)
 from .todo import HomeworkItemDisabled, HomeworkItemHasSubtasks, MagisterHomeworkTodo
 
 SUBSCRIBE = "magister/homework/subscribe"
@@ -74,6 +89,8 @@ ADD_SUBTASK = "magister/homework/add_subtask"
 UPDATE_SUBTASK = "magister/homework/update_subtask"
 DELETE_SUBTASK = "magister/homework/delete_subtask"
 RESPOND_PROPOSAL = "magister/homework/respond_proposal"
+TIMER = "magister/homework/timer"
+TIMER_SETTINGS = "magister/homework/timer_settings"
 
 ERR_NOT_FOUND = "not_found"
 ERR_ITEM_HAS_SUBTASKS = "item_has_subtasks"
@@ -96,6 +113,8 @@ def async_register_websocket_api(hass: HomeAssistant) -> None:
     async_register_command(hass, websocket_update_subtask)
     async_register_command(hass, websocket_delete_subtask)
     async_register_command(hass, websocket_respond_proposal)
+    async_register_command(hass, websocket_timer)
+    async_register_command(hass, websocket_timer_settings)
 
 
 @callback
@@ -406,6 +425,74 @@ async def websocket_respond_proposal(
         connection.send_error(msg["id"], err.code, err.message)
         return
     connection.send_result(msg["id"], {"proposal": proposal})
+
+
+@websocket_command(
+    {
+        probatio.Required("type"): TIMER,
+        probatio.Required("entity_id"): cv.entity_domain(TODO_DOMAIN),
+        probatio.Required("action"): probatio.In(list(ACTIONS)),
+        probatio.Optional("subtask"): cv.string,
+        probatio.Optional("replace", default=False): bool,
+        probatio.Optional("progress"): progress_step,
+    }
+)
+@async_response
+async def websocket_timer(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Start, pause, resume, stop, extend or finish the study timer of the child."""
+    entity = _controlled_entity(hass, connection, msg)
+    if entity is None:
+        return
+    if msg["action"] == ACTION_START and "subtask" not in msg:
+        connection.send_error(msg["id"], ERR_INVALID_FORMAT, "subtask is required")
+        return
+    user = connection.user
+    try:
+        timer = await entity.timer_action(
+            msg["action"],
+            user_id=user.id,
+            is_admin=user.is_admin,
+            subtask=msg.get("subtask"),
+            replace=msg["replace"],
+            progress=msg.get("progress"),
+        )
+    except TimerError as err:
+        connection.send_error(msg["id"], err.code, err.message)
+        return
+    connection.send_result(msg["id"], {"timer": timer})
+
+
+@websocket_command(
+    {
+        probatio.Required("type"): TIMER_SETTINGS,
+        probatio.Required("entity_id"): cv.entity_domain(TODO_DOMAIN),
+        probatio.Optional("prewarn_minutes"): prewarn_value,
+        probatio.Optional("extra_minutes"): extra_value,
+    }
+)
+@async_response
+async def websocket_timer_settings(
+    hass: HomeAssistant, connection: ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Change the student's timer settings (pre-warning and extra minutes)."""
+    entity = _controlled_entity(hass, connection, msg)
+    if entity is None:
+        return
+    user = connection.user
+    try:
+        settings = await entity.timer_settings(
+            user_id=user.id,
+            is_admin=user.is_admin,
+            prewarn=msg.get("prewarn_minutes", UNSET),
+            extra=msg.get("extra_minutes", UNSET),
+        )
+    except TimerError as err:
+        code = ERR_INVALID_FORMAT if err.code in INVALID_INPUT else err.code
+        connection.send_error(msg["id"], code, err.message)
+        return
+    connection.send_result(msg["id"], {"timer_settings": settings})
 
 
 @callback

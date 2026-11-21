@@ -296,7 +296,7 @@ voortgangsbediening per item.
   <img src="docs/assets/homework-card-nl-dark.png" alt="Huiswerkplanner-kaart, dark theme" width="360">
 </p>
 
-**Toevoegen:** open een dashboard, kies *Dashboard bewerken > Kaart toevoegen*, zoek op
+**Toevoegen:** open een dashboard, kies *Dashboard bewerken > Voeg kaart toe*, zoek op
 **Magister** en kies *Magister Homework planner*. Kies in de visuele editor de Huiswerklijst van
 het kind.
 
@@ -315,7 +315,7 @@ het kind.
 
 ```yaml
 type: custom:magister-homework-card
-entity: todo.kind_myschool_homework
+entity: todo.kind_myschool_huiswerk
 title: Huiswerk Kind
 show_completed: false
 show_past: false
@@ -403,8 +403,109 @@ show_progress_next_week: false
   touchscreens; schermlezers zeggen "heeft 3 deelstappen"), naast de bestaande regel "1 van 3 deelstappen". Een **voorstel** van de coach voor het
   dagmaximum staat bovenaan de kaart in dezelfde kleur, met **Accepteren** (na een bevestiging) en **Afwijzen**; de dagen die het dekt tonen "voorstel: max 2 u" naast
   het dagtotaal. Beantwoorde en verlopen voorstellen staan onder de schakelaar **Eerder**. Zie *Plannen met tijd*.
+- **Studietimer** (sinds 1.10.0): deelstappen met een tijd krijgen een ▶-knop, met een timerbalk, een ⚙-instellingenpaneel en een voortgangsvraag bij stoppen. Zie *Studietimer*.
 - Een item dat je afvinkt blijft zichtbaar tot je het dashboard herlaadt, zodat je een misklik
   kunt herstellen.
+
+## Studietimer
+
+*Sinds 1.10.0.* Een leerling kan een **timer starten op een deelstap** met een geschatte tijd. Als de tijd om is, krijgt de
+leerling een melding op de telefoon (de Home Assistant companion-app) en in Home Assistant, en kan de deelstap direct vanuit
+de melding als klaar markeren. De timer zit in de integratie: hij loopt door als de kaart of de app dicht is en overleeft een
+herstart van Home Assistant (een einde dat intussen voorbij ging, loopt direct af en meldt). Er is één timer per kind tegelijk.
+
+<p>
+  <img src="docs/assets/timer-card-nl-light.png" alt="Studietimerkaart: een lopende timer en een afgelopen timer, light theme" width="300">
+  <img src="docs/assets/timer-card-nl-dark.png" alt="Studietimerkaart: een lopende timer en een afgelopen timer, dark theme" width="300">
+</p>
+
+### Gebruiken
+
+- **Starten.** Op de huiswerkkaart heeft elke deelstap met een tijd (zie *Plannen met tijd*) een **▶**-knop. De duur is de
+  geschatte tijd van de deelstap. Starten terwijl een andere timer loopt (of op pauze staat) vraagt of je die wilt vervangen.
+- **Pauzeren en stoppen.** Tijdens de timer toont de rij het aftellen met **⏸** / **▶** (pauze, hervat) en **■** (stop). Een
+  timerbalk bovenaan de kaart toont de deelstap en het aftellen ook, ook als de deelstap op een andere dag staat.
+- **Voortgang bij stoppen.** **■** opent de vraag **Hoe ver ben je?** (0, 25, 50, 75 of 100 %, de huidige voortgang is
+  voorgeselecteerd). **Opslaan en stoppen** zet de voortgang van de deelstap en stopt de timer; **Stoppen zonder voortgang**
+  stopt alleen de timer.
+- **Als de tijd om is** toont de rij (en de kaart) **Tijd is om** met **Klaar** (de deelstap wordt 100 % en de timer eindigt),
+  **+x min** en **Nog niet**. **+x min** staat er alleen nu, en alleen als de leerling extra minuten heeft ingesteld: de timer
+  loopt dan x minuten opnieuw, en dat kan elke keer dat de tijd om is (de waarschuwing vooraf komt niet opnieuw). **Nog niet**
+  opent dezelfde vraag "Hoe ver ben je?", zodat de leerling voortgang kan vastleggen en de timer stopt.
+- **Timerinstellingen.** De **⚙**-knop op de kaart opent de instellingen van de leerling: de **waarschuwing vooraf** (uit, of
+  1 tot 15 minuten voor het einde) en de **extra minuten** (uit, of 1 tot 30). Ze gelden per kind. De leerling kan ze ook via
+  de AI-coach laten wijzigen (de coach kan geen timer starten of stoppen).
+- Het aftellen wordt berekend vanaf het eindtijdstip, tikt alleen elke seconde zolang een timer loopt, en een schermlezer hoort
+  de waarschuwing vooraf en het einde (rustig, niet elke seconde).
+
+### De iPhone instellen
+
+1. Installeer de **Home Assistant companion-app** op de iPhone van de leerling en log in met de **Home Assistant-gebruiker
+   van de leerling**. Sta meldingen toe als de app erom vraagt.
+2. Open als beheerder **Instellingen > Apparaten en diensten > Magister > Configureer > Studietimer**, kies het **kind** en kies
+   bij **Apparaten** de `notify.mobile_app_...`-dienst van die iPhone (alleen `notify.mobile_app_*`-diensten staan in de lijst;
+   je kunt er meer kiezen; leeg betekent geen telefoonmeldingen). Het geldt direct.
+
+### Meldingen
+
+- **Waarschuwing vooraf** (als ingesteld): "Nog 5 minuten: *deelstap* (*vak*)", zonder knoppen.
+- **Einde:** "Tijd is om: *deelstap* (*vak*)" met de knoppen **Klaar**, **+x min** (alleen als de leerling extra minuten heeft
+  ingesteld) en **Nog niet**. **Nog niet** op de telefoon stopt alleen de timer; de voortgang kan de leerling op een kaart
+  vastleggen. De melding is tijdgevoelig op iOS en een nieuwe vervangt de oude (één per kind).
+- **In Home Assistant** maakt het einde ook een melding (de bel). **Die is zichtbaar voor elke Home Assistant-gebruiker**, niet
+  alleen voor de leerling; de titel noemt alleen de **voornaam** van het kind ("Studietimer *naam*: tijd is om"). Hij verdwijnt
+  als de timer wordt verlengd, gestopt of afgerond. Home Assistant kan geen pop-up in een browser tonen als de pagina niet open
+  staat, dus de website toont zelf niets.
+- **Privacy.** Een telefoonmelding toont de titel van de deelstap en het vak, dus wie de telefoon vasthoudt kan het op het
+  **vergrendelscherm** lezen. Telefoonmeldingen gaan **alleen** naar de apparaten die je voor dat kind koos, **nooit naar ouders**.
+
+### Wie het mag bedienen
+
+Dezelfde regel als bij voorstellen: een Home Assistant-gebruiker gekoppeld als **Leerling** van het kind. Alleen als het kind
+geen actieve leerlinggebruiker heeft, mag een gebruiker gekoppeld als **Ouder** of een beheerder het namens het kind doen. De
+bedieningsrechten op de takenlijst van het kind zijn ook nodig. Iedereen ziet de timer en kan het instellingenpaneel openen;
+een geweigerde actie wordt teruggedraaid met een melding. Automatiseringen (de diensten hieronder) werken altijd.
+
+### De timerkaart
+
+Een aparte kaart voor een dashboard (bijvoorbeeld op een wandtablet) met een groot aftellen in een ring, de deelstap, het vak,
+het label en de inleverdag, **Pauze** / **Hervat**, **Stop** (met de voortgangsvraag) en, als de tijd om is, **Klaar**, **+x min**
+en **Nog niet**. Er is geen extra resource nodig: de kaart zit in hetzelfde bestand als de huiswerkkaart. Voeg hem toe met
+*Dashboard bewerken > Voeg kaart toe > Magister Study timer*, of in YAML:
+
+```yaml
+type: custom:magister-timer-card
+entity: todo.kind_myschool_huiswerk
+title: Studietimer          # optioneel
+show_when_idle: true        # optioneel; false verbergt de kaart zolang er geen timer loopt
+```
+
+Zonder timer staat er "Geen timer actief" (of de kaart verbergt zich met `show_when_idle: false`). Een gebruiker die de timer niet
+mag bedienen, ziet de kaart na de eerste geweigerde druk alleen-lezen, met een uitleg. De knoppen zijn groot en de kaart volgt de
+taal van Home Assistant. Twee kaarten op één pagina kondigen zich elk aan voor schermlezers, dus zet de timerkaart alleen neer waar je hem nodig hebt.
+
+### Automatiseringen
+
+Als de tijd om is, stuurt de integratie het event `magister_study_timer_finished` met `child` (het id van het kind), `subtask`
+en `entity_id` (de Huiswerk-lijst van het kind). Laat bijvoorbeeld een lamp knipperen:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: magister_study_timer_finished
+    event_data:
+      entity_id: todo.kind_myschool_huiswerk
+actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.desk_lamp
+    data:
+      flash: long
+```
+
+De diensten `magister.start_study_timer` (velden `subtask`, `replace`) en `magister.stop_study_timer` (veld `progress`: 0, 25, 50,
+75 of 100, optioneel) werken op de Huiswerk-lijst van het kind. Zie `docs/reference/homework-websocket.md` voor de
+WebSocket-commando's.
 
 ## AI-huiswerkcoach
 

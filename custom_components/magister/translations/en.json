@@ -160,6 +160,30 @@
     },
     "child_not_found": {
       "message": "This child does not belong to this Magister login."
+    },
+    "homework_timer_running": {
+      "message": "A study timer is already running or paused for this child. Stop it first, or start with replace."
+    },
+    "homework_no_minutes": {
+      "message": "This subtask has no estimated time, so it cannot get a timer."
+    },
+    "homework_subtask_completed": {
+      "message": "This subtask is already completed, so it cannot get a timer."
+    },
+    "homework_no_timer": {
+      "message": "There is no study timer for this child."
+    },
+    "homework_timer_wrong_state": {
+      "message": "The timer is not in the right state for this action (pause needs a running timer, resume a paused one)."
+    },
+    "homework_timer_not_finished": {
+      "message": "Extra time can only be added when the timer has run out."
+    },
+    "homework_extra_not_set": {
+      "message": "The student has not set extra minutes (timer settings)."
+    },
+    "homework_not_allowed_for_role": {
+      "message": "Only the student controls the study timer. A parent or an administrator may only do so when the child has no active student user."
     }
   },
   "options": {
@@ -172,7 +196,8 @@
           "weights": "Homework weights",
           "daily_max": "Daily study maximum",
           "labels": "Labels",
-          "coach": "AI coach"
+          "coach": "AI coach",
+          "study_timer": "Study timer"
         }
       },
       "general": {
@@ -342,6 +367,20 @@
       "coach_context_confirm": {
         "title": "Delete context of {child}?",
         "description": "{count} notes will be deleted. This cannot be undone. Subject: {subject} (– means all context). Select Submit to delete them."
+      },
+      "study_timer": {
+        "title": "Study timer",
+        "description": "Choose the child. The study timer sends its notifications to the companion-app devices you choose here, never to anyone else.",
+        "data": {
+          "child": "Child"
+        }
+      },
+      "study_timer_targets": {
+        "title": "Study timer of {child}",
+        "description": "Choose the notification services (notify.mobile_app_*) of the devices that get the pre-warning and the end of the study timer of {child}. Leave it empty for no phone notifications. The notification shows the subtask title and subject, so anyone holding the phone can read it on the lock screen. Changes apply immediately.",
+        "data": {
+          "targets": "Devices"
+        }
       }
     },
     "error": {
@@ -562,6 +601,30 @@
         "subject": {
           "name": "Subject",
           "description": "Only delete the notes of this subject (including its lesson notes). Leave empty to delete all context."
+        }
+      }
+    },
+    "start_study_timer": {
+      "name": "Start study timer",
+      "description": "Starts the study timer on a subtask with an estimated time. The duration is the estimated time. The rights are those of the student: a call from an automation always works.",
+      "fields": {
+        "subtask": {
+          "name": "Subtask",
+          "description": "The id (uid) of the subtask, as in the to-do list."
+        },
+        "replace": {
+          "name": "Replace",
+          "description": "Stop a running or paused timer of this child and start this one."
+        }
+      }
+    },
+    "stop_study_timer": {
+      "name": "Stop study timer",
+      "description": "Stops the study timer of the child. With a progress it also sets the progress of the subtask.",
+      "fields": {
+        "progress": {
+          "name": "Progress",
+          "description": "Optional: 0, 25, 50, 75 or 100 percent for the subtask."
         }
       }
     }

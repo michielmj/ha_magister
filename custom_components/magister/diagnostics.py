@@ -20,6 +20,7 @@ from .const import (
     CONF_LABELS,
     CONF_OFFSET,
     CONF_PARENT_GUIDELINES,
+    CONF_STUDY_TIMER,
     CONF_TOTP_SECRET,
     CONF_WEIGHTS,
 )
@@ -54,6 +55,19 @@ def _account_type(entry: MagisterConfigEntry) -> str:
 
 def _counts(values: list[int | None]) -> dict[str, int]:
     return {str(key): count for key, count in sorted(Counter(values).items(), key=str)}
+
+
+def _timer_targets(entry: MagisterConfigEntry) -> dict[str, list[Any]]:
+    """The study timer targets of the selected children only."""
+    stored = entry.options.get(CONF_STUDY_TIMER)
+    selected = {str(c[CHILD_ID]) for c in entry.data[CONF_CHILDREN]}
+    if not isinstance(stored, dict):
+        return {}
+    return {
+        key: value
+        for key, value in stored.items()
+        if key in selected and isinstance(value, list)
+    }
 
 
 def _coach_counts(entry: MagisterConfigEntry) -> dict[str, int]:
@@ -107,7 +121,13 @@ async def async_get_config_entry_diagnostics(
                 k: v
                 for k, v in entry.options.items()
                 if k
-                not in (CONF_WEIGHTS, CONF_LABELS, CONF_COACH, CONF_PARENT_GUIDELINES)
+                not in (
+                    CONF_WEIGHTS,
+                    CONF_LABELS,
+                    CONF_COACH,
+                    CONF_PARENT_GUIDELINES,
+                    CONF_STUDY_TIMER,
+                )
             },
         },
         "children": children,
@@ -116,6 +136,12 @@ async def async_get_config_entry_diagnostics(
         "coach_context": runtime.homework.context.statistics(),
         # Counts only: open proposals per kind, closed ones per status.
         "coach_proposals": runtime.homework.proposals.statistics(dt_util.utcnow()),
+        # Counts only: timers per state, settings, and how many targets are chosen.
+        "study_timer": {
+            **runtime.homework.timers.statistics(),
+            "children_with_targets": len(_timer_targets(entry)),
+            "targets": sum(len(v) for v in _timer_targets(entry).values()),
+        },
         "homework_store": {"stored_entries": runtime.homework.stored_entries},
         "sensors": [
             {

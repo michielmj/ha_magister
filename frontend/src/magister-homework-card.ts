@@ -46,6 +46,21 @@ import {
   type ProposalAnswer,
   type SubtaskEdit,
 } from "./logic";
+import { HomeworkSubscription, type LoadError } from "./subscription";
+import { effectiveLabel, metaLine } from "./timer";
+import { TimerController } from "./timer-controller";
+import {
+  renderActions,
+  renderCountdown,
+  renderLive,
+  renderPanel,
+  renderReplaceConfirm,
+  renderSettings,
+  renderSettingsButton,
+  renderStartButton,
+  timerStyles,
+  type TimerContext,
+} from "./timer-views";
 import "./label-dialog";
 import {
   TRANSLATIONS,
@@ -58,7 +73,6 @@ import {
 import type {
   CardConfig,
   Hass,
-  HassConnection,
   HomeworkItem,
   HomeworkPayload,
   ManualLabel,
@@ -68,11 +82,9 @@ import type {
   SetProgressResult,
   Subtask,
   SubtaskResult,
-  Unsubscribe,
   WsError,
 } from "./types";
 
-const SUBSCRIBE = "magister/homework/subscribe";
 const SET_PROGRESS = "magister/homework/set_progress";
 const REMOVE_LABEL = "magister/homework/remove_label";
 const SET_OVERRIDE = "magister/homework/set_override";
@@ -82,9 +94,6 @@ const DELETE_SUBTASK = "magister/homework/delete_subtask";
 const RESPOND_PROPOSAL = "magister/homework/respond_proposal";
 const MAX_TITLE = 100;
 const TOAST_MS = 6000;
-/** Retry of a failed subscribe: 30 s, doubling, at most 10 minutes. */
-const RETRY_START_MS = 30_000;
-const RETRY_MAX_MS = 600_000;
 
 /** The inline form to add a subtask to an item, or to edit one. */
 interface SubForm {
@@ -102,22 +111,11 @@ interface SubForm {
   busy: boolean;
 }
 
-type LoadError = "not_found" | "unauthorized" | "load_failed";
-
 const PAPERCLIP =
   "M16.5,6V17.5A4,4 0 0,1 12.5,21.5A4,4 0 0,1 8.5,17.5V5A2.5,2.5 0 0,1 11,2.5A2.5,2.5 0 0,1 13.5,5V15.5A1,1 0 0,1 12.5,16.5A1,1 0 0,1 11.5,15.5V6H10V15.5A2.5,2.5 0 0,0 12.5,18A2.5,2.5 0 0,0 15,15.5V5A4,4 0 0,0 11,1A4,4 0 0,0 7,5V17.5A5.5,5.5 0 0,0 12.5,23A5.5,5.5 0 0,0 18,17.5V6H16.5Z";
 
 /** A list with an indented second level (mdi-subdirectory-arrow-right), for the subtask marker. */
 const SUBTASKS_ICON = "M19,15L13,21L11.58,19.58L15.17,16H4V4H6V14H15.17L11.58,10.42L13,9L19,15Z";
-
-/** Unsubscribe without letting a rejected promise escape. */
-function safeUnsubscribe(unsubscribe: Unsubscribe): void {
-  try {
-    void Promise.resolve(unsubscribe()).catch(() => undefined);
-  } catch {
-    // already closed
-  }
-}
 
 export class MagisterHomeworkCard extends LitElement {
   static override properties = {
@@ -173,10 +171,8 @@ export class MagisterHomeworkCard extends LitElement {
 
   private _config: NormalizedConfig | undefined;
   private _hass: Hass | undefined;
-  private _connection: HassConnection | undefined;
-  private _subscribedEntity = "";
-  private _unsubscribe: Unsubscribe | undefined;
-  private _generation = 0;
+  private readonly _subscription: HomeworkSubscription;
+  private readonly _timer: TimerController;
   /** The request that last changed an item: only its outcome touches the view. */
   private readonly _tokens = new Map<string, number>();
   private readonly _overrideTokens = new Map<string, number>();
@@ -187,26 +183,43 @@ export class MagisterHomeworkCard extends LitElement {
   /** The inline form should focus its title field when it renders. */
   private _focusForm = false;
   private _nextToken = 0;
-  private _retryTimer: ReturnType<typeof setTimeout> | undefined;
-  private _retryDelay = RETRY_START_MS;
   private _hassKey = "";
   private _dayTimer: ReturnType<typeof setInterval> | undefined;
   private _shownDay = "";
   /** Items ticked off in this view: they stay visible until the card is reloaded. */
   private readonly _touched = new Set<string>();
   private _toastTimer: ReturnType<typeof setTimeout> | undefined;
-  private readonly _onDisconnected = () => {
-    this._offline = true;
-  };
-  private readonly _onReady = () => {
-    this._offline = false;
-    // A reconnect: try again at once after a failed subscribe (a working one is
-    // resubscribed by the connection itself).
-    if (this._loadError) this._retry();
-  };
 
   constructor() {
     super();
+    this._subscription = new HomeworkSubscription({
+      isConnected: () => this.isConnected,
+      hass: () => this._hass,
+      entity: () => this._config?.entity,
+      onPayload: (payload) => {
+        this._onPayload(payload);
+      },
+      onLoadError: (error) => {
+        this._loadError = error;
+      },
+      onOffline: (offline) => {
+        this._offline = offline;
+      },
+      hasLoadError: () => this._loadError !== undefined,
+    });
+    this._timer = new TimerController(this, {
+      hass: () => this._hass,
+      entity: () => this._config?.entity,
+      payload: () => this._payload,
+      canWrite: () => this._payload?.available === true && !this._offline,
+      texts: () => this._texts(),
+      showError: (message) => {
+        this._showToast(message);
+      },
+      itemLabel: (item) => this._itemLabel(item, this._texts()),
+      fallbackFocus: () => [".toolbar .switch"],
+      beginProgress: (uid, progress) => this._beginProgress(uid, progress),
+    });
     this._offline = false;
     this._overlay = new Map();
     this._expanded = new Set();
@@ -242,7 +255,7 @@ export class MagisterHomeworkCard extends LitElement {
     const next = normalizeConfig(config);
     if (next.entity !== this._config?.entity) {
       // Another child: nothing of the old list may stay on screen.
-      this._resetSubscription();
+      this._subscription.reset();
       this._payload = undefined;
       this._loadError = undefined;
       this._offline = false;
@@ -264,8 +277,9 @@ export class MagisterHomeworkCard extends LitElement {
       this._form = undefined;
       this._subConfirm = undefined;
       this._pendingFocus = undefined;
+      this._timer.reset();
       this._closeMenu(false);
-      this._retryDelay = RETRY_START_MS;
+      this._subscription.resetBackoff();
     }
     this._config = next;
     // The remembered switches of this card; a changed config has another key and so starts over.
@@ -274,7 +288,7 @@ export class MagisterHomeworkCard extends LitElement {
     this._showCompleted = remembered?.show_completed ?? next.show_completed;
     this._showPast = remembered?.show_past ?? next.show_past;
     this.requestUpdate();
-    this._ensureSubscription();
+    this._subscription.ensure();
   }
 
   set hass(hass: Hass | undefined) {
@@ -285,7 +299,7 @@ export class MagisterHomeworkCard extends LitElement {
       this._hassKey = key;
       this.requestUpdate();
     }
-    this._ensureSubscription();
+    this._subscription.ensure();
   }
 
   get hass(): Hass | undefined {
@@ -305,7 +319,8 @@ export class MagisterHomeworkCard extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    this._ensureSubscription();
+    this._subscription.ensure();
+    this._timer.connected();
     // Re-render when the day changes while the dashboard stays open.
     this._dayTimer = setInterval(() => {
       if (this._currentDay() !== this._shownDay) this.requestUpdate();
@@ -314,7 +329,8 @@ export class MagisterHomeworkCard extends LitElement {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
-    this._resetSubscription();
+    this._subscription.reset();
+    this._timer.disconnected();
     if (this._toastTimer) clearTimeout(this._toastTimer);
     if (this._dayTimer) clearInterval(this._dayTimer);
     this._dayTimer = undefined;
@@ -323,85 +339,9 @@ export class MagisterHomeworkCard extends LitElement {
 
   // -- subscription --
 
-  private _ensureSubscription(): void {
-    const hass = this._hass;
-    const entity = this._config?.entity;
-    if (!this.isConnected || !hass?.connection || !entity) return;
-    // Also after a failed subscribe: that is retried on reconnect or after a back-off,
-    // not on every hass update.
-    if (this._subscribedEntity === entity && this._connection === hass.connection) return;
-    this._resetSubscription();
-    this._attach(hass.connection);
-    this._subscribedEntity = entity;
-    const generation = ++this._generation;
-    hass.connection
-      .subscribeMessage<HomeworkPayload>(
-        (payload) => {
-          if (generation === this._generation) this._onPayload(payload);
-        },
-        { type: SUBSCRIBE, entity_id: entity },
-        { resubscribe: true },
-      )
-      .then(
-        (unsubscribe) => {
-          if (generation === this._generation) {
-            this._unsubscribe = unsubscribe;
-          } else {
-            safeUnsubscribe(unsubscribe);
-          }
-        },
-        (error: unknown) => {
-          if (generation !== this._generation) return;
-          const code = (error as WsError | undefined)?.code;
-          this._loadError =
-            code === "not_found" || code === "invalid_format"
-              ? "not_found"
-              : code === "unauthorized"
-                ? "unauthorized"
-                : "load_failed";
-          this._scheduleRetry();
-        },
-      );
-  }
-
-  private _scheduleRetry(): void {
-    if (this._retryTimer) clearTimeout(this._retryTimer);
-    this._retryTimer = setTimeout(() => {
-      this._retryTimer = undefined;
-      this._retry();
-    }, this._retryDelay);
-    this._retryDelay = Math.min(this._retryDelay * 2, RETRY_MAX_MS);
-  }
-
-  private _retry(): void {
-    this._resetSubscription();
-    this._ensureSubscription();
-  }
-
-  private _attach(connection: HassConnection): void {
-    connection.addEventListener?.("disconnected", this._onDisconnected);
-    connection.addEventListener?.("ready", this._onReady);
-    this._connection = connection;
-    if (connection.connected === false) this._offline = true;
-  }
-
-  /** Unsubscribe (also while the subscribe call is still pending) and forget the connection. */
-  private _resetSubscription(): void {
-    this._generation++;
-    if (this._unsubscribe) safeUnsubscribe(this._unsubscribe);
-    this._unsubscribe = undefined;
-    if (this._retryTimer) clearTimeout(this._retryTimer);
-    this._retryTimer = undefined;
-    this._connection?.removeEventListener?.("disconnected", this._onDisconnected);
-    this._connection?.removeEventListener?.("ready", this._onReady);
-    this._connection = undefined;
-    this._subscribedEntity = "";
-  }
-
   private _onPayload(payload: HomeworkPayload): void {
     this._payload = payload;
     this._loadError = undefined;
-    this._retryDelay = RETRY_START_MS;
     this._offline = false;
     // Confirmed overlays are replaced by the pushed state; requests still in flight stay.
     const kept = new Map<string, Overlay>();
@@ -426,6 +366,29 @@ export class MagisterHomeworkCard extends LitElement {
     this._proposalOverlay = keptAnswers;
     // Removals that were confirmed are in the pushed state; those in flight stay hidden.
     this._hiddenLabels = new Set([...this._hiddenLabels].filter((key) => this._removing.has(key)));
+    this._timer.onPayload();
+  }
+
+  /** The optimistic progress of a timer stop with progress, or "Klaar"; the function settles it. */
+  private _beginProgress(uid: string, progress: number): (ok: boolean) => void {
+    const source = this._findTarget(uid);
+    if (!source) return () => undefined;
+    const token = ++this._nextToken;
+    this._tokens.set(uid, token);
+    if (progress >= 100) {
+      this._touched.add(uid);
+      this._touched.add(parentUid(uid));
+    }
+    const shown = { ...source, ...this._overlay.get(uid) };
+    this._overlay = new Map(this._overlay).set(uid, optimisticOverlay(shown, progress));
+    return (ok) => {
+      if (this._tokens.get(uid) !== token) return;
+      this._tokens.delete(uid);
+      const next = new Map(this._overlay);
+      // Accepted: the push replaces the overlay (at once when it already shows the value).
+      if (!ok || this._findTarget(uid)?.progress === progress) next.delete(uid);
+      this._overlay = next;
+    };
   }
 
   // -- progress --
@@ -996,6 +959,7 @@ export class MagisterHomeworkCard extends LitElement {
   // -- rendering --
 
   protected override willUpdate(): void {
+    this._timer.willUpdate();
     // A removal can no longer be confirmed while the card is read-only.
     if (this._confirm && (this._offline || this._payload?.available !== true)) {
       this._confirm = undefined;
@@ -1028,6 +992,7 @@ export class MagisterHomeworkCard extends LitElement {
     const config = this._config;
     const texts = this._texts();
     return html`<ha-card .header=${config?.title ?? ""}>
+      ${this._timerUi() ? renderLive(this._timerContext(texts)) : nothing}
       <div class="content ${config?.title ? "titled" : ""}">${this._renderBody(texts)}</div>
       ${this._toast
         ? html`<div class="toast" role="alert">
@@ -1049,10 +1014,12 @@ export class MagisterHomeworkCard extends LitElement {
     const enabled = available && !this._offline;
     const groups = this._visibleGroups();
     const bars = this._renderBars(texts, this._offline);
-    const banners = html`${this._renderProposals(texts, enabled)}${this._renderToolbar(
+    const banners = html`${this._renderTimerBar(texts)}${this._renderProposals(
       texts,
       enabled,
-    )}${bars}${!available
+    )}${this._renderToolbar(texts, enabled)}${this._timerUi()
+      ? renderSettings(this._timerContext(texts))
+      : nothing}${bars}${!available
       ? html`<p class="banner" role="status">${texts.unavailable}</p>`
       : nothing}${this._offline
       ? html`<p class="banner" role="status">${texts.offline}</p>`
@@ -1147,6 +1114,70 @@ export class MagisterHomeworkCard extends LitElement {
     >`;
   }
 
+  /** The backend knows the study timer (1.10.0 and later): without it the card shows no timer controls. */
+  private _timerUi(): boolean {
+    const payload = this._payload;
+    return payload !== undefined && (payload.timer !== undefined || payload.timer_settings !== undefined);
+  }
+
+  private _timerContext(texts: Texts): TimerContext {
+    return {
+      controller: this._timer,
+      texts,
+      language: this._language() === "nl" ? "nl" : "en",
+      enabled: this._payload?.available === true && !this._offline,
+    };
+  }
+
+  /** The timer at the top of the card: it shows whenever a timer exists, whichever day its subtask is on. */
+  private _renderTimerBar(texts: Texts): TemplateResult | typeof nothing {
+    if (!this._timerUi()) return nothing;
+    const context = this._timerContext(texts);
+    const view = this._timer.view();
+    if (!view) return nothing;
+    const lang = this._language() === "nl" ? "nl" : "en-GB";
+    const meta = metaLine(texts.timer.meta, {
+      subject: view.timer.subject,
+      label: this._timer.labelOf(view.timer.subtask),
+      date: formatShortDay(view.timer.due, lang),
+    });
+    return html`<section class="timer-bar ${view.state}" aria-label=${texts.timer.region}>
+      <div class="timer-bar-row">
+        <div class="timer-bar-text">
+          <span class="timer-bar-title">${view.timer.title}</span>
+          <span class="meta">${meta}</span>
+        </div>
+        ${view.state === "finished"
+          ? html`<span class="timer-state finished">${texts.timer.finished}</span>`
+          : html`${renderCountdown(context, view, "bar-countdown")}${view.state === "paused"
+              ? html`<span class="timer-state">${texts.timer.paused}</span>`
+              : nothing}`}
+        ${renderActions(context, view, "bar")}
+      </div>
+      <div class="timer-track" aria-hidden="true">
+        <div class="timer-fill" style="width: ${Math.round(view.fraction * 100)}%"></div>
+      </div>
+      ${renderPanel(context)}
+    </section>`;
+  }
+
+  /** The timer of one subtask row: countdown and buttons, or "Tijd is om" with Klaar, +x min and Nog niet. */
+  private _renderRowTimer(subtask: Subtask, texts: Texts): TemplateResult | typeof nothing {
+    if (!this._timerUi()) return nothing;
+    const context = this._timerContext(texts);
+    const view = this._timer.viewFor(subtask.uid);
+    return html`${view
+      ? html`<div class="timer-row ${view.state}">
+          ${view.state === "finished"
+            ? html`<span class="timer-state finished">${texts.timer.finished}</span>`
+            : html`${renderCountdown(context, view)}${view.state === "paused"
+                ? html`<span class="timer-state">${texts.timer.paused}</span>`
+                : nothing}`}
+          ${renderActions(context, view, "row")}
+        </div>`
+      : nothing}${renderReplaceConfirm(context, subtask.uid, subtask.title)}`;
+  }
+
   private _renderToolbar(texts: Texts, enabled: boolean): TemplateResult {
     const labels = this._payload?.labels ?? [];
     const canAdd = enabled && labels.length > 0;
@@ -1168,6 +1199,7 @@ export class MagisterHomeworkCard extends LitElement {
     return html`<div class="toolbar" role="toolbar" aria-label=${texts.switches_label}>
       ${toggle("show_completed", this._showCompleted, texts.show_completed_switch, texts.show_completed_tip)}
       ${toggle("show_past", this._showPast, texts.show_past_switch, texts.show_past_tip)}
+      ${this._timerUi() ? renderSettingsButton(this._timerContext(texts)) : nothing}
       ${canAdd
         ? html`<button
             type="button"
@@ -1400,12 +1432,7 @@ export class MagisterHomeworkCard extends LitElement {
 
   /** The name of an item's (effective) label, for the reference of its subtasks. */
   private _itemLabel(item: HomeworkItem, texts: Texts): string {
-    const override = item.override ?? null;
-    if (override?.mode === "replace") return override.label.name;
-    if (item.info_type !== null && override?.mode !== "disable") {
-      return typeLabel(texts, item.info_type, item.label ?? "");
-    }
-    return item.manual_labels[0]?.name ?? "";
+    return effectiveLabel(item, texts);
   }
 
   private _renderDerived(item: HomeworkItem, texts: Texts): TemplateResult {
@@ -1515,7 +1542,12 @@ export class MagisterHomeworkCard extends LitElement {
                   >`
                 : nothing}
               ${enabled
-                ? html`<span class="sub-actions"><button
+                ? html`<span class="sub-actions">${this._timerUi() &&
+                    typeof subtask.minutes === "number" &&
+                    !subtask.completed &&
+                    !this._timer.viewFor(subtask.uid)
+                      ? renderStartButton(this._timerContext(texts), subtask.uid, subtask.title, subtask.minutes)
+                      : nothing}<button
                       type="button"
                       class="icon-btn"
                       data-edit=${subtask.uid}
@@ -1561,6 +1593,7 @@ export class MagisterHomeworkCard extends LitElement {
               }}>${texts.sub.confirm_yes}</button>
             </div>`
           : nothing}
+        ${this._renderRowTimer(subtask, texts)}
         ${this._renderProgress(
           subtask,
           format(texts.sub.progress_of, { title: subtask.title }),
@@ -1861,6 +1894,7 @@ export class MagisterHomeworkCard extends LitElement {
   }
 
   protected override updated(): void {
+    this._timer.afterRender();
     // The estimate select shows the form's value (the options are rendered before it is set).
     const select = this.shadowRoot?.querySelector<HTMLSelectElement>(".subform .sub-minutes-input");
     const wanted = this._form?.minutes === null ? "" : String(this._form?.minutes ?? "");
@@ -2063,7 +2097,9 @@ export class MagisterHomeworkCard extends LitElement {
     });
   }
 
-  static override styles = css`
+  static override styles = [
+    timerStyles,
+    css`
     :host {
       display: block;
       /* Subtasks and proposals: one colour. The text variant mixes in the text colour, so it
@@ -2822,5 +2858,59 @@ export class MagisterHomeworkCard extends LitElement {
         min-height: 40px;
       }
     }
-  `;
+    .timer-bar {
+      margin: 0 0 12px;
+      padding: 8px 12px 10px;
+      border-left: 3px solid var(--timer-color);
+      border-radius: 4px 8px 8px 4px;
+      background: color-mix(in srgb, var(--timer-color) 10%, transparent);
+    }
+    .timer-bar.finished {
+      border-left-color: var(--timer-warn);
+      background: color-mix(in srgb, var(--timer-warn) 14%, transparent);
+    }
+    .timer-bar-row,
+    .timer-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+    }
+    .timer-bar-text {
+      display: flex;
+      flex: 1 1 10em;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .timer-bar-title {
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .bar-countdown {
+      font-size: 1.5em;
+    }
+    .timer-row {
+      margin-top: 6px;
+    }
+    .timer-state {
+      padding: 0 8px;
+      border-radius: 10px;
+      border: 1px solid var(--divider-color);
+      font-size: 0.8em;
+      font-weight: 500;
+      color: var(--secondary-text-color);
+    }
+    .timer-state.finished {
+      border-color: var(--timer-warn);
+      color: var(--primary-text-color);
+      font-weight: 700;
+    }
+    .timer-settings-btn {
+      margin-left: auto;
+    }
+    .timer-settings-btn + .add {
+      margin-left: 0;
+    }
+  `,
+  ];
 }

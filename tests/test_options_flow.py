@@ -82,6 +82,7 @@ async def _open_general(hass: HomeAssistant, entry: Any) -> Any:
         "daily_max",
         "labels",
         "coach",
+        "study_timer",
     ]
     return await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "general"}

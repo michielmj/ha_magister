@@ -44,6 +44,11 @@ COACH_PARENTS: Final = "parents"
 COACH_GUIDELINES: Final = "guidelines"
 COACH_RESET: Final = "reset_guidelines"
 
+# Study timer: ``{child_id: ["mobile_app_xxx", ...]}``, the companion-app notify
+# services (without ``notify.``) that get the timer notifications of a child. Only the
+# administrator sets it; outside the reload snapshot like the other per-child options.
+CONF_STUDY_TIMER: Final = "study_timer"
+
 # The parent guidelines: one text per config entry (also outside the reload snapshot).
 CONF_PARENT_GUIDELINES: Final = "parent_guidelines"
 # The daily maximum of study minutes of a child is stored in the child's weights.
@@ -84,6 +89,9 @@ ATTR_SUBTASK: Final = "subtask"
 ATTR_TITLE: Final = "title"
 ATTR_DATE: Final = "date"
 ATTR_MINUTES: Final = "minutes"
+SERVICE_START_STUDY_TIMER: Final = "start_study_timer"
+SERVICE_STOP_STUDY_TIMER: Final = "stop_study_timer"
+ATTR_REPLACE: Final = "replace"
 
 MANUFACTURER: Final = "Magister"
 

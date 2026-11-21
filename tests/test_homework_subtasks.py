@@ -837,7 +837,7 @@ async def test_store_1_4_0_loads_and_is_saved_as_minor_8(
     manager.add_subtask(CHILD_ID, uid(HOMEWORK), "t", None)
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 8)
+    assert (saved["version"], saved["minor_version"]) == (1, 9)
     (stored_sub,) = saved["data"]["items"][uid(HOMEWORK)]["subtasks"]
     assert set(stored_sub) == {
         "id",

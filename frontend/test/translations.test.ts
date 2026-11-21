@@ -15,6 +15,10 @@ describe("translations", () => {
     expect(Object.keys(TRANSLATIONS.nl).sort()).toEqual(Object.keys(TRANSLATIONS.en).sort());
     expect(Object.keys(TRANSLATIONS.nl.type)).toEqual(Object.keys(TRANSLATIONS.en.type));
     expect(Object.keys(TRANSLATIONS.nl.editor)).toEqual(Object.keys(TRANSLATIONS.en.editor));
+    expect(Object.keys(TRANSLATIONS.nl.timer).sort()).toEqual(Object.keys(TRANSLATIONS.en.timer).sort());
+    expect(Object.keys(TRANSLATIONS.nl.timer.errors).sort()).toEqual(
+      Object.keys(TRANSLATIONS.en.timer.errors).sort(),
+    );
     expect(Object.keys(TRANSLATIONS.nl.progress_label)).toEqual(
       Object.keys(TRANSLATIONS.en.progress_label),
     );

@@ -195,6 +195,7 @@ async def test_tool_annotations_and_schemas(student: Any, hass: HomeAssistant) -
         "list_proposals",
         "propose_daily_max",
         "respond_to_proposal",
+        "set_timer_settings",
     }
     for name in tools.values():
         assert name.description
@@ -1038,7 +1039,7 @@ async def test_prompt_contents(hass: HomeAssistant, student: Any) -> None:
     )
     assert "15\u201345 minuten" in prompt
     assert "Always pass `child`" not in prompt
-    assert len(api.tools) == 21
+    assert len(api.tools) == 22
 
 
 async def test_prompt_for_unlinked_user(hass: HomeAssistant, student: Any) -> None:

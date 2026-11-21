@@ -120,6 +120,7 @@ from .roles import (
 )
 from .roles import parent_users as parent_users  # re-export (1.8 import path)
 from .roles import student_users as student_users
+from .timer import extra_value, prewarn_value
 from .todo import HomeworkItemDisabled, HomeworkItemHasSubtasks, MagisterHomeworkTodo
 from .ws_api import (
     ERR_INVALID_FORMAT,
@@ -993,7 +994,12 @@ class ListHomeworkTool(CoachTool):
                 )
             ]
             public.append(view)
-        return {"child": call.child.id, "today": today.isoformat(), "items": public}
+        return {
+            "child": call.child.id,
+            "today": today.isoformat(),
+            "timer": _timer_view(call.child),
+            "items": public,
+        }
 
 
 class GetProgressTool(CoachTool):
@@ -1015,6 +1021,7 @@ class GetProgressTool(CoachTool):
             "progress": progress_payload(
                 call.manager, call.child.child_id, available=call.entity.available
             ),
+            "timer": _timer_view(call.child),
         }
 
 
@@ -1718,6 +1725,66 @@ class RespondToProposalTool(CoachTool):
         }
 
 
+def _timer_view(child: CoachChild) -> Payload | None:
+    """A running (or finished) study timer as the tools show it (public ids)."""
+    timer = child.manager.timers.payload(child.child_id)
+    if timer is None:
+        return None
+    view = {k: v for k, v in timer.items() if k not in ("subtask", "label", "due")}
+    view["subtask"] = public_id(timer["subtask"])
+    view["due"] = timer["due"]
+    return view
+
+
+class SetTimerSettingsTool(CoachTool):
+    """``set_timer_settings``."""
+
+    name = "set_timer_settings"
+    description = (
+        "Set the study timer settings of the child: `prewarn_minutes` (null = off, or "
+        "1 to 15: a notification that many minutes before the timer ends) and "
+        "`extra_minutes` (null = off, or 1 to 30: minutes the student can add when "
+        "the time is up). Only call this after the student asked for it. Only the "
+        "student may change this; a parent only when the child has no active student "
+        "user (`not_allowed_for_role`). You cannot start or stop a timer."
+    )
+    parameters = _schema(
+        {
+            probatio.Optional(
+                "prewarn_minutes", description="null (off) or 1 to 15"
+            ): prewarn_value,
+            probatio.Optional(
+                "extra_minutes", description="null (off) or 1 to 30"
+            ): extra_value,
+        }
+    )
+    annotations = _write()
+
+    async def run_async(self, call: CoachCall) -> Payload:
+        """Change the settings as the user behind the call (rights checked)."""
+        if "prewarn_minutes" not in call.args and "extra_minutes" not in call.args:
+            raise CoachError(
+                ERR_INVALID_FORMAT, "Give prewarn_minutes or extra_minutes"
+            )
+        settings, changed = await call.manager.async_set_timer_settings(
+            call.child.child_id,
+            user_id=call.user_id,
+            prewarn=call.args.get("prewarn_minutes", UNSET),
+            extra=call.args.get("extra_minutes", UNSET),
+        )
+        if changed:
+            call.log(
+                "timerinstellingen gewijzigd (vooraf waarschuwen: "
+                f"{_minutes_text(settings['prewarn_minutes'])}, extra tijd: "
+                f"{_minutes_text(settings['extra_minutes'])})"
+            )
+        return {"child": call.child.id, "timer_settings": settings}
+
+
+def _minutes_text(value: int | None) -> str:
+    return "uit" if value is None else f"{value} min"
+
+
 class ListProposalsTool(CoachTool):
     """``list_proposals``."""
 
@@ -1783,6 +1850,7 @@ def coach_tools() -> list[llm.Tool]:
         ListProposalsTool(),
         ProposeDailyMaxTool(),
         RespondToProposalTool(),
+        SetTimerSettingsTool(),
     ]
 
 
