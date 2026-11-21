@@ -1766,17 +1766,18 @@ class SetTimerSettingsTool(CoachTool):
             raise CoachError(
                 ERR_INVALID_FORMAT, "Give prewarn_minutes or extra_minutes"
             )
-        settings = await call.manager.async_set_timer_settings(
+        settings, changed = await call.manager.async_set_timer_settings(
             call.child.child_id,
             user_id=call.user_id,
             prewarn=call.args.get("prewarn_minutes", UNSET),
             extra=call.args.get("extra_minutes", UNSET),
         )
-        call.log(
-            "timerinstellingen gewijzigd (vooraf waarschuwen: "
-            f"{_minutes_text(settings['prewarn_minutes'])}, extra tijd: "
-            f"{_minutes_text(settings['extra_minutes'])})"
-        )
+        if changed:
+            call.log(
+                "timerinstellingen gewijzigd (vooraf waarschuwen: "
+                f"{_minutes_text(settings['prewarn_minutes'])}, extra tijd: "
+                f"{_minutes_text(settings['extra_minutes'])})"
+            )
         return {"child": call.child.id, "timer_settings": settings}
 
 

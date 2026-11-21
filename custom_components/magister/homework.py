@@ -73,6 +73,10 @@ from .api.homework import (
 from .api.mapping import CANCELLED_STATUSES, LOCAL_TZ
 from .api.models import Appointment
 from .const import (
+    CHILD_ID,
+    CHILD_NAME,
+    CHILD_SHORT_NAME,
+    CONF_CHILDREN,
     CONF_DAILY_MAX,
     CONF_DAILY_MAX_WEEKDAYS,
     CONF_HOST,
@@ -372,6 +376,16 @@ class HomeworkManager:
     def host(self) -> str:
         """The school host."""
         return self._host
+
+    def child_short_name(self, child_id: int) -> str | None:
+        """The first name (or initials) of a child; ``None`` when only the full name
+        is known (the full name is never shown in a notification)."""
+        for child in self._entry.data[CONF_CHILDREN]:
+            if int(child[CHILD_ID]) == child_id:
+                short = str(child[CHILD_SHORT_NAME]).strip()
+                if short and short != str(child.get(CHILD_NAME, "")).strip():
+                    return short
+        return None
 
     @property
     def entry_options(self) -> Mapping[str, Any]:
@@ -788,19 +802,22 @@ class HomeworkManager:
         return next((s for s in self.active_subtasks(item) if s.id == ref[1]), None)
 
     @callback
-    def set_progress(self, uid: str, progress: int) -> None:
-        """Set the progress (0-100) of an item or subtask and tell the listeners."""
+    def set_progress(self, uid: str, progress: int) -> bool:
+        """Set the progress (0-100) of an item or subtask and tell the listeners.
+
+        Returns whether anything changed (the same value, or an item whose progress is
+        derived from its subtasks, changes nothing).
+        """
         progress = _clamp(progress)
         if (ref := split_subtask_uid(uid)) is not None:
-            self._set_subtask_progress(ref, progress)
-            return
+            return self._set_subtask_progress(ref, progress)
         if self.has_subtasks(uid):
-            return  # derived: the own progress is not used while it has subtasks
+            return False  # derived: the own progress is not used with subtasks
         entry = self._progress.get(uid)
         previous = entry[PROGRESS] if entry else 0
         last_partial = entry[LAST_PARTIAL] if entry else 0
         if progress == previous:
-            return
+            return False
         if progress < 100:
             last_partial = progress
         elif previous < 100:
@@ -814,11 +831,12 @@ class HomeworkManager:
         self._progress[uid] = updated
         self._drop_if_empty(uid)
         self._changed()
+        return True
 
-    def _set_subtask_progress(self, ref: tuple[str, str], progress: int) -> None:
+    def _set_subtask_progress(self, ref: tuple[str, str], progress: int) -> bool:
         stored = self._stored_subtask(*ref)
         if stored is None or progress == stored["progress"]:
-            return
+            return False
         previous = stored["progress"]
         if progress < 100:
             stored["last_partial"] = progress
@@ -832,6 +850,7 @@ class HomeworkManager:
         self._changed()
         if progress >= 100:
             self.timers.stop_for_subtask(subtask_uid(*ref))
+        return True
 
     def _stored_subtask(self, item_uid_: str, sub_id: str) -> dict[str, Any] | None:
         entry = self._progress.get(item_uid_)
@@ -1061,8 +1080,11 @@ class HomeworkManager:
         trusted: bool = False,
         prewarn: Any = UNSET,
         extra: Any = UNSET,
-    ) -> dict[str, int | None]:
-        """Change the student's timer settings as this user (same rights)."""
+    ) -> tuple[dict[str, int | None], bool]:
+        """Change the student's timer settings as this user (same rights).
+
+        Returns the settings and whether a value actually changed.
+        """
         if not trusted and await self.acting_mode(child_id, user_id, is_admin) is None:
             raise TimerError(ERR_NOT_ALLOWED_TO_CONTROL, TIMER_NOT_ALLOWED_MESSAGE)
         return self.timers.set_settings(
@@ -1109,10 +1131,14 @@ class HomeworkManager:
         self, child_id: int, message: str, context: Context | None = None
     ) -> None:
         """Write a logbook entry on the child's homework list (no personal data)."""
-        entity_id = er.async_get(self.hass).async_get_entity_id(
+        entity_id = self.todo_entity_id(child_id)
+        async_log_entry(self.hass, "Magister", message, DOMAIN, entity_id, context)
+
+    def todo_entity_id(self, child_id: int) -> str | None:
+        """The entity id of the child's homework to-do list."""
+        return er.async_get(self.hass).async_get_entity_id(
             TODO_DOMAIN, DOMAIN, f"{self._host}:{child_id}:homework"
         )
-        async_log_entry(self.hass, "Magister", message, DOMAIN, entity_id, context)
 
     def weights(self, child_id: int) -> Weights:
         """The weights of a child from the entry options (and the daily maximum)."""
@@ -1125,6 +1151,7 @@ class HomeworkManager:
     def async_options_changed(self) -> None:
         """Weights or labels changed in the options: recompute without a reload."""
         self._invalidate()
+        self.timers.validate()
         for listener in list(self._label_listeners):
             listener()
         for listener in list(self._listeners):
@@ -1533,7 +1560,8 @@ def build_payload(
         "daily_max_weekdays": list(manager.daily_max_weekdays(child_id)),
         "daily_max_overrides": manager.context.daily_max_overrides(child_id),
         "proposals": manager.proposals.payload(child_id, dt_util.utcnow()),
-        "timer": manager.timers.payload(child_id) if available else None,
+        # Local data: also shown when the Magister data is stale.
+        "timer": manager.timers.payload(child_id),
         "timer_settings": manager.timers.settings(child_id),
     }
 

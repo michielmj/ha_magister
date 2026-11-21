@@ -167,6 +167,9 @@
     "homework_no_minutes": {
       "message": "Deze deelstap heeft geen geschatte tijd, dus er kan geen timer op."
     },
+    "homework_subtask_completed": {
+      "message": "Deze deelstap is al afgerond, dus er kan geen timer op worden gestart."
+    },
     "homework_no_timer": {
       "message": "Er is geen studietimer voor dit kind."
     },

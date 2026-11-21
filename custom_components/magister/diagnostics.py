@@ -57,6 +57,19 @@ def _counts(values: list[int | None]) -> dict[str, int]:
     return {str(key): count for key, count in sorted(Counter(values).items(), key=str)}
 
 
+def _timer_targets(entry: MagisterConfigEntry) -> dict[str, list[Any]]:
+    """The study timer targets of the selected children only."""
+    stored = entry.options.get(CONF_STUDY_TIMER)
+    selected = {str(c[CHILD_ID]) for c in entry.data[CONF_CHILDREN]}
+    if not isinstance(stored, dict):
+        return {}
+    return {
+        key: value
+        for key, value in stored.items()
+        if key in selected and isinstance(value, list)
+    }
+
+
 def _coach_counts(entry: MagisterConfigEntry) -> dict[str, int]:
     """Counts only: the children with the AI coach on and the users linked to them."""
     stored = entry.options.get(CONF_COACH)
@@ -126,10 +139,8 @@ async def async_get_config_entry_diagnostics(
         # Counts only: timers per state, settings, and how many targets are chosen.
         "study_timer": {
             **runtime.homework.timers.statistics(),
-            "children_with_targets": len(entry.options.get(CONF_STUDY_TIMER) or {}),
-            "targets": sum(
-                len(v) for v in (entry.options.get(CONF_STUDY_TIMER) or {}).values()
-            ),
+            "children_with_targets": len(_timer_targets(entry)),
+            "targets": sum(len(v) for v in _timer_targets(entry).values()),
         },
         "homework_store": {"stored_entries": runtime.homework.stored_entries},
         "sensors": [

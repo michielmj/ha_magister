@@ -11,7 +11,10 @@ Study timer with notifications (M15, phase A: backend). Phase B (the cards) foll
 - **Notifications.** The administrator chooses per child the companion-app services (`notify.mobile_app_*`) under
   Configure, Studietimer (no reload). They get "Nog x minuten" (optional pre-warning, no buttons) and "Tijd is om" with
   the buttons Klaar, +x min (when the student set extra minutes) and Nog niet; iOS time-sensitive, one tag per child.
-  Never parents. A persistent notification appears at the end; the event `magister_study_timer_finished` is fired.
+  Never parents: the phone notifications go only to the child's targets. The end also creates a persistent
+  notification in Home Assistant (the bell), which is visible to **every** Home Assistant user, so its title names the
+  child by first name only. The event `magister_study_timer_finished` (child, subtask, `entity_id` of the child's
+  homework list) is fired.
 - **Student settings.** `prewarn_minutes` (off or 1-15) and `extra_minutes` (off or 1-30), per child, set by the
   student through the WebSocket command `magister/homework/timer_settings` or the coach tool `set_timer_settings`. The
   rights are those of answering a proposal: the Leerling, or an Ouder / administrator when the child has no active

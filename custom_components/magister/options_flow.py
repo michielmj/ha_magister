@@ -747,9 +747,14 @@ class MagisterOptionsFlow(OptionsFlow):
         """Choose the companion-app notify services of the child (no reload)."""
         assert self._timer_child is not None
         entry = self.config_entry
-        stored = entry.options.get(CONF_STUDY_TIMER)
-        current = stored.get(str(self._timer_child)) if isinstance(stored, dict) else []
-        current = [t for t in current or [] if isinstance(t, str)]
+        raw = entry.options.get(CONF_STUDY_TIMER)
+        stored: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        chosen = stored.get(str(self._timer_child))
+        current = (
+            [t for t in chosen if isinstance(t, str)]
+            if isinstance(chosen, list)
+            else []
+        )
         # A chosen service that is gone stays in the list, so it can be removed.
         available = sorted({*notify_services(self.hass), *current})
         if user_input is not None:
@@ -757,7 +762,9 @@ class MagisterOptionsFlow(OptionsFlow):
                 {t for t in user_input.get(CONF_TARGETS) or [] if t in available}
             )
             timers: dict[str, Any] = {
-                key: list(value) for key, value in (stored or {}).items()
+                key: list(value)
+                for key, value in stored.items()
+                if isinstance(value, list)
             }
             if targets:
                 timers[str(self._timer_child)] = targets

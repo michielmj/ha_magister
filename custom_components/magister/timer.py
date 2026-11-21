@@ -79,6 +79,7 @@ ERR_NOT_FINISHED: Final = "timer_not_finished"
 ERR_NOT_ALLOWED: Final = "not_allowed_for_role"
 ERR_SUBTASK_NOT_FOUND: Final = "subtask_not_found"
 ERR_NOTHING_TO_UPDATE: Final = "nothing_to_update"
+ERR_SUBTASK_COMPLETED: Final = "subtask_completed"
 
 NOT_ALLOWED_MESSAGE: Final = (
     "Only the student controls the study timer. A parent (or an administrator) may "
@@ -93,6 +94,10 @@ NOTIFY_PREFIX: Final = "mobile_app_"
 # The texts are Dutch constants: they are sent from background tasks without a user
 # language, and neither the notify services nor persistent notifications translate.
 NOTIFICATION_TITLE: Final = "Studietimer"
+# The persistent notification is visible to every Home Assistant user: it names the
+# child by the first name (or initials) only, never the full name.
+PERSISTENT_TITLE: Final = "Studietimer {name}: tijd is om"
+PERSISTENT_TITLE_ANONYMOUS: Final = "Studietimer: tijd is om"
 TEXT_PREWARN: Final = "Nog {n} minuten: {what}"
 TEXT_PREWARN_ONE: Final = "Nog 1 minuut: {what}"
 TEXT_END: Final = "Tijd is om: {what}"
@@ -109,10 +114,13 @@ class TimerError(ContextError):
     """A timer command that cannot be carried out (``code`` names the reason)."""
 
 
-def timer_minutes(maximum: int) -> Callable[[Any], int | None]:
-    """A validator: ``None`` (off) or a whole number from 1 to ``maximum``."""
+def timer_minutes(maximum: int) -> Callable[[int | None], int | None]:
+    """A validator: ``None`` (off) or a whole number from 1 to ``maximum``.
 
-    def validate(value: Any) -> int | None:
+    Typed ``int | None`` so that the LLM schema is ``anyOf integer / null``.
+    """
+
+    def validate(value: int | None) -> int | None:
         if value is None:
             return None
         if isinstance(value, bool) or not isinstance(value, int):
@@ -188,6 +196,7 @@ def _clean_timer(raw: Any) -> dict[str, Any] | None:
         "nonce": nonce,
         "started_at": str(raw.get("started_at") or ""),
         "prewarned": raw.get("prewarned") is True,
+        "notified": raw.get("notified") is True,
     }
     if state == STATE_PAUSED:
         remaining = raw.get("remaining")
@@ -338,13 +347,17 @@ class TimerEngine:
         """Cancel every scheduled callback (the timers stay in the store)."""
         for child in list(self._cancel):
             self._unschedule(child)
+        # The persistent notification goes with the entry; a restart re-creates it
+        # from the stored (finished) timer.
+        for child in self._timers:
+            self._dismiss_persistent(child)
 
     @callback
     def validate(self) -> None:
         """Stop the timers whose subtask is gone (or hidden)."""
         for child, timer in list(self._timers.items()):
             if self._manager.find_subtask(timer["subtask"]) is None:
-                self._clear(child, log=None)
+                self._clear(child, log="Studietimer gestopt")
 
     # -- scheduling ------------------------------------------------------------------
 
@@ -396,6 +409,7 @@ class TimerEngine:
         if timer is None or timer["prewarned"] or not prewarn:
             return
         timer["prewarned"] = True
+        timer["notified"] = True
         self._changed()
         title, subject = self._names(child, timer)
         text = (TEXT_PREWARN_ONE if prewarn == 1 else TEXT_PREWARN).format(
@@ -406,14 +420,24 @@ class TimerEngine:
     @callback
     def _finish(self, child: int) -> None:
         timer = self._timers[child]
+        if self._manager.find_subtask(timer["subtask"]) is None:
+            # Gone or hidden meanwhile: nothing to announce (no empty title).
+            self._clear(child, log="Studietimer gestopt")
+            return
         self._unschedule(child)
         timer["state"] = STATE_FINISHED
         timer["prewarned"] = True
+        timer["notified"] = True
         self._changed()
         title, subject = self._names(child, timer)
         self._manager.log_entry(child, f"Studietimer afgelopen ({title})")
         self._manager.hass.bus.async_fire(
-            EVENT_FINISHED, {"child": child, "subtask": timer["subtask"]}
+            EVENT_FINISHED,
+            {
+                "child": child,
+                "subtask": timer["subtask"],
+                "entity_id": self._manager.todo_entity_id(child),
+            },
         )
         self._persistent(child, timer)
         self._notify(
@@ -432,10 +456,11 @@ class TimerEngine:
 
     def _persistent(self, child: int, timer: dict[str, Any]) -> None:
         title, subject = self._names(child, timer)
+        name = self._manager.child_short_name(child)
         persistent_notification.async_create(
             self._manager.hass,
             TEXT_END.format(what=_what(title, subject)),
-            NOTIFICATION_TITLE,
+            PERSISTENT_TITLE.format(name=name) if name else PERSISTENT_TITLE_ANONYMOUS,
             self._persistent_id(child),
         )
 
@@ -529,13 +554,20 @@ class TimerEngine:
                     type(err).__name__,
                 )
 
-    def _clear_notifications(self, child: int) -> None:
+    def _dismiss_persistent(self, child: int) -> None:
         persistent_notification.async_dismiss(
             self._manager.hass, self._persistent_id(child)
         )
+
+    def _clear_phones(self, child: int) -> None:
         self._send(
             child, {"message": "clear_notification", "data": {"tag": self.tag(child)}}
         )
+
+    def _clear_notifications(self, child: int, timer: dict[str, Any]) -> None:
+        self._dismiss_persistent(child)
+        if timer["notified"]:  # only when a message was sent for this timer
+            self._clear_phones(child)
 
     # -- the actions -----------------------------------------------------------------
 
@@ -547,8 +579,8 @@ class TimerEngine:
             return None
         if log:
             title, _ = self._names(child, timer)
-            self._manager.log_entry(child, f"{log} ({title})")
-        self._clear_notifications(child)
+            self._manager.log_entry(child, f"{log} ({title})" if title else log)
+        self._clear_notifications(child, timer)
         self._changed()
         return timer
 
@@ -560,22 +592,28 @@ class TimerEngine:
 
     def set_settings(
         self, child: int, prewarn: Any, extra: Any, *, given: tuple[bool, bool]
-    ) -> dict[str, int | None]:
-        """Change the student settings (only the values that were given)."""
+    ) -> tuple[dict[str, int | None], bool]:
+        """Change the student settings (only the values that were given).
+
+        Returns the settings and whether a value changed: only then is anything saved.
+        """
         if not any(given):
             raise TimerError(ERR_NOTHING_TO_UPDATE)
-        current = self.settings(child)
+        before = self.settings(child)
+        current = dict(before)
         if given[0]:
             current["prewarn_minutes"] = prewarn
         if given[1]:
             current["extra_minutes"] = extra
+        if current == before:
+            return before, False
         if any(v is not None for v in current.values()):
             self._settings[child] = current
         else:
             self._settings.pop(child, None)
         self._schedule(child)
         self._changed()
-        return self.settings(child)
+        return current, True
 
     def perform(
         self,
@@ -586,13 +624,21 @@ class TimerEngine:
         replace: bool = False,
         progress: int | None = None,
         source: str = SOURCE_API,
+        nonce: str | None = None,
     ) -> None:
-        """Carry out an action (the rights are checked by the caller)."""
+        """Carry out an action (the rights are checked by the caller).
+
+        With a ``nonce`` (a button of a notification) the action is only carried out on
+        the timer that has this nonce, checked here, right before it is carried out.
+        """
         if action == ACTION_START:
             self._start(child, subtask, replace)
             return
         timer = self._timers.get(child)
-        if timer is None:
+        if timer is None or (
+            nonce is not None
+            and not hmac.compare_digest(timer["nonce"].encode(), nonce.encode())
+        ):
             raise TimerError(ERR_NO_TIMER)
         handler = {
             ACTION_PAUSE: self._pause,
@@ -613,6 +659,8 @@ class TimerEngine:
             raise TimerError(ERR_SUBTASK_NOT_FOUND)
         if sub.minutes is None:
             raise TimerError(ERR_NO_MINUTES)
+        if sub.done:
+            raise TimerError(ERR_SUBTASK_COMPLETED)
         assert subtask is not None
         existing = self._timers.get(child)
         if existing and existing["state"] != STATE_FINISHED and not replace:
@@ -627,6 +675,7 @@ class TimerEngine:
             "ends_at": (now + timedelta(minutes=sub.minutes)).isoformat(),
             "nonce": secrets.token_hex(8),
             "prewarned": False,
+            "notified": False,
         }
         self._schedule(child)
         self._changed()
@@ -667,9 +716,11 @@ class TimerEngine:
         extra = self.settings(child)["extra_minutes"]
         if not extra:
             raise TimerError(ERR_EXTRA_NOT_SET)
-        persistent_notification.async_dismiss(
-            self._manager.hass, self._persistent_id(child)
-        )
+        self._dismiss_persistent(child)
+        # The earlier end notification goes away on every target and its buttons go
+        # stale (a new nonce); the extension uses the current setting.
+        self._clear_phones(child)
+        timer["nonce"] = secrets.token_hex(8)
         timer["prewarned"] = True  # the pre-warning does not repeat
         timer["state"] = STATE_RUNNING
         timer["ends_at"] = (dt_util.utcnow() + timedelta(minutes=extra)).isoformat()
@@ -684,9 +735,10 @@ class TimerEngine:
     def _stop(self, child: int, progress: int | None) -> None:
         timer = self._clear(child, log="Studietimer gestopt")
         assert timer is not None
-        if progress is not None:
+        if progress is not None and self._manager.set_progress(
+            timer["subtask"], progress
+        ):
             title, _ = self._names(child, timer)
-            self._manager.set_progress(timer["subtask"], progress)
             self._manager.log_entry(
                 child, f"voortgang {progress}% bij stoppen ({title})"
             )
@@ -694,10 +746,10 @@ class TimerEngine:
     def _done(self, child: int, source: str) -> None:
         timer = self._clear(child, log=None)
         assert timer is not None
-        title, _ = self._names(child, timer)
-        self._manager.set_progress(timer["subtask"], 100)
-        how = "melding" if source == SOURCE_NOTIFICATION else "studietimer"
-        self._manager.log_entry(child, f"deelstap afgerond via {how} ({title})")
+        if self._manager.set_progress(timer["subtask"], 100):
+            title, _ = self._names(child, timer)
+            how = "melding" if source == SOURCE_NOTIFICATION else "studietimer"
+            self._manager.log_entry(child, f"deelstap afgerond via {how} ({title})")
 
     # -- the buttons of a notification -------------------------------------------------
 
@@ -737,7 +789,7 @@ def action_coroutine(
         parsed = engine.parse_action(event)
         if parsed is None:
             return
-        verb, child, _, _ = parsed
+        verb, child, _, nonce = parsed
         # The user behind the app is known for a real button press: check the rights.
         # Without a user in the event context the nonce and the configured target
         # (the only place the nonce was sent to) are the proof.
@@ -752,7 +804,9 @@ def action_coroutine(
                 )
                 return
         try:
-            engine.perform(child, verb, source=SOURCE_NOTIFICATION)
+            # The nonce is checked again: the timer may have been restarted while the
+            # user was looked up.
+            engine.perform(child, verb, source=SOURCE_NOTIFICATION, nonce=nonce)
         except TimerError as err:
             _LOGGER.debug("A study timer button was not carried out: %s", err.code)
 

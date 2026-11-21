@@ -12,7 +12,8 @@ from freezegun.api import FrozenDateTimeFactory
 from homeassistant.auth.const import GROUP_ID_ADMIN
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import Context, HomeAssistant
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
+from homeassistant.core import Context, CoreState, HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -26,9 +27,10 @@ from pytest_homeassistant_custom_component.common import (
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 
 from custom_components.magister.api.homework import subtask_uid
+from custom_components.magister.coach import coach_tools
 from custom_components.magister.const import CONF_STUDY_TIMER
 from custom_components.magister.diagnostics import async_get_config_entry_diagnostics
-from custom_components.magister.homework import async_subscribe
+from custom_components.magister.homework import async_subscribe, build_payload
 from custom_components.magister.timer import (
     ACTION_PREFIX,
     TimerEngine,
@@ -233,7 +235,9 @@ async def test_lifecycle(
         "timer_not_finished"
     )
     await tick(hass, freezer, minutes=20)
-    assert [e.data for e in finished] == [{"child": 1001, "subtask": sub}]
+    assert [e.data for e in finished] == [
+        {"child": 1001, "subtask": sub, "entity_id": entity_id}
+    ]
     assert manager(home).timers.timer(1001)["state"] == "finished"
     # Extend: it runs again for the extra minutes, and can be repeated.
     again = (await timer(client, entity_id, "extend"))["result"]["timer"]
@@ -366,6 +370,7 @@ async def test_prewarning(
     assert [c.data["message"].split(":")[0] for c in home.notify] == [
         "Nog 2 minuten",
         "Tijd is om",
+        "clear_notification",  # the extension takes the old end message away
         "Tijd is om",
     ]
 
@@ -430,6 +435,7 @@ async def test_end_notification_payload(
     assert call.data["message"] == f"Tijd is om: Opgave 3 ({subject})"
     data = call.data["data"]
     assert data["tag"] == "magister_study_timer_1001"
+    assert data["ttl"] == 0 and data["priority"] == "high"
     assert data["push"] == {"interruption-level": "time-sensitive"}
     rest = sub.split(":", 2)[2]
     base = f"{ACTION_PREFIX}|%s|{home.entry.entry_id}|1001|{rest}|{nonce}"
@@ -442,7 +448,11 @@ async def test_end_notification_payload(
     assert HOST not in str(call.data)
     shown = notifications(hass)
     assert len(shown) == 1
-    assert next(iter(shown.values()))["message"] == call.data["message"]
+    notification = next(iter(shown.values()))
+    assert notification["message"] == call.data["message"]
+    # Visible to every HA user: the first name only, never the full name.
+    assert notification["title"] == "Studietimer Anna: tijd is om"
+    assert "Anna A" not in str(notification)
     # Without extra minutes there is no +x button.
     await set_settings(home)
     await manager(home).async_set_timer_settings(
@@ -567,7 +577,15 @@ async def test_buttons(
     await hass.async_block_till_done()
     assert manager(home).timers.timer(1001)["state"] == "running"
     await tick(hass, freezer, minutes=5)
-    press(hass, ids["stop"], home.student.id)  # Nog niet: no progress change
+    # The buttons of the first end message went stale with the extension.
+    press(hass, ids["stop"], home.student.id)
+    await hass.async_block_till_done()
+    assert manager(home).timers.timer(1001)["state"] == "finished"
+    fresh_ids = {
+        a["action"].split("|")[1]: a["action"]
+        for a in home.notify[-1].data["data"]["actions"]
+    }
+    press(hass, fresh_ids["stop"], home.student.id)  # Nog niet: no progress change
     await hass.async_block_till_done()
     assert manager(home).timers.timer(1001) is None
     assert manager(home).progress(sub) == 0
@@ -1057,13 +1075,61 @@ async def test_unload_cancels_the_callbacks(
     assert mgr.timers._cancel == {}
     await tick(hass, freezer, minutes=20)
     assert not finished and home.notify == []
-    # A button press after the unload is not handled either.
-    press(hass, "MAGISTER_TIMER|done|x|1001|y|z")
+    # A real button of the timer is not handled after the unload either.
+    action = mgr.timers.action_id("done", 1001, mgr.timers._timers[1001])
+    press(hass, action, home.student.id)
+    press(hass, action)
     await hass.async_block_till_done()
+    assert mgr.progress(sub) == 0 and home.notify == []
+    assert mgr.timers.timer(1001)["state"] == "running"
 
 
-async def test_damaged_store_and_children_that_left(home_engine: Any = None) -> None:
-    """Lenient reading of the stored timers and settings."""
+async def test_damaged_store_and_children_that_left(
+    hass: HomeAssistant, home: Home, hass_storage: dict[str, Any]
+) -> None:
+    """Damaged timers are dropped; timers and targets of unselected children go."""
+    assert await hass.config_entries.async_unload(home.entry.entry_id)
+    key = f"magister.homework.{home.entry.entry_id}"
+    good = {
+        "subtask": f"{HOST}:1099:{HOMEWORK}:sub:ab",
+        "state": "paused",
+        "minutes": 10,
+        "remaining": 60,
+        "nonce": "n",
+    }
+    hass_storage[key] = {
+        "version": 1,
+        "minor_version": 9,
+        "key": key,
+        "data": {
+            "items": {},
+            "timer": {
+                "timers": {"1099": good, "1001": "damaged", "zzz": good},
+                "settings": {"1099": {"prewarn_minutes": 3}, "1001": [1]},
+            },
+        },
+    }
+    hass.config_entries.async_update_entry(
+        home.entry,
+        options={
+            **home.entry.options,
+            CONF_STUDY_TIMER: {"1001": [TARGET], "1099": [OTHER]},
+        },
+    )
+    assert await hass.config_entries.async_setup(home.entry.entry_id)
+    await hass.async_block_till_done()
+    assert manager(home).timers.to_stored() == {}
+    assert home.entry.options[CONF_STUDY_TIMER] == {"1001": [TARGET]}
+    # Without any selected target the key goes; a damaged value is left alone.
+    for stored in ({"1099": [OTHER]}, "damaged"):
+        assert await hass.config_entries.async_unload(home.entry.entry_id)
+        hass.config_entries.async_update_entry(
+            home.entry, options={**home.entry.options, CONF_STUDY_TIMER: stored}
+        )
+        assert await hass.config_entries.async_setup(home.entry.entry_id)
+        await hass.async_block_till_done()
+        expected = "damaged" if stored == "damaged" else None
+        assert home.entry.options.get(CONF_STUDY_TIMER) == expected
 
 
 @pytest.fixture
@@ -1207,3 +1273,357 @@ async def test_diagnostics_counts_only(hass: HomeAssistant, home: Home) -> None:
     assert CONF_STUDY_TIMER not in data["entry"]["options"]
     assert TARGET not in str(data)
     assert data["children"][0]["homework"]["timer"] is True
+
+
+# -- the fix round of M15 phase A ----------------------------------------------------
+
+
+async def test_no_op_writes_are_not_logged(
+    hass: HomeAssistant,
+    home: Home,
+    hass_ws_client: WebSocketGenerator,
+    logbook: list[Any],
+) -> None:
+    """Stop and done with a progress that does not change write no logbook entry."""
+    mgr = manager(home)
+    client = await client_of(hass, hass_ws_client, home.student)
+    entity_id = todo_id(hass)
+    sub = make_sub(home, 10)
+    await timer(client, entity_id, "start", subtask=sub)
+    await timer(client, entity_id, "stop", progress=0)  # already 0
+    assert "Studietimer gestopt (Opgave 3)" in messages(logbook)
+    assert not [m for m in messages(logbook) if "voortgang" in m]
+    await timer(client, entity_id, "start", subtask=sub)
+    await timer(client, entity_id, "stop", progress=25)
+    assert "voortgang 25% bij stoppen (Opgave 3)" in messages(logbook)
+    logbook.clear()
+    await timer(client, entity_id, "start", subtask=sub)
+    await timer(client, entity_id, "stop", progress=25)  # the same again
+    assert not [m for m in messages(logbook) if "voortgang" in m]
+    # Done on a subtask that is at 100 % already (it cannot be started then).
+    await timer(client, entity_id, "start", subtask=sub)
+    mgr._progress[sub.rsplit(":sub:", 1)[0]]["subtasks"][0]["progress"] = 100
+    logbook.clear()
+    assert (await timer(client, entity_id, "done"))["success"]
+    assert not [m for m in messages(logbook) if "afgerond" in m]
+    assert mgr.timers.timer(1001) is None
+
+
+async def test_start_on_a_completed_subtask_is_refused(
+    hass: HomeAssistant, home: Home, hass_ws_client: WebSocketGenerator
+) -> None:
+    """A subtask at 100 % gets no timer (``subtask_completed``, translated)."""
+    sub = make_sub(home, 10)
+    manager(home).set_progress(sub, 100)
+    client = await client_of(hass, hass_ws_client, home.student)
+    answer = await timer(client, todo_id(hass), "start", subtask=sub)
+    assert answer["error"]["code"] == "subtask_completed"
+    with pytest.raises(ServiceValidationError) as raised:
+        await hass.services.async_call(
+            "magister",
+            "start_study_timer",
+            {"entity_id": todo_id(hass), "subtask": sub},
+            blocking=True,
+            context=Context(user_id=home.student.id),
+        )
+    assert raised.value.translation_key == "homework_subtask_completed"
+    assert manager(home).timers.timer(1001) is None
+
+
+async def test_same_settings_change_nothing(
+    hass: HomeAssistant,
+    home: Home,
+    hass_ws_client: WebSocketGenerator,
+    logbook: list[Any],
+) -> None:
+    """Setting the same values saves, notifies and logs nothing (also the AI tool)."""
+    mgr = manager(home)
+    await set_settings(home, prewarn=3, extra=5)
+    heard: list[int] = []
+    remove = mgr.async_add_listener(lambda: heard.append(1))
+    settings, changed = await mgr.async_set_timer_settings(
+        1001, user_id=home.student.id, prewarn=3, extra=5
+    )
+    assert settings == {"prewarn_minutes": 3, "extra_minutes": 5} and not changed
+    assert heard == []
+    client = await client_of(hass, hass_ws_client, home.student)
+    same = await send(client, SETTINGS, todo_id(hass), prewarn_minutes=3)
+    assert same["result"]["timer_settings"]["prewarn_minutes"] == 3
+    assert heard == []
+    await send(client, SETTINGS, todo_id(hass), prewarn_minutes=4)
+    assert heard == [1]
+    remove()
+
+    logbook.clear()
+    for value in (4, 6, 6):
+        data = await ok(
+            hass, home.student.id, "set_timer_settings", prewarn_minutes=value
+        )
+        assert data["timer_settings"]["prewarn_minutes"] == value
+    assert [m for m in messages(logbook) if "timerinstellingen" in m] == [
+        "AI-coach: timerinstellingen gewijzigd "
+        "(vooraf waarschuwen: 6 min, extra tijd: 5 min)"
+    ]
+
+
+async def test_timer_settings_schema_is_integer_or_null(hass: HomeAssistant) -> None:
+    """MCP shows both settings as integer or null."""
+    tools = {t.name: t for t in coach_tools()}
+    schema = probatio.to_openapi(
+        tools["set_timer_settings"].parameters, openapi_version="3.1.0"
+    )
+    for name in ("prewarn_minutes", "extra_minutes"):
+        field = dict(schema["properties"][name])
+        field.pop("description")
+        assert field == {"anyOf": [{"type": "integer"}, {"type": "null"}]}, name
+    assert not schema.get("required")
+
+
+async def test_extend_clears_every_target_and_makes_old_buttons_stale(
+    hass: HomeAssistant,
+    home: Home,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """The extension takes the end message away on all targets; its buttons go stale."""
+    hass.config_entries.async_update_entry(
+        home.entry,
+        options={**home.entry.options, CONF_STUDY_TIMER: {"1001": [TARGET, OTHER]}},
+    )
+    sub, ids = await finished_buttons(hass, home, freezer)
+    assert len(home.notify) == len(home.other) == 1
+    old_nonce = manager(home).timers._timers[1001]["nonce"]
+    press(hass, ids["extend"], home.student.id)
+    await hass.async_block_till_done()
+    clear = {
+        "message": "clear_notification",
+        "data": {"tag": "magister_study_timer_1001"},
+    }
+    assert home.notify[-1].data == clear and home.other[-1].data == clear
+    assert manager(home).timers._timers[1001]["nonce"] != old_nonce
+    # The buttons of the first end message do nothing any more.
+    await tick(hass, freezer, minutes=5)
+    assert manager(home).timers.timer(1001)["state"] == "finished"
+    for verb in ("done", "stop"):
+        press(hass, ids[verb], home.student.id)
+    await hass.async_block_till_done()
+    assert manager(home).timers.timer(1001)["state"] == "finished"
+    assert manager(home).progress(sub) == 0
+
+
+async def test_button_after_a_restart_between_parse_and_perform(
+    hass: HomeAssistant,
+    home: Home,
+    freezer: FrozenDateTimeFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The nonce is checked again after the awaits: a restarted timer is not touched."""
+    sub, ids = await finished_buttons(hass, home, freezer)
+    mgr = manager(home)
+    original = mgr.acting_mode
+
+    async def restarting(*args: Any, **kwargs: Any) -> Any:
+        mgr.timers.perform(1001, "start", subtask=sub)  # a new timer, a new nonce
+        return await original(*args, **kwargs)
+
+    monkeypatch.setattr(mgr, "acting_mode", restarting)
+    press(hass, ids["done"], home.student.id)
+    await hass.async_block_till_done()
+    assert mgr.progress(sub) == 0
+    assert mgr.timers.timer(1001)["state"] == "running"
+
+
+async def test_stale_data_payload_has_the_timer(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """The timer is local data: it is in the payload when the Magister data is stale."""
+    sub = make_sub(home, 10)
+    await manager(home).async_timer_action(
+        1001, "start", user_id=home.student.id, subtask=sub
+    )
+    stale = build_payload(manager(home), 1001, available=False)
+    assert stale["available"] is False
+    assert stale["timer"]["subtask"] == sub
+
+
+async def test_start_path_restores_and_recreates_the_notification(
+    hass: HomeAssistant, home: Home, freezer: FrozenDateTimeFactory
+) -> None:
+    """Through the real start-up: the restore waits for ``homeassistant_started``."""
+    short = make_sub(home, 10)
+    mgr = manager(home)
+    await mgr.async_timer_action(1001, "start", user_id=home.student.id, subtask=short)
+    await mgr.async_timer_action(
+        1002, "start", user_id=home.parent_b.id, subtask=make_sub(home, 60, child=1002)
+    )
+    assert await hass.config_entries.async_unload(home.entry.entry_id)
+    freezer.tick(timedelta(minutes=20))  # Anna's timer is over, Bram's is not
+    hass.set_state(CoreState.not_running)
+    for notification_id in list(notifications(hass)):
+        persistent_notification.async_dismiss(hass, notification_id)
+    home.notify.clear()
+    finished = async_capture_events(hass, "magister_study_timer_finished")
+    assert await hass.config_entries.async_setup(home.entry.entry_id)
+    await hass.async_block_till_done()
+    mgr = manager(home)
+    # Not started yet: nothing is scheduled, nothing is sent.
+    assert mgr.timers._cancel == {} and not finished and home.notify == []
+    assert mgr.timers.timer(1001)["state"] == "running"
+    assert notifications(hass) == {}
+    hass.set_state(CoreState.running)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+    await hass.async_block_till_done()
+    # The end in the past finished at once and notified; the future end is scheduled.
+    assert mgr.timers.timer(1001)["state"] == "finished"
+    assert len(finished) == 1 and home.notify[-1].data["message"].startswith("Tijd is")
+    assert len(notifications(hass)) == 1
+    assert next(iter(notifications(hass).values()))["title"] == (
+        "Studietimer Anna: tijd is om"
+    )
+    assert mgr.timers.timer(1002)["state"] == "running" and 1002 in mgr.timers._cancel
+    # A second restart re-creates the persistent notification of a finished timer.
+    assert await hass.config_entries.async_unload(home.entry.entry_id)
+    assert notifications(hass) == {}  # dismissed with the unload
+    assert await hass.config_entries.async_setup(home.entry.entry_id)
+    await hass.async_block_till_done()
+    assert len(notifications(hass)) == 1
+    assert len(finished) == 1  # the event is not fired again
+
+
+@pytest.mark.parametrize("command", [TIMER, SETTINGS])
+async def test_unauthorized_without_control_permission(
+    hass: HomeAssistant,
+    home: Home,
+    hass_ws_client: WebSocketGenerator,
+    hass_admin_user: Any,
+    command: str,
+) -> None:
+    """Both commands need control permission on the entity (read is not enough)."""
+    client = await hass_ws_client(hass)
+    entity_id = todo_id(hass)
+    hass_admin_user.mock_policy(
+        {"entities": {"entity_ids": {entity_id: {"read": True}}}}
+    )
+    extra = {"action": "pause"} if command == TIMER else {"prewarn_minutes": 3}
+    answer = await send(client, command, entity_id, **extra)
+    assert answer["error"]["code"] == "unauthorized"
+    assert manager(home).timers.settings(1001)["prewarn_minutes"] is None
+
+
+async def test_finish_without_a_subtask_does_not_notify(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """A timer whose subtask is gone is dropped, not announced with an empty title."""
+    sub = make_sub(home, 10)
+    mgr = manager(home)
+    await mgr.async_timer_action(1001, "start", user_id=home.student.id, subtask=sub)
+    mgr._progress.clear()
+    mgr._invalidate()
+    mgr.timers._finish(1001)
+    assert mgr.timers.timer(1001) is None
+    assert home.notify == [] and notifications(hass) == {}
+
+
+async def test_options_change_validates_the_timers(
+    hass: HomeAssistant, home: Home, logbook: list[Any]
+) -> None:
+    """Hiding the item stops the timer (and says so), also via the options update."""
+    sub = make_sub(home, 10)
+    mgr = manager(home)
+    await mgr.async_timer_action(1001, "start", user_id=home.student.id, subtask=sub)
+    mgr._progress.clear()
+    mgr._invalidate()
+    mgr.async_options_changed()
+    assert mgr.timers.timer(1001) is None
+    assert "Studietimer gestopt" in messages(logbook)
+
+
+async def test_clear_notification_only_after_a_message(
+    hass: HomeAssistant, home: Home, freezer: FrozenDateTimeFactory
+) -> None:
+    """Nothing to clear when no pre-warning or end message was sent for the timer."""
+    sub = make_sub(home, 10)
+    await set_settings(home, prewarn=2)
+    await act(home, "start", subtask=sub)
+    await act(home, "stop")
+    assert home.notify == []
+    await act(home, "start", subtask=sub)
+    await tick(hass, freezer, minutes=8)  # the pre-warning goes out
+    assert len(home.notify) == 1
+    await act(home, "stop")
+    assert home.notify[-1].data["message"] == "clear_notification"
+
+
+async def test_persistent_notification_without_a_first_name(
+    hass: HomeAssistant,
+    home: Home,
+    freezer: FrozenDateTimeFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A child that only has a full name gets a title without any name."""
+    monkeypatch.setattr(manager(home), "child_short_name", lambda child: None)
+    sub = make_sub(home, 5)
+    await act(home, "start", subtask=sub)
+    await tick(hass, freezer, minutes=5)
+    assert next(iter(notifications(hass).values()))["title"] == (
+        "Studietimer: tijd is om"
+    )
+
+
+async def test_unload_dismisses_the_persistent_notification(
+    hass: HomeAssistant, home: Home, freezer: FrozenDateTimeFactory
+) -> None:
+    """Unloading (and so removing) the entry dismisses it; a restart re-creates it."""
+    sub = make_sub(home, 5)
+    await act(home, "start", subtask=sub)
+    await tick(hass, freezer, minutes=5)
+    assert len(notifications(hass)) == 1
+    assert await hass.config_entries.async_remove(home.entry.entry_id) == {
+        "require_restart": False
+    }
+    assert notifications(hass) == {}
+
+
+async def test_options_flow_with_a_damaged_value(
+    hass: HomeAssistant, mocked: aioresponses
+) -> None:
+    """A stored value that is not a dict does not break the study timer step."""
+    entry = await setup_coach(hass, mocked, {CONF_STUDY_TIMER: ["junk"]})
+    async_mock_service(hass, "notify", TARGET)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "study_timer"}
+    )
+    assert result["step_id"] == "study_timer_targets"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"targets": [TARGET]}
+    )
+    assert entry.options[CONF_STUDY_TIMER] == {"1001": [TARGET]}
+
+
+async def test_diagnostics_count_selected_children_only(
+    hass: HomeAssistant, home: Home
+) -> None:
+    """Targets of a child that is not selected (or damaged) are not counted."""
+    hass.config_entries.async_update_entry(
+        home.entry,
+        options={
+            **home.entry.options,
+            CONF_STUDY_TIMER: {"1001": [TARGET, OTHER], "1099": [OTHER], "1002": "x"},
+        },
+    )
+    data = await async_get_config_entry_diagnostics(hass, home.entry)
+    assert data["study_timer"]["children_with_targets"] == 1
+    assert data["study_timer"]["targets"] == 2
+
+
+async def test_child_short_name(hass: HomeAssistant, home: Home) -> None:
+    """The first name; none for an unknown child or when only the full name exists."""
+    mgr = manager(home)
+    assert mgr.child_short_name(1001) == "Anna"
+    assert mgr.child_short_name(4242) is None
+    children = [dict(c) for c in home.entry.data["children"]]
+    children[0]["short_name"] = children[0]["name"]
+    hass.config_entries.async_update_entry(
+        home.entry, data={**home.entry.data, "children": children}
+    )
+    assert mgr.child_short_name(1001) is None

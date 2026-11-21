@@ -469,13 +469,14 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
         extra: Any = UNSET,
     ) -> Payload:
         """Change the student's timer settings as this user."""
-        return await self._manager.async_set_timer_settings(
+        settings, _ = await self._manager.async_set_timer_settings(
             self._child_id,
             user_id=user_id,
             is_admin=is_admin,
             prewarn=prewarn,
             extra=extra,
         )
+        return settings
 
     async def _service_timer(self, action: str, **kwargs: Any) -> None:
         """A timer service: the user of the call (if any) needs the rights."""

@@ -57,7 +57,7 @@ notification on the phone lets the student mark the subtask as done.
     - **End:** "Tijd is om: <subtask title> (<subject>)", with actionable buttons **Klaar** (sets the subtask to 100 and stops), **+x min** (only when `extra_minutes` is set) and **Nog niet** (stops the timer without changing progress; the student can register progress on a card).
   - **Notification options:** iOS `interruption-level: time-sensitive` and a `tag` per child, so a new message replaces the old one.
   - **Handling the buttons:** button presses arrive as the `mobile_app_notification_action` event. The integration handles them using the action id, which holds the entry, child and subtask, plus a random nonce so old buttons cannot act on a new timer.
-- **Home Assistant (website and app):** a persistent notification for the end, removed when the timer is restarted, stopped or completed. HA cannot pop up a browser notification without the page open; the README says so.
+- **Home Assistant (website and app):** a persistent notification for the end (visible to every HA user; its title has the child's first name, never the full name), removed when the timer is restarted, stopped or completed. HA cannot pop up a browser notification without the page open; the README says so.
 - **To parents:** nothing. Notification targets are only the ones chosen for that child.
 - **Privacy:** the texts contain only the subtask title and subject, no teacher data. The README warns that lock-screen notifications are visible to anyone holding the phone.
 
@@ -118,6 +118,7 @@ notification on the phone lets the student mark the subtask as done.
   - the **separate timer card** with its editor and the progress panel on stop;
   - tests, bundle, screenshots of both cards;
   - README NL/EN: setting up the companion app and the notify target, what the student can configure, privacy on the lock screen.
+  - README NL/EN: the Home Assistant notification (the bell) is visible to **every** HA user, not only the child; only the phone notifications are limited to the child's targets. The persistent notification title therefore carries the child's first name only.
   - Then release **1.10.0**.
 
 ## Acceptance criteria

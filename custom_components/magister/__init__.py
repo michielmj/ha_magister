@@ -124,6 +124,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagisterConfigEntry) -> 
     homework.context.drop_children(kept)
     homework.proposals.drop_children(kept)
     homework.timers.drop_children(kept)
+    _async_drop_timer_targets(hass, entry, kept)
     entry.runtime_data = MagisterRuntimeData(
         session=login.session,
         auth=login.auth,
@@ -236,6 +237,23 @@ def _child_of_unique_id(unique_id: str) -> int | None:
         return int(parts[1])
     except IndexError, ValueError:
         return None
+
+
+@callback
+def _async_drop_timer_targets(
+    hass: HomeAssistant, entry: MagisterConfigEntry, kept: list[int]
+) -> None:
+    """Forget the study timer targets of children that were unselected."""
+    stored = entry.options.get(CONF_STUDY_TIMER)
+    if not isinstance(stored, dict):
+        return
+    targets = {k: v for k, v in stored.items() if k in {str(c) for c in kept}}
+    if targets == stored:
+        return
+    options = {k: v for k, v in entry.options.items() if k != CONF_STUDY_TIMER}
+    if targets:
+        options[CONF_STUDY_TIMER] = targets
+    hass.config_entries.async_update_entry(entry, options=options)
 
 
 @callback

@@ -167,6 +167,9 @@
     "homework_no_minutes": {
       "message": "This subtask has no estimated time, so it cannot get a timer."
     },
+    "homework_subtask_completed": {
+      "message": "This subtask is already completed, so it cannot get a timer."
+    },
     "homework_no_timer": {
       "message": "There is no study timer for this child."
     },

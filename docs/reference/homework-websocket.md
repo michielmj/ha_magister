@@ -45,7 +45,8 @@ are not repeated. After an entry reload the new entity pushes its list once to e
 ```
 
 `timer` and `timer_settings` (since 1.10.0): see "Study timer" below. Both are in the final `available: false` event
-too (the timer as it was in the last event); clients that predate them ignore them.
+too (the timer as it was in the last event), and in a payload with `available: false` because the Magister data is
+stale: the timer is local data and is always included; clients that predate them ignore them.
 
 `daily_max_weekdays` (since 1.9.0) is the child's normal daily maximum per weekday, **Monday first** (Monday to Sunday), seven
 integers 0–480 in steps of 15, default 90 for every day; 0 means "no study planned that day" (any planned minutes are over
@@ -309,7 +310,7 @@ A student starts a timer on a subtask that has `minutes`. The timer lives in the
 the homework store under `timer`), so it keeps running when the card is closed and survives a restart. One timer per
 child. When it runs out the integration notifies the notify services (`notify.mobile_app_*`) the administrator chose for
 that child (never a parent), creates a persistent notification and fires `magister_study_timer_finished`
-(`{"child": <child id>, "subtask": <subtask uid>}`).
+(`{"child": <child id>, "subtask": <subtask uid>, "entity_id": <the child's homework to-do entity>}`).
 
 ### Payload
 
@@ -339,14 +340,14 @@ that child (never a parent), creates a persistent notification and fires `magist
 
 | action | meaning |
 |---|---|
-| `start` | needs `subtask` (the uid in the payload). The duration is the subtask's `minutes`. Another timer that runs or is paused gives `timer_running` unless `replace` is true (it is then stopped). A finished timer is replaced silently. |
+| `start` | needs `subtask` (the uid in the payload). The duration is the subtask's `minutes`. Another timer that runs or is paused gives `timer_running` unless `replace` is true (it is then stopped). A finished timer is replaced and logged as stopped ("Studietimer gestopt"). A subtask that is already at 100 % gives `subtask_completed`. |
 | `pause` / `resume` | only from `running` / `paused`, else `timer_wrong_state`. |
 | `stop` | removes the timer. With `progress` (0, 25, 50, 75 or 100) it first sets the subtask's progress: one call. |
-| `extend` | only when the timer has **finished** (`timer_not_finished` otherwise, for running and paused alike): it runs again for `extra_minutes` and can be repeated; the pre-warning does not repeat. `extra_not_set` when the student has no extra minutes. |
+| `extend` | only when the timer has **finished** (`timer_not_finished` otherwise, for running and paused alike): it runs again for `extra_minutes` (the setting at the moment of the extension, not the one at the start) and can be repeated; the pre-warning does not repeat. The end notification is cleared on every target and its buttons go stale. `extra_not_set` when the student has no extra minutes. |
 | `done` | sets the subtask's progress to 100 and removes the timer. |
 
 Result: `{"timer": <timer or null>}` (the timer after the action). Errors: `no_minutes`, `subtask_not_found` (also a
-subtask of another child), `no_timer`, `timer_running`, `timer_wrong_state`, `timer_not_finished`, `extra_not_set`,
+subtask of another child), `subtask_completed`, `no_timer`, `timer_running`, `timer_wrong_state`, `timer_not_finished`, `extra_not_set`,
 `not_allowed_for_role`, `not_found`, `invalid_format` (unknown action, `start` without `subtask`, `progress` not one of
 the five steps). Control permission on the entity is required, as for the other write commands.
 
@@ -373,9 +374,14 @@ active Leerling user, a user linked as **Ouder** or an administrator on the chil
   set) and **Nog niet** (stop without progress change).
 * iOS `push.interruption-level: time-sensitive`, `tag` `magister_study_timer_<child id>`, `ttl: 0`, `priority: high`.
   Button ids are `MAGISTER_TIMER|<verb>|<entry id>|<child id>|<appointment>:sub:<id>|<nonce>`; the nonce is random per
-  timer, so buttons of an earlier timer are ignored. A stop or done sends `clear_notification` for the tag.
-* A persistent notification (`magister_study_timer_<entry id>_<child id>`) is created at the end and dismissed on
-  restart, extend, stop and done.
+  timer, so buttons of an earlier timer are ignored. A stop, done or extend sends `clear_notification` for the tag to all targets, but only when a pre-warning or end notification was actually sent for that timer. An extend also gives the timer a new nonce.
+* A persistent notification (`magister_study_timer_<entry id>_<child id>`, title "Studietimer <first name>: tijd is
+  om") is created at the end and dismissed on restart, extend, stop, done and when the entry is unloaded or removed (a
+  restart of Home Assistant re-creates it from the stored finished timer). **It is visible to every Home Assistant
+  user**, unlike the phone notifications, which go only to the child's targets; it therefore carries the first name (or
+  initials) only, never the full name.
+* Setting the same values again changes, saves and logs nothing. Study timer targets of children that are no longer
+  selected are dropped with the rest of the store.
 * Button presses arrive as `mobile_app_notification_action`. When the event context has a user, that user needs the
   rights above; without a user the nonce and the configured target are the proof.
 
