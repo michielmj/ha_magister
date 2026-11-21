@@ -234,6 +234,21 @@ const nl = {
     announce_prewarn: "Nog {n} minuten: {title}",
     announce_prewarn_one: "Nog 1 minuut: {title}",
     announce_end: "Tijd is om: {title}",
+    language: "nl",
+    notify_prewarn: "Nog {n} minuten: {what}",
+    notify_prewarn_one: "Nog 1 minuut: {what}",
+    notify_end: "Tijd is om: {what}",
+    notify_title: "Meldingen",
+    notify_enable: "Meldingen in deze browser",
+    notify_sound: "Geluid",
+    notify_hint:
+      "Een melding komt alleen zolang deze pagina open staat (een ander tabblad mag). De keuze geldt alleen voor deze browser.",
+    notify_denied: "Je browser staat meldingen niet toe",
+    notify_denied_hint:
+      "Sta meldingen voor deze site toe in de instellingen van je browser (bij het slotje naast het adres) en zet ze daarna opnieuw aan.",
+    notify_unsupported: "Deze browser ondersteunt geen meldingen.",
+    notify_insecure: "Meldingen werken alleen op een beveiligde verbinding (https).",
+    notify_app: "Gebruik de meldingen van de app.",
     errors: {
       no_minutes: "Deze deelstap heeft geen geschatte tijd, dus er kan geen timer op.",
       subtask_not_found: "Deze deelstap is niet meer gevonden.",
@@ -502,6 +517,21 @@ const en: Texts = {
     announce_prewarn: "{n} minutes left: {title}",
     announce_prewarn_one: "1 minute left: {title}",
     announce_end: "Time is up: {title}",
+    language: "en",
+    notify_prewarn: "{n} minutes left: {what}",
+    notify_prewarn_one: "1 minute left: {what}",
+    notify_end: "Time is up: {what}",
+    notify_title: "Notifications",
+    notify_enable: "Notifications in this browser",
+    notify_sound: "Sound",
+    notify_hint:
+      "A notification only appears while this page is open (another tab is fine). The choice applies to this browser only.",
+    notify_denied: "Your browser does not allow notifications",
+    notify_denied_hint:
+      "Allow notifications for this site in your browser settings (the padlock next to the address) and switch them on again.",
+    notify_unsupported: "This browser does not support notifications.",
+    notify_insecure: "Notifications only work on a secure connection (https).",
+    notify_app: "Use the notifications of the app.",
     errors: {
       no_minutes: "This subtask has no estimated time, so it cannot get a timer.",
       subtask_not_found: "This subtask no longer exists.",

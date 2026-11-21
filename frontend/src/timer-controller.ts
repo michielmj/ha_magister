@@ -14,6 +14,7 @@ import {
   validateSettings,
   type SubtaskInfo,
 } from "./timer";
+import { listen, notifyMoment, onChange } from "./notifications";
 import { format, type Texts } from "./translations";
 import type {
   Hass,
@@ -99,12 +100,15 @@ export class TimerController {
   announcement = "";
   /** The server clock minus this device's clock. */
   skewMs = 0;
+  /** The "Meldingen" panel of the timer card is open. */
+  notifyOpen = false;
 
   private _token = 0;
   private _pending: number | undefined;
   private _settingsPending: number | undefined;
   private _ticker: ReturnType<typeof setInterval> | undefined;
   private _announceTimer: ReturnType<typeof setTimeout> | undefined;
+  private _unsubscribe: (() => void) | undefined;
   private _seen:
     | {
         key: string;
@@ -178,10 +182,17 @@ export class TimerController {
   }
 
   connected(): void {
+    // The notification settings are per browser: another card or tab may change them.
+    listen();
+    this._unsubscribe ??= onChange(() => {
+      this.host.requestUpdate();
+    });
     this.sync();
   }
 
   disconnected(): void {
+    this._unsubscribe?.();
+    this._unsubscribe = undefined;
     this._stopTicker();
     if (this._announceTimer) clearTimeout(this._announceTimer);
     this._announceTimer = undefined;
@@ -275,6 +286,13 @@ export class TimerController {
                 title: timer.title,
               }),
             );
+            this._notify(
+              "prewarn",
+              format(n === 1 ? texts.timer.notify_prewarn_one : texts.timer.notify_prewarn, {
+                n,
+                what: whatOf(timer),
+              }),
+            );
           }
         }
       }
@@ -285,10 +303,25 @@ export class TimerController {
         seen.endDone = true;
         if (seen.sawActive) {
           this._setAnnouncement(format(texts.timer.announce_end, { title: timer.title }));
+          this._notify("end", format(texts.timer.notify_end, { what: whatOf(timer) }));
         }
       }
     }
     seen.lastRemaining = remaining;
+  }
+
+  /** The browser notification of a moment (once per browser, if this browser switched them on). */
+  private _notify(moment: "prewarn" | "end", text: string): void {
+    const timer = this.timer();
+    if (!timer) return;
+    notifyMoment({
+      child: this.deps.entity() ?? "",
+      startedAt: timer.started_at,
+      endsAt: timer.ends_at,
+      moment,
+      text,
+      language: this.deps.texts().timer.language,
+    });
   }
 
   private _setAnnouncement(text: string): void {
@@ -638,6 +671,11 @@ export class TimerController {
       }
     });
   }
+}
+
+/** "title (subject)", or the title alone when the subject is empty. */
+function whatOf(timer: StudyTimer): string {
+  return timer.subject ? `${timer.title} (${timer.subject})` : timer.title;
 }
 
 /** The selector of one timer button: its action, the subtask and where it sits ("row", "bar", "card"). */

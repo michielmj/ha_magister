@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.10.1
+
+Browser notifications for the study timer. Released 2026-11-21.
+
+- **Browser notifications.** A browser with a Magister card open shows a notification at the pre-warning ("Nog n
+  minuten: titel (vak)") and when the time is up ("Tijd is om: titel (vak)"), in the language of Home Assistant, one tag
+  per child, no buttons; clicking focuses the window. Only for moments reached while the page is open. One notification per
+  moment per browser, also with several cards or tabs (`BroadcastChannel` with a `localStorage` fallback).
+- **Settings per browser** (`localStorage`, nothing in the backend): "Meldingen in deze browser" and "Geluid" (a short
+  built-in tone, on by default), in the ⚙ panel of the homework card and behind a "Meldingen" button on the timer card.
+  Hidden with an explanation when the browser does not support notifications, on http, and in the Home Assistant app
+  (which keeps its own push notifications); a denied permission is explained.
+- No backend changes.
+
 ## 1.10.0
 
 Study timer with notifications, on the homework card and on a new timer card. Released 2026-11-21.
