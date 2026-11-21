@@ -21,6 +21,7 @@ notification on the phone lets the student mark the subtask as done.
 | 5 | **No notifications to parents** (the student decides). |
 | 6 | An optional **pre-warning** "nog x minuten", configurable **by the student**. |
 | 7 | An optional **"nog x extra minuten"** after the timer runs out, configurable by the student. |
+| 8 | A **separate timer card** shows the remaining time and the subtask, with **pause** (and resume) and **stop** buttons. **On stop, the student can register progress.** |
 
 ## Design
 ### Timer
@@ -69,9 +70,30 @@ notification on the phone lets the student mark the subtask as done.
   - NL/EN.
 - **Countdown:** computed from the end time in the payload, so it is correct even if the card was closed.
 
+### Separate timer card (PM decision 8)
+- **Element:** a new Lovelace card `custom:magister-timer-card`, in the same bundle as the homework card. It is registered as a second custom element, so no extra resource is needed, and it has its own entry in the card picker and a visual editor.
+- **Config:** `entity` (the child's homework to-do entity), optional `title`, optional `show_when_idle`.
+- **What it shows:**
+  - the subtask title, the subject and the item's label/due day;
+  - a large countdown (mm:ss, or h:mm:ss) computed from the end time in the payload;
+  - a progress ring or bar for elapsed versus total;
+  - the state: running, paused, or "Tijd is om".
+- **Buttons:**
+  - **Pauze** and **Hervat** (toggle);
+  - **Stop**;
+  - when the timer has finished, **Klaar** and **+x min** (when the student has set extra time).
+- **Stop registers progress.** Pressing Stop opens a small panel "Hoe ver ben je?" with the same steps as the planner: 0 / 25 / 50 / 75 / 100. The current progress is preselected. There are two choices:
+  - **Opslaan en stoppen** sets the subtask's progress and stops the timer, in one command.
+  - **Stoppen zonder voortgang** only stops it.
+
+  The homework card's ■ button and the phone notification's **Stop** button behave the same way. The phone has no panel, so its Stop only stops the timer, and the student can register progress on a card.
+- **Idle:** "Geen timer actief". With `show_when_idle: false` the card hides itself.
+- **Rights:** the buttons follow the same rights as the timer. A user who may not control it sees the card read-only, with a short explanation.
+- **Accessibility:** big touch targets (suitable for a wall tablet), keyboard operable, an `aria-live` announcement for the pre-warning and the end, NL/EN.
+
 ### API
 - **WebSocket commands** (contract updated):
-  - `magister/homework/timer` (`entity_id`, `action`: start|pause|resume|stop|extend|done, `subtask` for start);
+  - `magister/homework/timer` (`entity_id`, `action`: start|pause|resume|stop|extend|done, `subtask` for start, optional `progress` with stop: 0/25/50/75/100, which sets the subtask's progress and stops the timer in one call);
   - `magister/homework/timer_settings` (`entity_id`, `prewarn_minutes`, `extra_minutes`).
 - **Payload:**
   - `timer: null | {subtask, state, ends_at | remaining, minutes}`;
@@ -92,7 +114,9 @@ notification on the phone lets the student mark the subtask as done.
   - WebSocket commands, services, event, coach tool, logbook;
   - translations, contract, tests (frozen time and the restore path).
 - **B, card and docs:**
-  - timer controls on subtask rows, the timer bar, the ⚙ settings panel, countdown, `aria-live`, tests, bundle, screenshots;
+  - timer controls on subtask rows, the timer bar, the ⚙ settings panel, countdown, `aria-live`;
+  - the **separate timer card** with its editor and the progress panel on stop;
+  - tests, bundle, screenshots of both cards;
   - README NL/EN: setting up the companion app and the notify target, what the student can configure, privacy on the lock screen.
   - Then release **1.10.0**.
 
@@ -101,7 +125,9 @@ notification on the phone lets the student mark the subtask as done.
 - [ ] **PM test:**
   - choose an iPhone as target for a child;
   - as the student, set the pre-warning to 2 and the extra time to 5;
-  - start a timer on a 5-minute subtask and pause/resume it;
+  - add the timer card to a dashboard;
+  - start a timer on a 5-minute subtask and pause/resume it on the timer card;
+  - stop it once with progress 50, and check that the subtask shows 50 %;
   - receive "nog 2 minuten";
   - at the end, tap "+5 min", then "Klaar", and see the subtask ticked on the card and in the logbook;
   - restart HA while a timer runs and check that it still ends and notifies.
