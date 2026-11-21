@@ -244,7 +244,11 @@ export class TimerController {
     const view = this.view();
     if (view?.state !== "running" || view.timer.state !== "running") return;
     const delays: number[] = [];
-    const threshold = view.timer.prewarned === true ? undefined : prewarnThreshold(view.timer, this.settings());
+    // What this card has seen wins over the payload: a `prewarned` push just before the local crossing must not
+    // cancel the one-shot (the observation still announces the moment).
+    const key = timerKey(view.timer);
+    const prewarnDone = this._seen?.key === key ? this._seen.prewarnDone : view.timer.prewarned === true;
+    const threshold = prewarnDone ? undefined : prewarnThreshold(view.timer, this.settings());
     if (threshold !== undefined && view.remaining > threshold) delays.push((view.remaining - threshold) * 1000);
     delays.push(view.remaining * 1000);
     for (const delay of delays) {
@@ -331,8 +335,9 @@ export class TimerController {
       seen.endDone = false;
       if (!seen.prewarnDone) {
         const threshold = prewarnThreshold(timer, this.settings());
+        // No threshold (the setting is off): not latched, the setting may be switched on while the timer runs.
         if (threshold === undefined) {
-          seen.prewarnDone = true;
+          // nothing to announce
         } else if (remaining <= threshold) {
           seen.prewarnDone = true;
           if (state === "running" && seen.lastRemaining !== undefined && seen.lastRemaining > threshold) {

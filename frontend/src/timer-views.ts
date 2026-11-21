@@ -399,7 +399,7 @@ export function renderSettings(context: TimerContext): TemplateResult | typeof n
     </div>
   </form>
   <div
-    class="timer-settings notify-panel"
+    class="timer-settings notify-panel notify-joined"
     @keydown=${(event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
@@ -560,6 +560,23 @@ export const timerStyles = css`
     border: 1px solid color-mix(in srgb, var(--timer-color) 50%, transparent);
     background: color-mix(in srgb, var(--timer-color) 8%, transparent);
     font-size: 0.9em;
+  }
+  /* In the homework card's panel the notification section continues the form: one box, a divider between. */
+  .timer-settings:not(.notify-panel):has(+ .notify-joined) {
+    margin-bottom: 0;
+    border-bottom: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .notify-joined {
+    margin-top: 0;
+    border-top: 1px solid var(--divider-color);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+  .notify-joined .timer-notify {
+    padding-top: 0;
+    border-top: 0;
   }
   .timer-confirm {
     flex-direction: row;

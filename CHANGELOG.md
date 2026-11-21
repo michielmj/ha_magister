@@ -16,10 +16,11 @@ Browser notifications for the study timer. Released 2026-11-21.
   (which keeps its own push notifications); a denied permission is explained.
 - **Hidden tabs.** One-shot timers for the pre-warning and the end wake the page at the moment, so another tab in
   front is fine. The end notification replaces the pre-warning on screen and alerts again (`renotify`). A Web Lock
-  (where the browser has it) makes the claim atomic across tabs. The sound is unlocked by the first click or key press
+  (where the browser has it) makes the claim atomic across tabs. The sound is unlocked by the first click, tap or key press
   after a reload.
 - **Chrome on Android** refuses `new Notification()`: switching on is probed once, and a browser that throws is shown as
-  "not supported". The tone still plays when a notification cannot be shown.
+  "not supported" and the whole section, the sound option included, is switched off there. Elsewhere the tone plays
+  only with a notification that was switched on and allowed.
 - The timer payload gained `prewarned` (`true` once the pre-warning was sent or skipped, as in an extension run): a card
   that first sees it does not announce or notify a pre-warning. The "Meldingen in deze browser" checkbox moved out of the
   settings form (it applies at once, Cancel and Save do not affect it).

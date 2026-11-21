@@ -443,13 +443,15 @@ Assistant, without buttons; clicking it brings the window to the front.
   short beep with the notification; untick it for a silent notification. If sound does not play, the browser blocks it until
   you have clicked on the page.
 - **Only while the page is open.** A notification appears only for a moment that passes while a Magister card is open
-  in that browser; another tab in front, or a tab in the background, is fine (a one-shot timer wakes the page at the moment). A timer that already ran out before the page was opened does not notify.
-  With several cards or tabs open you still get one notification per moment.
+  in that browser; another tab in front, or a tab in the background, is fine (a one-shot timer wakes the page at the
+  moment). A timer that already ran out before the page was opened does not notify. With several cards or tabs open you
+  still get one notification per moment.
 - **Per browser.** The choice is stored in the browser and is not shared with other browsers, devices or users. A parent who
   opens the card on their own computer can switch it on for that browser too.
 - **Not available** when the browser does not allow notifications (the panel says so and how to change it), when Home
-  Assistant is not opened over **https**, or in the **Home Assistant app**: the app uses its own push notifications (see above). **Chrome on Android** is not
-  supported either: it refuses notifications from a web page, so the panel says the browser does not support them.
+  Assistant is not opened over **https**, or in the **Home Assistant app**: the app uses its own push notifications (see
+  above). **Chrome on Android** is not supported either: it refuses notifications from a web page, so the panel says the
+  browser does not support them.
 
 ### Who may operate it
 

@@ -154,11 +154,12 @@ async function mountTimer(
   studyTimer: StudyTimer | null,
   settings: TimerSettings = { prewarn_minutes: 5, extra_minutes: 5 },
   language = "en",
+  callWS: unknown = vi.fn(),
 ): Promise<Mounted> {
   const connection = new FakeConnection();
   const card = document.createElement("magister-timer-card") as MagisterTimerCard;
   card.setConfig({ type: "custom:magister-timer-card", entity: ENTITY });
-  card.hass = makeHass(connection, vi.fn(), language);
+  card.hass = makeHass(connection, callWS, language);
   document.body.append(card);
   await flush(card);
   connection.push(timerPayload([parent([sub("a"), sub("b")])], { timer: studyTimer, settings }));
@@ -519,7 +520,13 @@ describe("the settings in the cards", () => {
 // -- the 1.10.1 fix round --
 
 interface Inside {
-  _timer: { announcement: string; _stopTicker: () => void };
+  _timer: {
+    announcement: string;
+    _stopTicker: () => void;
+    openSettings(): void;
+    patchSettings(patch: { prewarn?: string; extra?: string }): void;
+    saveSettings(): Promise<void>;
+  };
 }
 const inside = (card: MagisterTimerCard): Inside["_timer"] => (card as unknown as Inside)._timer;
 
@@ -538,6 +545,15 @@ describe("the notification options", () => {
     }
   });
 });
+
+/** Change the pre-warning setting the way the panel does: open, choose, save. */
+async function save(card: MagisterTimerCard, prewarn: string): Promise<void> {
+  const controller = inside(card);
+  controller.openSettings();
+  controller.patchSettings({ prewarn });
+  await controller.saveSettings();
+  await flush(card);
+}
 
 describe("a pre-warning that was already sent", () => {
   it("is not announced or notified when the timer is first seen with prewarned", async () => {
@@ -570,6 +586,59 @@ describe("a pre-warning that was already sent", () => {
     );
     await flush(card);
     expect(shown()).toEqual(["5 minutes left: Stap a (Engels)"]);
+  });
+});
+
+describe("a pre-warning push just before the local crossing", () => {
+  it("does not cancel the armed pre-warning", async () => {
+    turnOn();
+    const { card, connection } = await mountTimer(timer());
+    inside(card)._stopTicker();
+    await advance([card], 1_499_000);
+    expect(shown()).toEqual([]);
+    connection.push(
+      timerPayload([parent([sub("a"), sub("b")])], {
+        timer: timer({ prewarned: true }),
+        settings: { prewarn_minutes: 5, extra_minutes: 5 },
+      }),
+    );
+    await flush(card);
+    inside(card)._stopTicker();
+    await advance([card], 2_000);
+    expect(shown()).toEqual(["5 minutes left: Stap a (Engels)"]);
+    await advance([card], 60_000);
+    expect(shown()).toHaveLength(1);
+  });
+});
+
+describe("the pre-warning switched on while the timer runs", () => {
+  const callWS = (): ReturnType<typeof vi.fn> =>
+    vi.fn().mockResolvedValue({ timer_settings: { prewarn_minutes: 5, extra_minutes: null } });
+
+  it("is announced and notified once its moment is reached", async () => {
+    turnOn();
+    const { card } = await mountTimer(timer(), { prewarn_minutes: null, extra_minutes: null }, "en", callWS());
+    await advance([card], 60_000);
+    await save(card, "5");
+    await advance([card], 1_400_000);
+    expect(shown()).toEqual([]);
+    await advance([card], 45_000);
+    expect(shown()).toEqual(["5 minutes left: Stap a (Engels)"]);
+    expect(inside(card).announcement).not.toBe("");
+    await advance([card], 60_000);
+    expect(shown()).toHaveLength(1);
+  });
+
+  it("is not announced when its moment was already past when it was switched on", async () => {
+    turnOn();
+    const { card } = await mountTimer(timer(), { prewarn_minutes: null, extra_minutes: null }, "en", callWS());
+    await advance([card], 1_560_000);
+    await save(card, "5");
+    await advance([card], 30_000);
+    expect(shown()).toEqual([]);
+    expect(inside(card).announcement).toBe("");
+    await advance([card], 300_000);
+    expect(shown()).toEqual(["Time is up: Stap a (Engels)"]);
   });
 });
 
@@ -640,12 +709,19 @@ describe("one-shot timers for the moments", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("are re-armed after a settings save", async () => {
-    const { card } = await mountTimer(timer(), { prewarn_minutes: null, extra_minutes: null });
+  it("are re-armed after a settings save, through saveSettings", async () => {
+    const callWS = vi.fn().mockResolvedValue({ timer_settings: { prewarn_minutes: 5, extra_minutes: null } });
+    const { card } = await mountTimer(timer(), { prewarn_minutes: null, extra_minutes: null }, "en", callWS);
+    // the ticker and the end
     expect(vi.getTimerCount()).toBe(2);
-    const controller = card as unknown as { _timer: { settingsOverride: unknown; settings(): unknown; _arm(): void } };
-    controller._timer.settingsOverride = { prewarn_minutes: 5, extra_minutes: null };
-    controller._timer._arm();
+    await save(card, "5");
+    expect(callWS).toHaveBeenCalledWith({
+      type: "magister/homework/timer_settings",
+      entity_id: ENTITY,
+      prewarn_minutes: 5,
+      extra_minutes: null,
+    });
+    // the ticker, the pre-warning and the end
     expect(vi.getTimerCount()).toBe(3);
   });
 
@@ -794,6 +870,22 @@ describe("unlocking the sound after a reload", () => {
     window.dispatchEvent(new Event("keydown"));
     expect(context?.resume).toHaveBeenCalledTimes(1);
     expect(FakeAudio.instances).toHaveLength(1);
+  });
+
+  it.each(["pointerup", "touchend", "click"])("also unlocks on %s, in the capture phase", async (type) => {
+    turnOn();
+    FakeAudio.initial = "suspended";
+    const remove = vi.spyOn(window, "removeEventListener");
+    document.body.dispatchEvent(new Event(type, { bubbles: false }));
+    expect(FakeAudio.instances[0]?.resume).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+    await Promise.resolve();
+    const removed = remove.mock.calls.filter((call) => call[2] === true).map((call) => call[0]);
+    expect(removed.sort()).toEqual(["click", "keydown", "pointerdown", "pointerup", "touchend"]);
+    for (const other of ["pointerdown", "pointerup", "touchend", "click", "keydown"]) {
+      window.dispatchEvent(new Event(other));
+    }
+    expect(FakeAudio.instances[0]?.resume).toHaveBeenCalledTimes(1);
   });
 
   it("also unlocks on a key press", () => {

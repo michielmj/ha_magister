@@ -255,20 +255,21 @@ function onGesture(): void {
   if (state.active && state.sound) unlockAudio();
 }
 
+/** Any of these may be the gesture the browser accepts (touch browsers differ in which one counts). */
+const GESTURES = ["pointerdown", "pointerup", "touchend", "click", "keydown"] as const;
+
 let gestureListeners = false;
 
 function installGestureListeners(): void {
   if (gestureListeners || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
   gestureListeners = true;
-  window.addEventListener("pointerdown", onGesture, true);
-  window.addEventListener("keydown", onGesture, true);
+  for (const type of GESTURES) window.addEventListener(type, onGesture, true);
 }
 
 function removeGestureListeners(): void {
   if (!gestureListeners) return;
   gestureListeners = false;
-  window.removeEventListener("pointerdown", onGesture, true);
-  window.removeEventListener("keydown", onGesture, true);
+  for (const type of GESTURES) window.removeEventListener(type, onGesture, true);
 }
 
 installGestureListeners();

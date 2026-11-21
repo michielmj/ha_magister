@@ -64,6 +64,11 @@ README NL/EN, section "Studietimer":
 ## Phases
 One phase (card + docs), Developer → Reviewer (including headless Chromium with granted notification permission) → verification. Release **1.10.1**.
 
+## Review addition
+The review added one small backend change: the timer payload gained `prewarned` (`true` once the pre-warning was sent or
+skipped, as in an extension run), so a card that first sees a running timer does not announce or notify a pre-warning
+that was already sent. This goes beyond the original card-only scope.
+
 ## Acceptance criteria
 - [ ] Reviewed; CI green; version 1.10.1; CHANGELOG; README NL/EN.
 - [ ] **PM test:**
