@@ -47,7 +47,7 @@ import {
   type SubtaskEdit,
 } from "./logic";
 import { HomeworkSubscription, type LoadError } from "./subscription";
-import { effectiveLabel } from "./timer";
+import { effectiveLabel, metaLine } from "./timer";
 import { TimerController } from "./timer-controller";
 import {
   renderActions,
@@ -1136,7 +1136,7 @@ export class MagisterHomeworkCard extends LitElement {
     const view = this._timer.view();
     if (!view) return nothing;
     const lang = this._language() === "nl" ? "nl" : "en-GB";
-    const meta = format(texts.timer.meta, {
+    const meta = metaLine(texts.timer.meta, {
       subject: view.timer.subject,
       label: this._timer.labelOf(view.timer.subtask),
       date: formatShortDay(view.timer.due, lang),

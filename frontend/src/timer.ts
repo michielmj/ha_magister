@@ -1,5 +1,5 @@
 /** Study timer maths and helpers shared by both cards (see docs/reference/homework-websocket.md). */
-import { typeLabel, type Texts } from "./translations";
+import { format, typeLabel, type Texts } from "./translations";
 import type { HomeworkItem, StudyTimer, TimerAction, TimerSettings, TimerState } from "./types";
 
 export const PREWARN_MAX = 15;
@@ -200,4 +200,13 @@ export function effectiveLabel(item: HomeworkItem, texts: Texts): string {
     return typeLabel(texts, item.info_type, item.label ?? "");
   }
   return item.manual_labels[0]?.name ?? "";
+}
+
+/** The meta line "subject · label · date" without the empty parts (a disabled label leaves one empty). */
+export function metaLine(template: string, values: Record<string, string>): string {
+  return format(template, values)
+    .split(" · ")
+    .map((part) => part.trim())
+    .filter((part) => part !== "")
+    .join(" · ");
 }

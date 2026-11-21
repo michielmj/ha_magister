@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { formatShortDay } from "./logic";
 import { HomeworkSubscription, type LoadError } from "./subscription";
-import { effectiveLabel, formatCountdown } from "./timer";
+import { effectiveLabel, formatCountdown, metaLine } from "./timer";
 import { TimerController } from "./timer-controller";
 import {
   renderActions,
@@ -57,6 +57,24 @@ export class MagisterTimerCard extends LitElement {
   declare _toast: string;
   /** HA's hui-card removes hidden cards unless this is set. */
   connectedWhileHidden: boolean;
+
+  /** Set by HA's hui-card: the idle card must stay visible while editing. */
+  private _preview = false;
+  private _editMode = false;
+  set preview(value: boolean | undefined) {
+    this._preview = value === true;
+    this.requestUpdate();
+  }
+  get preview(): boolean {
+    return this._preview;
+  }
+  set editMode(value: boolean | undefined) {
+    this._editMode = value === true;
+    this.requestUpdate();
+  }
+  get editMode(): boolean {
+    return this._editMode;
+  }
 
   private _config: NormalizedTimerConfig | undefined;
   private _hass: Hass | undefined;
@@ -184,7 +202,7 @@ export class MagisterTimerCard extends LitElement {
   /** The card is hidden when there is no timer and `show_when_idle` is off (also while loading). */
   private _hidden(): boolean {
     if (this._config?.show_when_idle !== false || !this._config.entity) return false;
-    if (this._loadError) return false;
+    if (this._loadError || this._preview || this._editMode) return false;
     return this._timer.view() === undefined;
   }
 
@@ -246,7 +264,7 @@ export class MagisterTimerCard extends LitElement {
       return html`${banner}<p class="state timer-idle" tabindex="-1">${texts.timer.idle}</p>`;
     }
     const lang = context.language === "nl" ? "nl" : "en-GB";
-    const meta = format(texts.timer.meta, {
+    const meta = metaLine(texts.timer.meta, {
       subject: view.timer.subject,
       label: this._timer.labelOf(view.timer.subtask),
       date: formatShortDay(view.timer.due, lang),

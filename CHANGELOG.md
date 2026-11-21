@@ -38,7 +38,7 @@ Study timer with notifications, on the homework card and on a new timer card. Re
 - **Timer card.** A new card `custom:magister-timer-card` in the same bundle (no extra resource, its own entry in the
   card picker, with a visual editor; options `entity`, `title`, `show_when_idle`). A large countdown in a progress
   ring, the subtask, subject, label and due day, **Pauze** / **Hervat**, **Stop** (progress panel), and when time is up
-  **Klaar**, **+x min** and **Nog niet**. "Geen timer actief" when idle, or hidden with `show_when_idle: false`. Large
+  **Klaar**, **+x min** and **Nog niet**. "Geen timer actief" when idle, or hidden with `show_when_idle: false` (still shown in the editor preview and in dashboard edit mode). Large
   touch targets for a wall tablet. A user who may not control the timer sees it read-only with an explanation (after
   the first refused press). New screenshots.
 - **Downgrade.** The store is version 1.9 (major still 1): 1.9.x and older read it, ignore the timer and the settings

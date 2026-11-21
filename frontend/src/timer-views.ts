@@ -535,7 +535,10 @@ export const timerStyles = css`
   }
   @media (pointer: coarse) {
     .timer-btn,
-    .timer-start {
+    .icon-btn.timer-start,
+    .icon-btn.timer-settings-btn,
+    .timer-start,
+    .timer-settings-btn {
       min-height: 44px;
       min-width: 44px;
     }

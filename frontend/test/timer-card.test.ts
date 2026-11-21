@@ -169,6 +169,34 @@ describe("idle", () => {
     expect(text(card, ".tc-meta")).toContain("Test");
   });
 
+  it("drops the empty label from the meta line when the Magister label is disabled", async () => {
+    const payload = timerPayload([parent([sub("a")], { override: { mode: "disable" } })], { timer: timer() });
+    const { card } = await setup({ timer: timer(), payload });
+    const meta = text(card, ".tc-meta");
+    expect(meta).not.toContain(" ·  · ");
+    expect(meta.split(" · ").every((part) => part !== "")).toBe(true);
+    expect(meta.split(" · ")).toHaveLength(2);
+  });
+
+  it("stays visible without a timer in the editor preview and in dashboard edit mode", async () => {
+    const { card } = await setup({ config: { show_when_idle: false } });
+    expect(card.hasAttribute("hidden")).toBe(true);
+    card.preview = true;
+    await flush(card);
+    expect(card.hasAttribute("hidden")).toBe(false);
+    expect(has(card, ".timer-idle")).toBe(true);
+    card.preview = false;
+    await flush(card);
+    expect(card.hasAttribute("hidden")).toBe(true);
+    card.editMode = true;
+    await flush(card);
+    expect(card.hasAttribute("hidden")).toBe(false);
+    expect(has(card, ".timer-idle")).toBe(true);
+    card.editMode = false;
+    await flush(card);
+    expect(card.hasAttribute("hidden")).toBe(true);
+  });
+
   it("is hidden without a timer when show_when_idle is false, also while loading", async () => {
     const { card, connection } = await setup({ config: { show_when_idle: false }, push: false });
     expect(card.hasAttribute("hidden")).toBe(true);
