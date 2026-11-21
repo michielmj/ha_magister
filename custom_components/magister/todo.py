@@ -45,6 +45,7 @@ from .const import (
     ATTR_MODE,
     ATTR_NOTE,
     ATTR_PROGRESS,
+    ATTR_REPLACE,
     ATTR_SUBTASK,
     ATTR_TITLE,
     CHILD_ID,
@@ -58,6 +59,8 @@ from .const import (
     SERVICE_REMOVE_HOMEWORK_LABEL,
     SERVICE_SET_HOMEWORK_OVERRIDE,
     SERVICE_SET_HOMEWORK_PROGRESS,
+    SERVICE_START_STUDY_TIMER,
+    SERVICE_STOP_STUDY_TIMER,
     SERVICE_UPDATE_HOMEWORK_SUBTASK,
 )
 from .coordinator import MagisterConfigEntry, MagisterCoordinator
@@ -80,6 +83,7 @@ from .homework import (
 from .homework import (
     item_to_dict as item_dict,
 )
+from .timer import ACTION_START, ACTION_STOP, TimerError, progress_step
 
 PARALLEL_UPDATES = 0
 
@@ -194,6 +198,31 @@ def async_register_homework_services(hass: HomeAssistant) -> None:
         func="async_delete_homework_subtask",
         schema={probatio.Required(ATTR_SUBTASK): cv.string},
     )
+
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_START_STUDY_TIMER,
+        entity_domain=TODO_DOMAIN,
+        func="async_start_study_timer",
+        schema={
+            probatio.Required(ATTR_SUBTASK): cv.string,
+            probatio.Optional(ATTR_REPLACE, default=False): cv.boolean,
+        },
+    )
+    async_register_platform_entity_service(
+        hass,
+        DOMAIN,
+        SERVICE_STOP_STUDY_TIMER,
+        entity_domain=TODO_DOMAIN,
+        func="async_stop_study_timer",
+        schema={probatio.Optional(ATTR_PROGRESS): service_timer_progress},
+    )
+
+
+def service_timer_progress(value: Any) -> int:
+    """The progress of a stop in a service call: 0, 25, 50, 75 or 100."""
+    return progress_step(service_progress(value))
 
 
 def item_summary(item: HomeworkItem) -> str:
@@ -379,6 +408,8 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
                     if self._last_payload
                     else {}
                 ),
+                "timer": self._last_payload["timer"] if self._last_payload else None,
+                "timer_settings": self._manager.timers.settings(self._child_id),
             },
         )
         await super().async_will_remove_from_hass()
@@ -404,6 +435,74 @@ class MagisterHomeworkTodo(MagisterMidnightEntity, TodoListEntity):
             context=context,
         )
         return proposal.view(dt_util.utcnow())
+
+    async def timer_action(
+        self,
+        action: str,
+        *,
+        user_id: str | None,
+        is_admin: bool,
+        trusted: bool = False,
+        subtask: str | None = None,
+        replace: bool = False,
+        progress: int | None = None,
+    ) -> Payload | None:
+        """Carry out a timer action as this user; returns the timer afterwards."""
+        await self._manager.async_timer_action(
+            self._child_id,
+            action,
+            user_id=user_id,
+            is_admin=is_admin,
+            trusted=trusted,
+            subtask=subtask,
+            replace=replace,
+            progress=progress,
+        )
+        return self._manager.timers.payload(self._child_id)
+
+    async def timer_settings(
+        self,
+        *,
+        user_id: str | None,
+        is_admin: bool,
+        prewarn: Any = UNSET,
+        extra: Any = UNSET,
+    ) -> Payload:
+        """Change the student's timer settings as this user."""
+        return await self._manager.async_set_timer_settings(
+            self._child_id,
+            user_id=user_id,
+            is_admin=is_admin,
+            prewarn=prewarn,
+            extra=extra,
+        )
+
+    async def _service_timer(self, action: str, **kwargs: Any) -> None:
+        """A timer service: the user of the call (if any) needs the rights."""
+        user_id = self._context.user_id if self._context else None
+        user = await self.hass.auth.async_get_user(user_id) if user_id else None
+        try:
+            await self.timer_action(
+                action,
+                user_id=user_id,
+                is_admin=bool(user and user.is_admin),
+                trusted=user_id is None,
+                **kwargs,
+            )
+        except TimerError as err:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key=f"homework_{err.code}"
+            ) from None
+
+    async def async_start_study_timer(
+        self, subtask: str, replace: bool = False
+    ) -> None:
+        """Service ``magister.start_study_timer``."""
+        await self._service_timer(ACTION_START, subtask=subtask, replace=replace)
+
+    async def async_stop_study_timer(self, progress: int | None = None) -> None:
+        """Service ``magister.stop_study_timer``."""
+        await self._service_timer(ACTION_STOP, progress=progress)
 
     @callback
     def payload(self) -> Payload:

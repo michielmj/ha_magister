@@ -20,6 +20,7 @@ from .const import (
     CONF_LABELS,
     CONF_OFFSET,
     CONF_PARENT_GUIDELINES,
+    CONF_STUDY_TIMER,
     CONF_TOTP_SECRET,
     CONF_WEIGHTS,
 )
@@ -107,7 +108,13 @@ async def async_get_config_entry_diagnostics(
                 k: v
                 for k, v in entry.options.items()
                 if k
-                not in (CONF_WEIGHTS, CONF_LABELS, CONF_COACH, CONF_PARENT_GUIDELINES)
+                not in (
+                    CONF_WEIGHTS,
+                    CONF_LABELS,
+                    CONF_COACH,
+                    CONF_PARENT_GUIDELINES,
+                    CONF_STUDY_TIMER,
+                )
             },
         },
         "children": children,
@@ -116,6 +123,14 @@ async def async_get_config_entry_diagnostics(
         "coach_context": runtime.homework.context.statistics(),
         # Counts only: open proposals per kind, closed ones per status.
         "coach_proposals": runtime.homework.proposals.statistics(dt_util.utcnow()),
+        # Counts only: timers per state, settings, and how many targets are chosen.
+        "study_timer": {
+            **runtime.homework.timers.statistics(),
+            "children_with_targets": len(entry.options.get(CONF_STUDY_TIMER) or {}),
+            "targets": sum(
+                len(v) for v in (entry.options.get(CONF_STUDY_TIMER) or {}).values()
+            ),
+        },
         "homework_store": {"stored_entries": runtime.homework.stored_entries},
         "sensors": [
             {

@@ -1015,8 +1015,8 @@ async def test_proposals_survive_a_restart_and_a_downgrade(
     assert await hass.config_entries.async_unload(home.entry.entry_id)
     key = f"magister.homework.{home.entry.entry_id}"
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 8)
-    assert STORE_MINOR_VERSION == 8
+    assert (saved["version"], saved["minor_version"]) == (1, 9)
+    assert STORE_MINOR_VERSION == 9
     stored = saved["data"]["proposals"]["1001"]
     assert [p["id"] for p in stored] == [first["id"], second["id"]]
     assert stored[0] == {

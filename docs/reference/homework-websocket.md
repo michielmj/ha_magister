@@ -38,9 +38,14 @@ are not repeated. After an entry reload the new entity pushes its list once to e
   "daily_max_minutes": 90,
   "daily_max_weekdays": [90, 90, 90, 90, 90, 0, 0],
   "daily_max_overrides": {"2026-11-18": 30},
-  "proposals": [ <proposal>, ... ]
+  "proposals": [ <proposal>, ... ],
+  "timer": null,
+  "timer_settings": {"prewarn_minutes": null, "extra_minutes": null}
 }}
 ```
+
+`timer` and `timer_settings` (since 1.10.0): see "Study timer" below. Both are in the final `available: false` event
+too (the timer as it was in the last event); clients that predate them ignore them.
 
 `daily_max_weekdays` (since 1.9.0) is the child's normal daily maximum per weekday, **Monday first** (Monday to Sunday), seven
 integers 0–480 in steps of 15, default 90 for every day; 0 means "no study planned that day" (any planned minutes are over
@@ -297,6 +302,82 @@ Errors: `not_found` (unknown entity), `invalid_format` (bad `answer`), `not_allo
 Logbook (entity of the child's list; only the first name of the Home Assistant user): "Voorstel dagmaximum geaccepteerd
 door Anna", "... afgewezen door Anna", with " namens het kind" when answered on behalf, and "voorstel dagmaximum verlopen
 (Toetsweek)" when a proposal expires.
+
+## Study timer (since 1.10.0)
+
+A student starts a timer on a subtask that has `minutes`. The timer lives in the backend (per config entry and child, in
+the homework store under `timer`), so it keeps running when the card is closed and survives a restart. One timer per
+child. When it runs out the integration notifies the notify services (`notify.mobile_app_*`) the administrator chose for
+that child (never a parent), creates a persistent notification and fires `magister_study_timer_finished`
+(`{"child": <child id>, "subtask": <subtask uid>}`).
+
+### Payload
+
+```json
+"timer": {
+  "subtask": "myschool.magister.net:1001:100065:sub:ab12cd34",
+  "title": "Opgave 3", "subject": "wiskunde",
+  "due": "2026-11-16", "label": "Huiswerk",
+  "state": "running",
+  "ends_at": "2026-11-13T10:00:00+00:00",
+  "minutes": 30,
+  "started_at": "2026-11-13T09:30:00+00:00"
+}
+```
+
+* `timer` is `null` when there is none. `state` is `running` (`ends_at`), `paused` (`remaining`, whole seconds) or
+  `finished` (`ends_at` is when it ran out). Compute the countdown from `ends_at` / `remaining`; the payload is not
+  pushed every second.
+* `minutes` is the length of the current countdown: the subtask's estimate, or the extra minutes after an extend. The
+  ring is `remaining / (minutes * 60)`.
+* The nonce of the notification buttons is never in the payload.
+* `timer_settings`: `{"prewarn_minutes": null | 1..15, "extra_minutes": null | 1..30}` (null is off), always present.
+
+### `magister/homework/timer`
+
+`{"entity_id", "action", "subtask"?, "replace"?, "progress"?}` with `action`:
+
+| action | meaning |
+|---|---|
+| `start` | needs `subtask` (the uid in the payload). The duration is the subtask's `minutes`. Another timer that runs or is paused gives `timer_running` unless `replace` is true (it is then stopped). A finished timer is replaced silently. |
+| `pause` / `resume` | only from `running` / `paused`, else `timer_wrong_state`. |
+| `stop` | removes the timer. With `progress` (0, 25, 50, 75 or 100) it first sets the subtask's progress: one call. |
+| `extend` | only when the timer has **finished** (`timer_not_finished` otherwise, for running and paused alike): it runs again for `extra_minutes` and can be repeated; the pre-warning does not repeat. `extra_not_set` when the student has no extra minutes. |
+| `done` | sets the subtask's progress to 100 and removes the timer. |
+
+Result: `{"timer": <timer or null>}` (the timer after the action). Errors: `no_minutes`, `subtask_not_found` (also a
+subtask of another child), `no_timer`, `timer_running`, `timer_wrong_state`, `timer_not_finished`, `extra_not_set`,
+`not_allowed_for_role`, `not_found`, `invalid_format` (unknown action, `start` without `subtask`, `progress` not one of
+the five steps). Control permission on the entity is required, as for the other write commands.
+
+Deleting the subtask, completing it (progress 100, by any route) or hiding its item stops the timer; changing its
+`minutes` does not.
+
+### `magister/homework/timer_settings`
+
+`{"entity_id", "prewarn_minutes"?, "extra_minutes"?}`: `null` switches a setting off, a missing key leaves it as it is,
+at least one key is required (`invalid_format` otherwise, and for values outside 1-15 / 1-30). Result:
+`{"timer_settings": {...}}`.
+
+### Rights
+
+The same rule as `respond_proposal`: a user linked as an active **Leerling** of the child; only when the child has no
+active Leerling user, a user linked as **Ouder** or an administrator on the child's behalf. Everyone else gets
+`not_allowed_for_role`. Settings follow the same rule.
+
+### Notifications
+
+* Pre-warning: `Nog {n} minuten: {title} ({subject})` (`Nog 1 minuut` for one), no buttons; skipped when the timer is
+  not longer than `prewarn_minutes`.
+* End: `Tijd is om: {title} ({subject})`, buttons **Klaar** (done), **+x min** (extend, only when `extra_minutes` is
+  set) and **Nog niet** (stop without progress change).
+* iOS `push.interruption-level: time-sensitive`, `tag` `magister_study_timer_<child id>`, `ttl: 0`, `priority: high`.
+  Button ids are `MAGISTER_TIMER|<verb>|<entry id>|<child id>|<appointment>:sub:<id>|<nonce>`; the nonce is random per
+  timer, so buttons of an earlier timer are ignored. A stop or done sends `clear_notification` for the tag.
+* A persistent notification (`magister_study_timer_<entry id>_<child id>`) is created at the end and dismissed on
+  restart, extend, stop and done.
+* Button presses arrive as `mobile_app_notification_action`. When the event context has a user, that user needs the
+  rights above; without a user the nonce and the configured target are the proof.
 
 ## Equivalent services
 These target the homework to-do entity and behave the same as the WebSocket commands, for automations:

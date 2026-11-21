@@ -68,6 +68,7 @@ from .const import (
     CONF_INTERVAL,
     CONF_LABELS,
     CONF_PARENT_GUIDELINES,
+    CONF_STUDY_TIMER,
     CONF_WEEKS_AHEAD,
     CONF_WEEKS_BACK,
     CONF_WEIGHTS,
@@ -85,8 +86,12 @@ from .homework import new_label_id, options_with_weekdays, weekday_options
 from .pending import peek_retained_login
 from .proposals import WEEKDAY_NAMES
 from .roles import coach_settings, parent_users, student_users
+from .timer import notify_services
 
 _LOGGER = logging.getLogger(__name__)
+
+# The field of the study timer step: the notify services of a child.
+CONF_TARGETS = "targets"
 
 # The fields of the daily maximum step: one per weekday, Monday first.
 WEEKDAY_FIELDS = tuple(f"daily_max_{name}" for name in WEEKDAY_NAMES)
@@ -153,6 +158,7 @@ class MagisterOptionsFlow(OptionsFlow):
         self._context_child: int | None = None
         self._context_subject: str | None = None
         self._daily_max_child: int | None = None
+        self._timer_child: int | None = None
 
     async def _async_fetch_children(self, entry: ConfigEntry) -> str | None:
         """Read the current children list; return an abort reason on failure.
@@ -190,7 +196,14 @@ class MagisterOptionsFlow(OptionsFlow):
         """Choose between the general settings, the homework weights and the labels."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["general", "weights", "daily_max", "labels", "coach"],
+            menu_options=[
+                "general",
+                "weights",
+                "daily_max",
+                "labels",
+                "coach",
+                "study_timer",
+            ],
         )
 
     async def async_step_general(
@@ -697,6 +710,85 @@ class MagisterOptionsFlow(OptionsFlow):
         )
         return self._save_labels(
             [o for o in self._label_options(self._labels_child) if o.id != label_id]
+        )
+
+    # -- study timer ----------------------------------------------------------
+
+    async def async_step_study_timer(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Choose the child whose study timer notifications are set up."""
+        names = self._child_names()
+        if user_input is not None or len(names) == 1:
+            self._timer_child = (
+                int(user_input["child"]) if user_input else next(iter(names))
+            )
+            return await self.async_step_study_timer_targets()
+        return self.async_show_form(
+            step_id="study_timer",
+            data_schema=probatio.Schema(
+                {
+                    probatio.Required("child"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(value=str(child_id), label=name)
+                                for child_id, name in names.items()
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def async_step_study_timer_targets(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Choose the companion-app notify services of the child (no reload)."""
+        assert self._timer_child is not None
+        entry = self.config_entry
+        stored = entry.options.get(CONF_STUDY_TIMER)
+        current = stored.get(str(self._timer_child)) if isinstance(stored, dict) else []
+        current = [t for t in current or [] if isinstance(t, str)]
+        # A chosen service that is gone stays in the list, so it can be removed.
+        available = sorted({*notify_services(self.hass), *current})
+        if user_input is not None:
+            targets = sorted(
+                {t for t in user_input.get(CONF_TARGETS) or [] if t in available}
+            )
+            timers: dict[str, Any] = {
+                key: list(value) for key, value in (stored or {}).items()
+            }
+            if targets:
+                timers[str(self._timer_child)] = targets
+            else:
+                timers.pop(str(self._timer_child), None)
+            options = dict(entry.options)
+            if timers:
+                options[CONF_STUDY_TIMER] = timers
+            else:
+                options.pop(CONF_STUDY_TIMER, None)
+            return self.async_create_entry(data=options)
+        schema = probatio.Schema(
+            {
+                probatio.Optional(CONF_TARGETS): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            SelectOptionDict(value=name, label=f"notify.{name}")
+                            for name in available
+                        ],
+                        multiple=True,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
+        )
+        return self.async_show_form(
+            step_id="study_timer_targets",
+            data_schema=self.add_suggested_values_to_schema(
+                schema, {CONF_TARGETS: current}
+            ),
+            description_placeholders={"child": self._child_names()[self._timer_child]},
         )
 
     # -- AI coach -----------------------------------------------------------

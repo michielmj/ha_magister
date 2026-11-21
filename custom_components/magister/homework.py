@@ -8,7 +8,7 @@ locally and never calls the Magister API.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Coroutine, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final
@@ -18,6 +18,7 @@ from homeassistant.components.logbook import async_log_entry
 from homeassistant.components.todo.const import DOMAIN as TODO_DOMAIN
 from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
@@ -93,12 +94,25 @@ from .proposals import (
 )
 from .proposals import STORE_KEY as PROPOSALS_KEY
 from .roles import async_live_students, coach_settings, proposal_answerer
+from .timer import (
+    ERR_NOT_ALLOWED as ERR_NOT_ALLOWED_TO_CONTROL,
+)
+from .timer import (
+    EVENT_NOTIFICATION_ACTION,
+    TimerEngine,
+    TimerError,
+    action_coroutine,
+)
+from .timer import (
+    NOT_ALLOWED_MESSAGE as TIMER_NOT_ALLOWED_MESSAGE,
+)
+from .timer import STORE_KEY as TIMER_KEY
 
 if TYPE_CHECKING:
     from .coordinator import MagisterConfigEntry, MagisterCoordinator
 
 STORE_VERSION: Final = 1
-STORE_MINOR_VERSION: Final = 8
+STORE_MINOR_VERSION: Final = 9
 SAVE_DELAY: Final = 5.0
 PRUNE_AFTER: Final = timedelta(days=14)
 
@@ -233,9 +247,11 @@ class _HomeworkStore(Store[dict[str, Any]]):
         missing value reads as ``"user"``) and 1.5 to 1.6 the optional ``minutes`` of
         a subtask (missing reads as unknown), 1.6 to 1.7 the optional ``context`` key
         (the coach's context notes) and 1.7 to 1.8 the optional ``proposals`` key
-        (proposals for the daily maximum): none of these needs a migration. A release
-        before 1.8.0 ignores ``context`` and one before 1.9.0 ignores ``proposals``,
-        and each drops its key when it saves again.
+        (proposals for the daily maximum) and 1.8 to 1.9 the optional ``timer`` key (the
+        study timer and its settings): none of these needs a migration. A release
+        before 1.8.0 ignores ``context``, one before 1.9.0 ignores ``proposals`` and
+        one before 1.10.0 ignores ``timer``, and each drops its key when it saves
+        again (a running timer is then lost).
         The major version stays 1 so that an older release can still read the file.
         """
         if old_major_version == 1:
@@ -292,6 +308,7 @@ class HomeworkManager:
         self._dirty = False
         self.context = ContextBook(self, self._changed)
         self.proposals = ProposalBook(self, self._changed, self._proposal_expired)
+        self.timers = TimerEngine(self, self._changed)
 
     async def async_load(self) -> None:
         """Read the stored progress and the context notes."""
@@ -299,6 +316,7 @@ class HomeworkManager:
         if isinstance(stored, dict):
             self.context.load(stored.get(CONTEXT_KEY), self.today())
             self.proposals.load(stored.get(PROPOSALS_KEY))
+            self.timers.load(stored.get(TIMER_KEY))
         raw = stored.get("items") if isinstance(stored, dict) else None
         if isinstance(raw, dict):
             for uid, entry in raw.items():
@@ -320,17 +338,49 @@ class HomeworkManager:
         self.async_prune()
 
     @callback
+    def _restore_timers(self, _hass: HomeAssistant) -> None:
+        self.timers.async_restore()
+
+    @callback
     def async_start(self) -> None:
         """Prune and notify on each coordinator update."""
         self._entry.async_on_unload(
             self._coordinator.async_add_listener(self._handle_coordinator_update)
         )
+        # The stored timers are taken up once Home Assistant runs, so that a timer that
+        # ended during the downtime can notify (the notify services exist by then).
+        self._entry.async_on_unload(self.timers.async_unload)
+        self._entry.async_on_unload(
+            self.hass.bus.async_listen(
+                EVENT_NOTIFICATION_ACTION, action_coroutine(self.timers, self)
+            )
+        )
+        self._entry.async_on_unload(async_at_started(self.hass, self._restore_timers))
 
     async def async_flush(self) -> None:
         """Write unsaved progress now (the entry is being unloaded)."""
         if self._dirty:
             self._dirty = False
             await self._store.async_save(self._data())
+
+    @property
+    def entry_id(self) -> str:
+        """The id of the config entry."""
+        return self._entry.entry_id
+
+    @property
+    def host(self) -> str:
+        """The school host."""
+        return self._host
+
+    @property
+    def entry_options(self) -> Mapping[str, Any]:
+        """The options of the config entry."""
+        return self._entry.options
+
+    def create_task(self, coro: Coroutine[Any, Any, None]) -> None:
+        """Run a notification in the background (cancelled when the entry unloads)."""
+        self._entry.async_create_background_task(self.hass, coro, f"{DOMAIN} timer")
 
     # -- items --------------------------------------------------------------
 
@@ -603,6 +653,7 @@ class HomeworkManager:
 
     def _labels_changed(self) -> None:
         self._invalidate()
+        self.timers.validate()
         self._changed()
         for listener in list(self._label_listeners):
             listener()
@@ -779,6 +830,8 @@ class HomeworkManager:
         stored["progress"] = progress
         self._invalidate()
         self._changed()
+        if progress >= 100:
+            self.timers.stop_for_subtask(subtask_uid(*ref))
 
     def _stored_subtask(self, item_uid_: str, sub_id: str) -> dict[str, Any] | None:
         entry = self._progress.get(item_uid_)
@@ -871,6 +924,7 @@ class HomeworkManager:
     def delete_subtask(self, child_id: int, uid: str) -> HomeworkItem:
         """Delete a subtask; returns the item (its own progress applies without any)."""
         item, stored = self._find_stored_subtask(child_id, uid)
+        self.timers.stop_for_subtask(uid)
         entry = self._progress[item.uid]
         entry[SUBTASKS].remove(stored)
         if not entry[SUBTASKS]:
@@ -960,6 +1014,64 @@ class HomeworkManager:
         if self.proposals.sync(dt_util.utcnow()):
             self._schedule_save()
 
+    async def acting_mode(
+        self, child_id: int, user_id: str | None, is_admin: bool = False
+    ) -> str | None:
+        """How this user acts for the student (proposals and the study timer).
+
+        ``student`` for an active linked Leerling; ``on_behalf`` for an Ouder or an
+        administrator when the child has no active Leerling; otherwise ``None``.
+        """
+        settings = coach_settings(self._entry, child_id)
+        return proposal_answerer(
+            settings,
+            user_id,
+            await async_live_students(self.hass, settings),
+            is_admin=is_admin,
+        )
+
+    async def async_timer_action(
+        self,
+        child_id: int,
+        action: str,
+        *,
+        user_id: str | None,
+        is_admin: bool = False,
+        trusted: bool = False,
+        subtask: str | None = None,
+        replace: bool = False,
+        progress: int | None = None,
+    ) -> None:
+        """Carry out a timer action as this user (the rights are checked first).
+
+        ``trusted`` skips the check for a call without a user (an automation).
+        """
+        if not trusted and await self.acting_mode(child_id, user_id, is_admin) is None:
+            raise TimerError(ERR_NOT_ALLOWED_TO_CONTROL, TIMER_NOT_ALLOWED_MESSAGE)
+        self.timers.perform(
+            child_id, action, subtask=subtask, replace=replace, progress=progress
+        )
+
+    async def async_set_timer_settings(
+        self,
+        child_id: int,
+        *,
+        user_id: str | None,
+        is_admin: bool = False,
+        trusted: bool = False,
+        prewarn: Any = UNSET,
+        extra: Any = UNSET,
+    ) -> dict[str, int | None]:
+        """Change the student's timer settings as this user (same rights)."""
+        if not trusted and await self.acting_mode(child_id, user_id, is_admin) is None:
+            raise TimerError(ERR_NOT_ALLOWED_TO_CONTROL, TIMER_NOT_ALLOWED_MESSAGE)
+        return self.timers.set_settings(
+            child_id,
+            None if prewarn is UNSET else prewarn,
+            None if extra is UNSET else extra,
+            given=(prewarn is not UNSET, extra is not UNSET),
+        )
+
     async def answer_proposal(
         self,
         child_id: int,
@@ -978,13 +1090,7 @@ class HomeworkManager:
         parent (or an administrator) answers on the child's behalf. Checked first, so
         a user who may not answer learns nothing about the proposals.
         """
-        settings = coach_settings(self._entry, child_id)
-        mode = proposal_answerer(
-            settings,
-            user_id,
-            await async_live_students(self.hass, settings),
-            is_admin=is_admin,
-        )
+        mode = await self.acting_mode(child_id, user_id, is_admin)
         if mode is None:
             raise ContextError(ERR_NOT_ALLOWED_TO_ANSWER, NOT_ALLOWED_MESSAGE)
         proposal = self.proposals.respond(
@@ -1053,6 +1159,7 @@ class HomeworkManager:
     @callback
     def _handle_coordinator_update(self) -> None:
         self.async_prune()
+        self.timers.validate()
 
     def _changed(self) -> None:
         self._schedule_save()
@@ -1069,6 +1176,8 @@ class HomeworkManager:
             data[CONTEXT_KEY] = context
         if proposals := self.proposals.to_stored():
             data[PROPOSALS_KEY] = proposals
+        if timer := self.timers.to_stored():
+            data[TIMER_KEY] = timer
         return data
 
     @callback
@@ -1120,6 +1229,7 @@ class HomeworkManager:
             },
             "daily_max_minutes": weights.daily_max_minutes,
             "daily_max_weekdays": list(weights.daily_max_weekdays),
+            "timer": self.timers.timer(child_id) is not None,
         }
 
     def _subtask_statistics(self, items: list[HomeworkItem]) -> dict[str, int]:
@@ -1423,6 +1533,8 @@ def build_payload(
         "daily_max_weekdays": list(manager.daily_max_weekdays(child_id)),
         "daily_max_overrides": manager.context.daily_max_overrides(child_id),
         "proposals": manager.proposals.payload(child_id, dt_util.utcnow()),
+        "timer": manager.timers.payload(child_id) if available else None,
+        "timer_settings": manager.timers.settings(child_id),
     }
 
 

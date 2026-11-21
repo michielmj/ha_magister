@@ -380,7 +380,7 @@ async def test_store_1_6_file_has_no_context_and_is_saved_as_1_8(
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
     assert (saved["version"], saved["minor_version"]) == (1, STORE_MINOR_VERSION)
-    assert STORE_MINOR_VERSION == 8
+    assert STORE_MINOR_VERSION == 9
     assert [n["text"] for n in saved["data"]["context"]["1001"]] == ["Nieuw"]
     # No notes: no key (a clean file).
     book.clear(1001)
@@ -401,7 +401,7 @@ async def test_store_read_by_the_previous_release(
     manager.set_progress(f"school.magister.net:1001:{HOMEWORK}", 50)
     manager.context.add(1001, parent=True, scope="child", text="Nieuw")
     assert await hass.config_entries.async_unload(entry.entry_id)
-    assert hass_storage[key]["minor_version"] == 8
+    assert hass_storage[key]["minor_version"] == 9
     # 1.7.x: the same class of store at minor version 6, same major version.
     old = _HomeworkStore(hass, 1, key, minor_version=6)
     data = await old.async_load()

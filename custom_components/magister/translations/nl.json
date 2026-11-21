@@ -160,6 +160,27 @@
     },
     "child_not_found": {
       "message": "Dit kind hoort niet bij deze Magister-login."
+    },
+    "homework_timer_running": {
+      "message": "Er loopt al een studietimer (of die staat op pauze) voor dit kind. Stop die eerst, of start met vervangen."
+    },
+    "homework_no_minutes": {
+      "message": "Deze deelstap heeft geen geschatte tijd, dus er kan geen timer op."
+    },
+    "homework_no_timer": {
+      "message": "Er is geen studietimer voor dit kind."
+    },
+    "homework_timer_wrong_state": {
+      "message": "De timer staat niet goed voor deze actie (pauzeren kan alleen bij een lopende timer, hervatten bij een gepauzeerde)."
+    },
+    "homework_timer_not_finished": {
+      "message": "Extra tijd kan alleen als de timer is afgelopen."
+    },
+    "homework_extra_not_set": {
+      "message": "De leerling heeft geen extra minuten ingesteld (timerinstellingen)."
+    },
+    "homework_not_allowed_for_role": {
+      "message": "Alleen de leerling bedient de studietimer. Een ouder of beheerder mag dat alleen als het kind geen actieve leerlinggebruiker heeft."
     }
   },
   "options": {
@@ -172,7 +193,8 @@
           "weights": "Huiswerkgewichten",
           "daily_max": "Dagmaximum studietijd",
           "labels": "Labels",
-          "coach": "AI-coach"
+          "coach": "AI-coach",
+          "study_timer": "Studietimer"
         }
       },
       "general": {
@@ -342,6 +364,20 @@
       "coach_context_confirm": {
         "title": "Context van {child} verwijderen?",
         "description": "{count} notities worden verwijderd. Dit kan niet ongedaan worden gemaakt. Vak: {subject} (– betekent alle context). Kies Verzend om ze te verwijderen."
+      },
+      "study_timer": {
+        "title": "Studietimer",
+        "description": "Kies het kind. De studietimer stuurt meldingen naar de apparaten met de companion-app die je hier kiest, nooit naar anderen.",
+        "data": {
+          "child": "Kind"
+        }
+      },
+      "study_timer_targets": {
+        "title": "Studietimer van {child}",
+        "description": "Kies de meldingsdiensten (notify.mobile_app_*) van de apparaten die de waarschuwing vooraf en het einde van de studietimer van {child} ontvangen. Laat leeg voor geen telefoonmeldingen. De melding toont de titel van de deelstap en het vak, dus wie de telefoon vasthoudt kan dit op het vergrendelscherm lezen. Wijzigingen gelden direct.",
+        "data": {
+          "targets": "Apparaten"
+        }
       }
     },
     "error": {
@@ -562,6 +598,30 @@
         "subject": {
           "name": "Vak",
           "description": "Verwijder alleen de notities van dit vak (inclusief de notities bij lessen). Leeg laten om alle context te verwijderen."
+        }
+      }
+    },
+    "start_study_timer": {
+      "name": "Studietimer starten",
+      "description": "Start de studietimer op een deelstap met een geschatte tijd. De duur is de geschatte tijd. De rechten zijn die van de leerling: een aanroep vanuit een automatisering werkt altijd.",
+      "fields": {
+        "subtask": {
+          "name": "Deelstap",
+          "description": "Het id (uid) van de deelstap, zoals in de takenlijst."
+        },
+        "replace": {
+          "name": "Vervangen",
+          "description": "Stop een lopende of gepauzeerde timer van dit kind en start deze."
+        }
+      }
+    },
+    "stop_study_timer": {
+      "name": "Studietimer stoppen",
+      "description": "Stopt de studietimer van het kind. Met een voortgang wordt ook de voortgang van de deelstap gezet.",
+      "fields": {
+        "progress": {
+          "name": "Voortgang",
+          "description": "Optioneel: 0, 25, 50, 75 of 100 procent voor de deelstap."
         }
       }
     }

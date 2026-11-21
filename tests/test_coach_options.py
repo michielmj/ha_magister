@@ -310,7 +310,7 @@ async def test_created_by_in_payload_and_store(
     )
     assert await hass.config_entries.async_unload(entry.entry_id)
     saved = hass_storage[key]
-    assert (saved["version"], saved["minor_version"]) == (1, 8)
+    assert (saved["version"], saved["minor_version"]) == (1, 9)
     stored = {
         s["title"]: s["created_by"]
         for s in saved["data"]["items"][uid(PROEFWERK)]["subtasks"]

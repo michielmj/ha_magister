@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+Study timer with notifications (M15, phase A: backend). Phase B (the cards) follows.
+
+- **Timer.** A timer on a subtask with an estimated time, one per child, paused and resumed, in the backend: it keeps
+  running when the card is closed and survives a restart (an end that passed while Home Assistant was down finishes at
+  once and notifies). Stopping can set the subtask's progress in the same call (0/25/50/75/100). Deleting or completing
+  the subtask stops it; changing its minutes does not.
+- **Notifications.** The administrator chooses per child the companion-app services (`notify.mobile_app_*`) under
+  Configure, Studietimer (no reload). They get "Nog x minuten" (optional pre-warning, no buttons) and "Tijd is om" with
+  the buttons Klaar, +x min (when the student set extra minutes) and Nog niet; iOS time-sensitive, one tag per child.
+  Never parents. A persistent notification appears at the end; the event `magister_study_timer_finished` is fired.
+- **Student settings.** `prewarn_minutes` (off or 1-15) and `extra_minutes` (off or 1-30), per child, set by the
+  student through the WebSocket command `magister/homework/timer_settings` or the coach tool `set_timer_settings`. The
+  rights are those of answering a proposal: the Leerling, or an Ouder / administrator when the child has no active
+  Leerling user.
+- **API.** WebSocket `magister/homework/timer`, `timer` and `timer_settings` in the payload, services
+  `magister.start_study_timer` and `magister.stop_study_timer`, `list_homework` and `get_progress` show a running
+  timer. The AI cannot start or stop a timer. Logbook entries for start, pause, resume, stop, end, extension and
+  "deelstap afgerond via melding". Diagnostics show counts only.
+- **Downgrade.** The store is version 1.9 (major still 1): 1.9.x and older read it, ignore the timer and the settings
+  and drop them when they save again, so a running timer is lost.
+
 ## 1.9.0
 
 Time planning with subtasks, a daily maximum per weekday and proposals for the daily maximum. Released 2026-11-17.

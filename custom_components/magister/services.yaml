@@ -177,3 +177,37 @@ clear_coach_context:
       example: "Engelse taal"
       selector:
         text:
+
+start_study_timer:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    subtask:
+      required: true
+      example: "myschool.magister.net:1001:100001:sub:ab12cd34"
+      selector:
+        text:
+    replace:
+      required: false
+      default: false
+      selector:
+        boolean:
+
+stop_study_timer:
+  target:
+    entity:
+      integration: magister
+      domain: todo
+  fields:
+    progress:
+      required: false
+      example: 50
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 25
+          unit_of_measurement: "%"
+          mode: slider
