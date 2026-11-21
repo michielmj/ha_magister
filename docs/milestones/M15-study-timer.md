@@ -43,7 +43,7 @@ notification on the phone lets the student mark the subtask as done.
 ### Student settings (PM decisions 6–7)
 - **Per child,** stored in the homework store, set by the student (same rights as above):
   - `prewarn_minutes`: off, or 1–15. "Nog x minuten" is sent x minutes before the end. If the timer is shorter than x, the pre-warning is skipped.
-  - `extra_minutes`: off, or 1–30. When the timer runs out, the notification offers **"+x min"**. Choosing it extends the timer by x minutes, and the pre-warning does not repeat. It can be chosen again each time the timer runs out.
+  - `extra_minutes`: off, or 1–30. These are minutes the student can **add to the end time** when almost done (PM clarification 2026-11-21). **"+x min"** is offered while the timer runs or is paused (on both cards and with the pre-warning notification) and after it has run out (end notification, cards). Each press moves the end time x minutes later and can be repeated; the pre-warning does not repeat after an extension.
 - **Where they are set:**
   - on the card: a small ⚙ "Timerinstellingen" panel near the timer, visible to everyone, but only saved for users who may change it, as enforced by the backend;
   - through the coach's AI: a tool `set_timer_settings(child?, prewarn_minutes?, extra_minutes?)`, called only after the student asks for it.
@@ -53,7 +53,7 @@ notification on the phone lets the student mark the subtask as done.
 - **Phone:**
   - **Target:** the administrator chooses per child the companion-app notify service(s), e.g. `notify.mobile_app_iphone_x`, under Configure → AI coach (or a new menu item "Studietimer"). The list shows only `notify.mobile_app_*` services.
   - **When it fires:**
-    - **Pre-warning:** "Nog 5 minuten: <subtask title> (<subject>)".
+    - **Pre-warning:** "Nog 5 minuten: <subtask title> (<subject>)", with an actionable button **+x min** when `extra_minutes` is set.
     - **End:** "Tijd is om: <subtask title> (<subject>)", with actionable buttons **Klaar** (sets the subtask to 100), **+x min** (only when `extra_minutes` is set) and **Stop**.
   - **Notification options:** iOS `interruption-level: time-sensitive` and a `tag` per child, so a new message replaces the old one.
   - **Handling the buttons:** button presses arrive as the `mobile_app_notification_action` event. The integration handles them using the action id, which holds the entry, child and subtask, plus a random nonce so old buttons cannot act on a new timer.
@@ -62,7 +62,7 @@ notification on the phone lets the student mark the subtask as done.
 - **Privacy:** the texts contain only the subtask title and subject, no teacher data. The README warns that lock-screen notifications are visible to anyone holding the phone.
 
 ### Card
-- **Subtask rows with `minutes`** get a ▶ button (start). While running they show a countdown and ⏸ / ▶ (pause/resume) and ■ (stop). When the timer has finished they show "Tijd is om" with **Klaar**, **+x min** (when set) and **Stop**.
+- **Subtask rows with `minutes`** get a ▶ button (start). While running or paused they show a countdown, ⏸ / ▶ (pause/resume), **+x min** (when set) and ■ (stop). When the timer has finished they show "Tijd is om" with **Klaar**, **+x min** (when set) and **Stop**.
 - **The timer must be visible** even when the subtask is on another day: a timer bar at the top of the card for the child, with the subtask title and the countdown.
 - **Accessibility:**
   - an `aria-live` region announces the pre-warning and the end (politely, not on every second);
@@ -81,7 +81,8 @@ notification on the phone lets the student mark the subtask as done.
 - **Buttons:**
   - **Pauze** and **Hervat** (toggle);
   - **Stop**;
-  - when the timer has finished, **Klaar** and **+x min** (when the student has set extra time).
+  - **+x min** while running or paused, when the student has set extra time;
+  - when the timer has finished, **Klaar** and **+x min**.
 - **Stop registers progress.** Pressing Stop opens a small panel "Hoe ver ben je?" with the same steps as the planner: 0 / 25 / 50 / 75 / 100. The current progress is preselected. There are two choices:
   - **Opslaan en stoppen** sets the subtask's progress and stops the timer, in one command.
   - **Stoppen zonder voortgang** only stops it.
