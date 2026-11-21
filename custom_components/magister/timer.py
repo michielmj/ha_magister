@@ -301,6 +301,7 @@ class TimerEngine:
             "state": timer["state"],
             "minutes": timer["minutes"],
             "started_at": timer["started_at"],
+            "prewarned": timer["prewarned"],
         }
         if timer["state"] == STATE_PAUSED:
             result["remaining"] = timer["remaining"]

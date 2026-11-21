@@ -239,6 +239,7 @@ const nl = {
     notify_prewarn_one: "Nog 1 minuut: {what}",
     notify_end: "Tijd is om: {what}",
     notify_title: "Meldingen",
+    notify_confirm: "Meldingen staan aan",
     notify_enable: "Meldingen in deze browser",
     notify_sound: "Geluid",
     notify_hint:
@@ -522,6 +523,7 @@ const en: Texts = {
     notify_prewarn_one: "1 minute left: {what}",
     notify_end: "Time is up: {what}",
     notify_title: "Notifications",
+    notify_confirm: "Notifications are on",
     notify_enable: "Notifications in this browser",
     notify_sound: "Sound",
     notify_hint:

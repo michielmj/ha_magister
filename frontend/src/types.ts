@@ -152,6 +152,8 @@ export interface StudyTimer {
   /** The length of the current countdown in minutes (the estimate, or the extra minutes after an extension). */
   minutes: number;
   started_at: string;
+  /** Since 1.10.1: the pre-warning was sent or skipped; absent on older backends. */
+  prewarned?: boolean;
 }
 
 /** The student's timer settings (since 1.10.0); null is off. */

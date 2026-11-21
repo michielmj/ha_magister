@@ -375,6 +375,26 @@ async def test_prewarning(
     ]
 
 
+async def test_payload_has_prewarned(
+    hass: HomeAssistant,
+    home: Home,
+    hass_ws_client: WebSocketGenerator,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """``prewarned`` is false until the pre-warning fired, true after it."""
+    sub = make_sub(home, 10)
+    await set_settings(home, prewarn=2, extra=5)
+    client = await client_of(hass, hass_ws_client, home.student)
+    started = (await timer(client, todo_id(hass), "start", subtask=sub))["result"]
+    assert started["timer"]["prewarned"] is False
+    await tick(hass, freezer, minutes=8)  # the pre-warning fired
+    assert manager(home).timers.payload(1001)["prewarned"] is True
+    await tick(hass, freezer, minutes=2)
+    await manager(home).async_timer_action(1001, "extend", user_id=home.student.id)
+    # An extension run skips the pre-warning on purpose: it is flagged as done.
+    assert manager(home).timers.payload(1001)["prewarned"] is True
+
+
 def _subject(home: Home) -> str:
     return str(manager(home).timers.payload(1001)["subject"])
 

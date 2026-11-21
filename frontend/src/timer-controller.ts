@@ -34,6 +34,8 @@ export const TIMER = "magister/homework/timer";
 export const TIMER_SETTINGS = "magister/homework/timer_settings";
 /** How long an announcement stays in the live region. */
 const ANNOUNCE_MS = 10_000;
+/** The one-shot moment timers fire this long after the moment, so the clock has passed it. */
+const MOMENT_SLACK_MS = 50;
 
 /** What the controller needs from the element that owns it. */
 export interface TimerHost {
@@ -107,6 +109,9 @@ export class TimerController {
   private _pending: number | undefined;
   private _settingsPending: number | undefined;
   private _ticker: ReturnType<typeof setInterval> | undefined;
+  /** One-shot timers for the upcoming moments: a hidden tab throttles the ticker but still runs these. */
+  private _moments: ReturnType<typeof setTimeout>[] = [];
+  private _visibility: (() => void) | undefined;
   private _announceTimer: ReturnType<typeof setTimeout> | undefined;
   private _unsubscribe: (() => void) | undefined;
   private _seen:
@@ -178,6 +183,7 @@ export class TimerController {
     this._seen = undefined;
     this.skewMs = 0;
     this._setAnnouncement("");
+    this._arm();
     this.sync();
   }
 
@@ -187,12 +193,24 @@ export class TimerController {
     this._unsubscribe ??= onChange(() => {
       this.host.requestUpdate();
     });
+    if (!this._visibility && typeof document !== "undefined") {
+      this._visibility = () => {
+        this._arm();
+        this.observe();
+        this.host.requestUpdate();
+      };
+      document.addEventListener("visibilitychange", this._visibility);
+    }
+    this._arm();
     this.sync();
   }
 
   disconnected(): void {
     this._unsubscribe?.();
     this._unsubscribe = undefined;
+    if (this._visibility) document.removeEventListener("visibilitychange", this._visibility);
+    this._visibility = undefined;
+    this._disarm();
     this._stopTicker();
     if (this._announceTimer) clearTimeout(this._announceTimer);
     this._announceTimer = undefined;
@@ -204,7 +222,39 @@ export class TimerController {
     if (this._settingsPending === undefined) this.settingsOverride = undefined;
     this._validate();
     this.observe();
+    this._arm();
     this.sync();
+  }
+
+  // -- the moments --
+
+  private _disarm(): void {
+    for (const handle of this._moments) clearTimeout(handle);
+    this._moments = [];
+  }
+
+  /**
+   * One timeout per upcoming moment (the pre-warning and the end), a little after it. A hidden tab throttles
+   * the ticker, but a timer made outside a timer task still fires on time. Never called from `tick`: a timer made
+   * inside a timer task inherits its chain count and is throttled as well.
+   */
+  private _arm(): void {
+    this._disarm();
+    if (!this.host.isConnected) return;
+    const view = this.view();
+    if (view?.state !== "running" || view.timer.state !== "running") return;
+    const delays: number[] = [];
+    const threshold = view.timer.prewarned === true ? undefined : prewarnThreshold(view.timer, this.settings());
+    if (threshold !== undefined && view.remaining > threshold) delays.push((view.remaining - threshold) * 1000);
+    delays.push(view.remaining * 1000);
+    for (const delay of delays) {
+      this._moments.push(
+        setTimeout(() => {
+          this.observe();
+          this.host.requestUpdate();
+        }, delay + MOMENT_SLACK_MS),
+      );
+    }
   }
 
   /** Panels and confirmations whose target is gone (or that cannot be used now) are closed. */
@@ -265,7 +315,14 @@ export class TimerController {
     const { timer, state, remaining } = view;
     const key = timerKey(timer);
     if (this._seen?.key !== key) {
-      this._seen = { key, prewarnDone: false, endDone: false, sawActive: false, lastRemaining: undefined };
+      // A pre-warning that was already sent (or skipped on purpose, as in an extension run) is not announced.
+      this._seen = {
+        key,
+        prewarnDone: timer.prewarned === true,
+        endDone: false,
+        sawActive: false,
+        lastRemaining: undefined,
+      };
     }
     const seen = this._seen;
     const texts = this.deps.texts();
@@ -523,6 +580,7 @@ export class TimerController {
       : undefined;
     this.host.requestUpdate();
     this.observe();
+    this._arm();
     this.sync();
     if (options.focus) this._focus(options.focus);
     try {
@@ -549,6 +607,7 @@ export class TimerController {
     }
     this.host.requestUpdate();
     this.observe();
+    this._arm();
     this.sync();
   }
 
@@ -611,6 +670,7 @@ export class TimerController {
     this.settingsOpen = false;
     this.host.requestUpdate();
     this.observe();
+    this._arm();
     this._focus([`[data-timer-settings-button]`]);
     try {
       const result = await hass.callWS<TimerSettingsResult>({
@@ -643,6 +703,7 @@ export class TimerController {
     }
     this.host.requestUpdate();
     this.observe();
+    this._arm();
   }
 
   /** After a render: the selects show the form's values (the options are rendered after the select is set). */

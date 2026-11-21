@@ -322,7 +322,8 @@ that child (never a parent), creates a persistent notification and fires `magist
   "state": "running",
   "ends_at": "2026-11-13T10:00:00+00:00",
   "minutes": 30,
-  "started_at": "2026-11-13T09:30:00+00:00"
+  "started_at": "2026-11-13T09:30:00+00:00",
+  "prewarned": false
 }
 ```
 
@@ -331,6 +332,10 @@ that child (never a parent), creates a persistent notification and fires `magist
   pushed every second.
 * `minutes` is the length of the current countdown: the subtask's estimate, or the extra minutes after an extend. The
   ring is `remaining / (minutes * 60)`.
+* `prewarned` (since 1.10.1): `true` once the pre-warning has been sent, or when it was deliberately skipped (an
+  extension run; a timer that is not longer than the pre-warning). A client that sees `true` the first time it sees the
+  timer announces or notifies no pre-warning. The payload changes when the pre-warning fires, so a push follows.
+  Optional for clients: an older backend omits it.
 * The nonce of the notification buttons is never in the payload.
 * `timer_settings`: `{"prewarn_minutes": null | 1..15, "extra_minutes": null | 1..30}` (null is off), always present.
 

@@ -7,7 +7,10 @@
 
 const SETTINGS_KEY = "magister.notifications";
 const CLAIM_PREFIX = "magister.notify.claim.";
+const BROKEN_KEY = "magister.notifications.constructorBroken";
 const CHANNEL = "magister-notifications";
+/** How long a Web Lock on a moment is held after it was shown (the other tabs find it taken). */
+const LOCK_HOLD_MS = 120_000;
 /** Old claims are cleaned up after this long (a moment is never claimed twice anyway). */
 const CLAIM_TTL_MS = 24 * 3600_000;
 
@@ -83,22 +86,47 @@ function emit(): void {
 
 /** A failing `localStorage` keeps the choice for this page only. */
 let memory: NotifySettings | undefined;
+/** The last write to `localStorage` failed: the in-memory choice is the truth. */
+let storageBroken = false;
+/** The `Notification` constructor throws in this browser (Chrome on Android): notifications cannot work. */
+let constructorBroken = false;
 
 function saveSettings(settings: NotifySettings): void {
   memory = settings;
-  writeStorage(SETTINGS_KEY, JSON.stringify(settings));
+  storageBroken = !writeStorage(SETTINGS_KEY, JSON.stringify(settings));
   emit();
 }
 
 export function currentSettings(): NotifySettings {
-  if (readStorage(SETTINGS_KEY) === null && memory) return memory;
+  if (storageBroken && memory) return memory;
   return readSettings();
 }
 
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("storage", (event) => {
-    if (event.key === SETTINGS_KEY || event.key === null) emit();
+    if (event.key === SETTINGS_KEY || event.key === BROKEN_KEY || event.key === null) emit();
   });
+}
+
+let permissionWatched = false;
+
+/** Re-emit when the user changes the permission in the browser's site settings. */
+function watchPermission(): void {
+  if (permissionWatched) return;
+  permissionWatched = true;
+  try {
+    const permissions = navigator.permissions as Permissions | undefined;
+    void permissions
+      ?.query({ name: "notifications" })
+      .then((status) => {
+        status.onchange = () => {
+          emit();
+        };
+      })
+      .catch(() => undefined);
+  } catch {
+    // no permission API: the next render shows the state
+  }
 }
 
 // -- what this browser can do --
@@ -107,6 +135,7 @@ export function availability(): Availability {
   if (typeof window === "undefined") return "unsupported";
   if (typeof navigator !== "undefined" && navigator.userAgent.includes("Home Assistant/")) return "app";
   if (typeof window.Notification === "undefined") return "unsupported";
+  if (constructorBroken || readStorage(BROKEN_KEY) === "1") return "unsupported";
   if (!window.isSecureContext) return "insecure";
   return "ok";
 }
@@ -142,7 +171,7 @@ export function notifyState(): NotifyState {
 /**
  * Switch the notifications on or off. Switching on must be called from a click: it asks the browser for permission.
  */
-export async function setEnabled(on: boolean): Promise<void> {
+export async function setEnabled(on: boolean, confirmText = "Notifications are on"): Promise<void> {
   if (!on) {
     saveSettings({ ...currentSettings(), enabled: false });
     return;
@@ -157,7 +186,24 @@ export async function setEnabled(on: boolean): Promise<void> {
       result = window.Notification.permission;
     }
   }
+  if (result === "granted" && !probe(confirmText)) {
+    // Chrome on Android refuses `new Notification()`: nothing would ever be shown.
+    constructorBroken = true;
+    writeStorage(BROKEN_KEY, "1");
+    saveSettings({ ...currentSettings(), enabled: false });
+    return;
+  }
   saveSettings({ ...currentSettings(), enabled: result === "granted" });
+}
+
+/** Does the `Notification` constructor work here? A silent notification that is closed at once says so. */
+function probe(text: string): boolean {
+  try {
+    new window.Notification(text, { tag: "magister-test", silent: true }).close();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function setSound(on: boolean): void {
@@ -185,14 +231,47 @@ function audioContext(): AudioContext | undefined {
 }
 
 /** Called from a click, so the browser allows sound later. */
-function unlockAudio(): void {
+export function unlockAudio(): void {
   try {
     const context = audioContext();
-    if (context?.state === "suspended") void context.resume().catch(() => undefined);
+    if (context?.state === "suspended") {
+      void context
+        .resume()
+        .then(() => {
+          if (context.state === "running") removeGestureListeners();
+        })
+        .catch(() => undefined);
+    } else if (context?.state === "running") {
+      removeGestureListeners();
+    }
   } catch {
     // no sound, no problem
   }
 }
+
+// After a reload no click has unlocked the sound yet: the first click or key press anywhere does.
+function onGesture(): void {
+  const state = notifyState();
+  if (state.active && state.sound) unlockAudio();
+}
+
+let gestureListeners = false;
+
+function installGestureListeners(): void {
+  if (gestureListeners || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+  gestureListeners = true;
+  window.addEventListener("pointerdown", onGesture, true);
+  window.addEventListener("keydown", onGesture, true);
+}
+
+function removeGestureListeners(): void {
+  if (!gestureListeners) return;
+  gestureListeners = false;
+  window.removeEventListener("pointerdown", onGesture, true);
+  window.removeEventListener("keydown", onGesture, true);
+}
+
+installGestureListeners();
 
 /** A short, soft double beep. Silently skipped when the browser does not allow sound. */
 export function playTone(): void {
@@ -247,6 +326,7 @@ function openChannel(): BroadcastChannel | undefined {
 /** Hear the claims of other tabs from now on. */
 export function listen(): void {
   openChannel();
+  watchPermission();
 }
 
 export function momentId(info: Pick<MomentInfo, "child" | "startedAt" | "endsAt" | "moment">): string {
@@ -293,12 +373,37 @@ export function notifyMoment(info: MomentInfo): void {
   try {
     openChannel();
     if (!notifyState().active) return;
-    if (!claim(momentId(info))) return;
-    const { sound } = currentSettings();
+    const id = momentId(info);
+    const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
+    if (typeof locks?.request === "function") {
+      // The lock makes the claim atomic across tabs (localStorage alone leaves a small race).
+      locks
+        .request(CLAIM_PREFIX + id, { ifAvailable: true }, async (lock) => {
+          if (!lock || !claim(id)) return;
+          show(info);
+          await new Promise((resolve) => setTimeout(resolve, LOCK_HOLD_MS));
+        })
+        .catch(() => undefined);
+      return;
+    }
+    if (!claim(id)) return;
+    show(info);
+  } catch {
+    // a browser that refuses simply shows nothing
+  }
+}
+
+function show(info: MomentInfo): void {
+  const { sound } = currentSettings();
+  // The tone first: a constructor that throws (Chrome on Android) must not silence it.
+  if (sound) playTone();
+  try {
     const notification = new window.Notification(info.text, {
       tag: `magister-timer-${info.child}`,
       lang: info.language,
-    });
+      // Without it the end replaces the pre-warning silently (same tag).
+      renotify: true,
+    } as NotificationOptions);
     notification.onclick = () => {
       try {
         window.focus();
@@ -306,9 +411,8 @@ export function notifyMoment(info: MomentInfo): void {
         notification.close();
       }
     };
-    if (sound) playTone();
   } catch {
-    // a browser that refuses (for example Chrome on Android without a service worker) simply shows nothing
+    // shows nothing
   }
 }
 
@@ -316,7 +420,12 @@ export function notifyMoment(info: MomentInfo): void {
 export function resetNotificationsForTests(): void {
   claimed.clear();
   memory = undefined;
+  storageBroken = false;
+  constructorBroken = false;
+  permissionWatched = false;
   audio = undefined;
+  removeGestureListeners();
+  installGestureListeners();
   channel?.close();
   channel = undefined;
 }

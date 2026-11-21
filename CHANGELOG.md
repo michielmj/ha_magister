@@ -14,7 +14,15 @@ Browser notifications for the study timer. Released 2026-11-21.
   built-in tone, on by default), in the ⚙ panel of the homework card and behind a "Meldingen" button on the timer card.
   Hidden with an explanation when the browser does not support notifications, on http, and in the Home Assistant app
   (which keeps its own push notifications); a denied permission is explained.
-- No backend changes.
+- **Hidden tabs.** One-shot timers for the pre-warning and the end wake the page at the moment, so another tab in
+  front is fine. The end notification replaces the pre-warning on screen and alerts again (`renotify`). A Web Lock
+  (where the browser has it) makes the claim atomic across tabs. The sound is unlocked by the first click or key press
+  after a reload.
+- **Chrome on Android** refuses `new Notification()`: switching on is probed once, and a browser that throws is shown as
+  "not supported". The tone still plays when a notification cannot be shown.
+- The timer payload gained `prewarned` (`true` once the pre-warning was sent or skipped, as in an extension run): a card
+  that first sees it does not announce or notify a pre-warning. The "Meldingen in deze browser" checkbox moved out of the
+  settings form (it applies at once, Cancel and Save do not affect it).
 
 ## 1.10.0
 

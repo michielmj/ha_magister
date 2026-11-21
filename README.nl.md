@@ -469,12 +469,13 @@ Assistant en zonder knoppen; klikken op de melding haalt het venster naar voren.
   korte pieptoon bij de melding; vink het uit voor een stille melding. Hoor je geen geluid, dan blokkeert de browser dat tot
   je op de pagina hebt geklikt.
 - **Alleen zolang de pagina open staat.** Een melding komt alleen voor een moment dat voorbijgaat terwijl een Magister-kaart in
-  die browser open staat; een ander tabblad vooraan is prima. Een timer die al af was voordat de pagina openging, meldt niet.
+  die browser open staat; een ander tabblad vooraan, of een tabblad op de achtergrond, is prima (een eenmalige timer maakt de pagina op het moment wakker). Een timer die al af was voordat de pagina openging, meldt niet.
   Bij meer kaarten of tabbladen krijg je toch één melding per moment.
 - **Per browser.** De keuze staat in de browser en wordt niet gedeeld met andere browsers, apparaten of gebruikers. Een ouder
   die de kaart op de eigen computer opent, kan het voor die browser ook aanzetten.
 - **Niet beschikbaar** als de browser geen meldingen toestaat (het paneel zegt dat en hoe je het wijzigt), als Home Assistant
-  niet via **https** is geopend, of in de **Home Assistant-app**: de app gebruikt zijn eigen pushmeldingen (zie hierboven).
+  niet via **https** is geopend, of in de **Home Assistant-app**: de app gebruikt zijn eigen pushmeldingen (zie hierboven). **Chrome op Android** werkt ook niet: die
+  browser weigert meldingen van een webpagina, dus het paneel zegt dat de browser geen meldingen ondersteunt.
 
 ### Wie het mag bedienen
 

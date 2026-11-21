@@ -255,6 +255,19 @@ export class MagisterTimerCard extends LitElement {
     return renderNotifyButton(this._context(texts), this._timer.notifyOpen, () => {
       this._timer.notifyOpen = !this._timer.notifyOpen;
       this.requestUpdate();
+      // Like the settings panel: focus moves in on open and back to the button on close.
+      const selectors = this._timer.notifyOpen
+        ? [".notify-panel input", ".notify-panel"]
+        : ["[data-notify-button]"];
+      void this.updateComplete.then(() => {
+        for (const selector of selectors) {
+          const element = this.shadowRoot?.querySelector<HTMLElement>(selector);
+          if (element) {
+            element.focus();
+            return;
+          }
+        }
+      });
     });
   }
 

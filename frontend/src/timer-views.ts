@@ -281,7 +281,7 @@ export function renderNotifySettings(context: TimerContext): TemplateResult {
           id="timer-notify"
           .checked=${live(state.active)}
           @change=${(event: Event) => {
-            void setEnabled((event.target as HTMLInputElement).checked);
+            void setEnabled((event.target as HTMLInputElement).checked, text.notify_confirm);
           }}
         />
         <span>${text.notify_enable}</span>
@@ -319,7 +319,18 @@ export function renderNotifyButton(context: TimerContext, open: boolean, toggle:
       aria-expanded=${open ? "true" : "false"}
       @click=${toggle}
     ><span aria-hidden="true">⚙</span> ${texts.timer.notify_title}</button>
-    ${open ? html`<div class="timer-settings notify-panel">${renderNotifySettings(context)}</div>` : nothing}
+    ${open
+      ? html`<div
+          class="timer-settings notify-panel"
+          tabindex="-1"
+          @keydown=${(event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              toggle();
+            }
+          }}
+        >${renderNotifySettings(context)}</div>`
+      : nothing}
   </div>`;
 }
 
@@ -377,7 +388,6 @@ export function renderSettings(context: TimerContext): TemplateResult | typeof n
       controller.patchSettings({ extra: value });
     })}
     <p class="meta">${texts.timer.settings_hint}</p>
-    ${renderNotifySettings(context)}
     ${form.error
       ? html`<p class="timer-error" id="timer-settings-error" role="alert" tabindex="-1">${form.error}</p>`
       : nothing}
@@ -387,7 +397,16 @@ export function renderSettings(context: TimerContext): TemplateResult | typeof n
       }}>${texts.timer.cancel}</button>
       <button type="submit" class="primary" ?disabled=${off}>${texts.timer.save}</button>
     </div>
-  </form>`;
+  </form>
+  <div
+    class="timer-settings notify-panel"
+    @keydown=${(event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        controller.closeSettings();
+      }
+    }}
+  >${renderNotifySettings(context)}</div>`;
 }
 
 /** Everything the timer buttons and panels need, in one stylesheet shared by both cards. */
