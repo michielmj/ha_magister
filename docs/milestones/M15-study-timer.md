@@ -43,7 +43,7 @@ notification on the phone lets the student mark the subtask as done.
 ### Student settings (PM decisions 6–7)
 - **Per child,** stored in the homework store, set by the student (same rights as above):
   - `prewarn_minutes`: off, or 1–15. "Nog x minuten" is sent x minutes before the end. If the timer is shorter than x, the pre-warning is skipped.
-  - `extra_minutes`: off, or 1–30. These are minutes the student can **add to the end time** when almost done (PM clarification 2026-11-21). **"+x min"** is offered while the timer runs or is paused (on both cards and with the pre-warning notification) and after it has run out (end notification, cards). Each press moves the end time x minutes later and can be repeated; the pre-warning does not repeat after an extension.
+  - `extra_minutes`: off, or 1–30. These are minutes the student can add when the time is up and they are almost done (PM clarification 2026-11-21). **"+x min" is only offered when the timer has run out**, as a button next to **Klaar** and **Nog niet** (end notification and both cards). Pressing it runs the timer again for x minutes; it can be chosen again each time the timer runs out. The pre-warning does not repeat after an extension. While the timer runs or is paused there is no +x button.
 - **Where they are set:**
   - on the card: a small ⚙ "Timerinstellingen" panel near the timer, visible to everyone, but only saved for users who may change it, as enforced by the backend;
   - through the coach's AI: a tool `set_timer_settings(child?, prewarn_minutes?, extra_minutes?)`, called only after the student asks for it.
@@ -53,8 +53,8 @@ notification on the phone lets the student mark the subtask as done.
 - **Phone:**
   - **Target:** the administrator chooses per child the companion-app notify service(s), e.g. `notify.mobile_app_iphone_x`, under Configure → AI coach (or a new menu item "Studietimer"). The list shows only `notify.mobile_app_*` services.
   - **When it fires:**
-    - **Pre-warning:** "Nog 5 minuten: <subtask title> (<subject>)", with an actionable button **+x min** when `extra_minutes` is set.
-    - **End:** "Tijd is om: <subtask title> (<subject>)", with actionable buttons **Klaar** (sets the subtask to 100), **+x min** (only when `extra_minutes` is set) and **Stop**.
+    - **Pre-warning:** "Nog 5 minuten: <subtask title> (<subject>)", without buttons.
+    - **End:** "Tijd is om: <subtask title> (<subject>)", with actionable buttons **Klaar** (sets the subtask to 100 and stops), **+x min** (only when `extra_minutes` is set) and **Nog niet** (stops the timer without changing progress; the student can register progress on a card).
   - **Notification options:** iOS `interruption-level: time-sensitive` and a `tag` per child, so a new message replaces the old one.
   - **Handling the buttons:** button presses arrive as the `mobile_app_notification_action` event. The integration handles them using the action id, which holds the entry, child and subtask, plus a random nonce so old buttons cannot act on a new timer.
 - **Home Assistant (website and app):** a persistent notification for the end, removed when the timer is restarted, stopped or completed. HA cannot pop up a browser notification without the page open; the README says so.
@@ -62,7 +62,7 @@ notification on the phone lets the student mark the subtask as done.
 - **Privacy:** the texts contain only the subtask title and subject, no teacher data. The README warns that lock-screen notifications are visible to anyone holding the phone.
 
 ### Card
-- **Subtask rows with `minutes`** get a ▶ button (start). While running or paused they show a countdown, ⏸ / ▶ (pause/resume), **+x min** (when set) and ■ (stop). When the timer has finished they show "Tijd is om" with **Klaar**, **+x min** (when set) and **Stop**.
+- **Subtask rows with `minutes`** get a ▶ button (start). While running or paused they show a countdown, ⏸ / ▶ (pause/resume) and ■ (stop). When the timer has finished they show "Tijd is om" with **Klaar**, **+x min** (when set) and **Nog niet**; on the cards **Nog niet** opens the progress panel (as Stop does).
 - **The timer must be visible** even when the subtask is on another day: a timer bar at the top of the card for the child, with the subtask title and the countdown.
 - **Accessibility:**
   - an `aria-live` region announces the pre-warning and the end (politely, not on every second);
@@ -81,20 +81,19 @@ notification on the phone lets the student mark the subtask as done.
 - **Buttons:**
   - **Pauze** and **Hervat** (toggle);
   - **Stop**;
-  - **+x min** while running or paused, when the student has set extra time;
-  - when the timer has finished, **Klaar** and **+x min**.
+  - when the timer has finished: **Klaar**, **+x min** (when the student has set extra time) and **Nog niet** (opens the progress panel).
 - **Stop registers progress.** Pressing Stop opens a small panel "Hoe ver ben je?" with the same steps as the planner: 0 / 25 / 50 / 75 / 100. The current progress is preselected. There are two choices:
   - **Opslaan en stoppen** sets the subtask's progress and stops the timer, in one command.
   - **Stoppen zonder voortgang** only stops it.
 
-  The homework card's ■ button and the phone notification's **Stop** button behave the same way. The phone has no panel, so its Stop only stops the timer, and the student can register progress on a card.
+  The homework card's ■ button and **Nog niet** on the cards behave the same way. The phone has no panel, so **Nog niet** in the notification only stops the timer, and the student can register progress on a card.
 - **Idle:** "Geen timer actief". With `show_when_idle: false` the card hides itself.
 - **Rights:** the buttons follow the same rights as the timer. A user who may not control it sees the card read-only, with a short explanation.
 - **Accessibility:** big touch targets (suitable for a wall tablet), keyboard operable, an `aria-live` announcement for the pre-warning and the end, NL/EN.
 
 ### API
 - **WebSocket commands** (contract updated):
-  - `magister/homework/timer` (`entity_id`, `action`: start|pause|resume|stop|extend|done, `subtask` for start, optional `progress` with stop: 0/25/50/75/100, which sets the subtask's progress and stops the timer in one call);
+  - `magister/homework/timer` (`entity_id`, `action`: start|pause|resume|stop|extend|done (extend only when finished), `subtask` for start, optional `progress` with stop: 0/25/50/75/100, which sets the subtask's progress and stops the timer in one call);
   - `magister/homework/timer_settings` (`entity_id`, `prewarn_minutes`, `extra_minutes`).
 - **Payload:**
   - `timer: null | {subtask, state, ends_at | remaining, minutes}`;
