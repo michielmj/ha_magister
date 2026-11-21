@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Draft — awaiting PM approval** |
+| Status | **Approved by PM (2026-11-21)** |
 | Branch | `claude/jolly-mayer-i2h3oo` |
 | Refs | M15 · `frontend/src/timer-controller.ts`, `timer-views.ts`, `timer-card.ts` |
 
