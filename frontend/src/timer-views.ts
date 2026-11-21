@@ -247,7 +247,6 @@ export function renderSettingsButton(context: TimerContext): TemplateResult {
     type="button"
     class="timer-settings-btn"
     data-timer-settings-button
-    aria-haspopup="dialog"
     aria-expanded=${controller.settingsOpen ? "true" : "false"}
     title=${texts.timer.settings}
     aria-label=${texts.timer.settings}
@@ -533,5 +532,12 @@ export const timerStyles = css`
   .timer-fill {
     height: 100%;
     background: var(--timer-color);
+  }
+  @media (pointer: coarse) {
+    .timer-btn,
+    .timer-start {
+      min-height: 44px;
+      min-width: 44px;
+    }
   }
 `;

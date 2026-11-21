@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 import { formatShortDay } from "./logic";
 import { HomeworkSubscription, type LoadError } from "./subscription";
-import { formatCountdown } from "./timer";
+import { effectiveLabel, formatCountdown } from "./timer";
 import { TimerController } from "./timer-controller";
 import {
   renderActions,
@@ -55,6 +55,8 @@ export class MagisterTimerCard extends LitElement {
   declare _loadError: LoadError | undefined;
   declare _offline: boolean;
   declare _toast: string;
+  /** HA's hui-card removes hidden cards unless this is set. */
+  connectedWhileHidden: boolean;
 
   private _config: NormalizedTimerConfig | undefined;
   private _hass: Hass | undefined;
@@ -65,6 +67,7 @@ export class MagisterTimerCard extends LitElement {
 
   constructor() {
     super();
+    this.connectedWhileHidden = true;
     this._offline = false;
     this._toast = "";
     this._subscription = new HomeworkSubscription({
@@ -94,6 +97,7 @@ export class MagisterTimerCard extends LitElement {
       showError: (message) => {
         this._showToast(message);
       },
+      itemLabel: (item) => effectiveLabel(item, this._texts()),
       fallbackFocus: () => [".timer-idle"],
       lockOnDenied: true,
     });
@@ -186,7 +190,17 @@ export class MagisterTimerCard extends LitElement {
 
   protected override willUpdate(): void {
     this._timer.willUpdate();
-    this.toggleAttribute("hidden", this._hidden());
+    const hidden = this._hidden();
+    if (hidden !== this.hasAttribute("hidden")) {
+      this.toggleAttribute("hidden", hidden);
+      this.dispatchEvent(
+        new CustomEvent("card-visibility-changed", {
+          detail: { value: !hidden },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+    }
   }
 
   private _context(texts: Texts): TimerContext {
@@ -234,7 +248,7 @@ export class MagisterTimerCard extends LitElement {
     const lang = context.language === "nl" ? "nl" : "en-GB";
     const meta = format(texts.timer.meta, {
       subject: view.timer.subject,
-      label: view.timer.label,
+      label: this._timer.labelOf(view.timer.subtask),
       date: formatShortDay(view.timer.due, lang),
     });
     const stateName = texts.timer[view.state];
@@ -269,7 +283,7 @@ export class MagisterTimerCard extends LitElement {
       <p class="meta tc-meta">${meta}</p>
       <div class="tc-actions">${renderActions(context, view, "card")}</div>
       ${this._timer.locked
-        ? html`<p class="read-only" role="note">${texts.timer.read_only}</p>`
+        ? html`<p class="read-only" role="note">${this._timer.lockCode === "unauthorized" ? texts.timer.errors.unauthorized : texts.timer.read_only}</p>`
         : nothing}
       ${renderPanel(context)}
     </div>`;

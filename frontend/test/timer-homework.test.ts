@@ -132,7 +132,7 @@ describe("timer controls on subtask rows", () => {
     expect(has(card, `li[data-uid="${PARENT}:sub:z"]`)).toBe(false);
     expect(text(card, ".timer-bar .timer-bar-title")).toBe("Verre stap");
     expect(text(card, ".timer-bar .countdown")).toContain("30:00");
-    expect(text(card, ".timer-bar .meta")).toBe("Engels · Proefwerk · Tue 17 Nov");
+    expect(text(card, ".timer-bar .meta")).toBe("Engels · Test · Tue 17 Nov");
     // the bar has the controls too, so the timer can be stopped without finding the row
     expect(has(card, act("pause", "bar", `${PARENT}:sub:z`))).toBe(true);
   });
@@ -544,6 +544,34 @@ describe("errors and rollback", () => {
     rejectFirst(wsError("timer_wrong_state"));
     await flush(card);
     expect(has(card, ".toast")).toBe(false);
+  });
+
+  it("a stale refusal still settles the optimistic progress, so a push shows its value", async () => {
+    const rejects: ((error: unknown) => void)[] = [];
+    const callWS = vi.fn().mockImplementation(
+      () => new Promise((_resolve, reject) => { rejects.push(reject); }),
+    );
+    const { card, push } = await setup({ timer: finishedTimer(), callWS });
+    await click(card, act("done", "row"));
+    expect((qb(card, `${rowOf()} input[type="checkbox"]`) as unknown as HTMLInputElement).checked).toBe(true);
+    await click(card, `[data-timer-start="${SUB_B}"]`);
+    expect(rejects).toHaveLength(2);
+    rejects[0]?.(wsError("timer_wrong_state"));
+    rejects[1]?.(wsError("timer_wrong_state"));
+    await flush(card);
+    await push(
+      timerPayload([parent([sub("a", { progress: 50, last_partial: 50 }), sub("b", { minutes: 15 })])], {
+        timer: null,
+        settings: NO_EXTRA,
+      }),
+    );
+    expect(text(card, `${rowOf()} .percent`)).toBe("50%");
+    expect((qb(card, `${rowOf()} input[type="checkbox"]`) as unknown as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("shows the effective, translated label of the item in the timer bar, with a fallback", async () => {
+    const { card } = await setup({ timer: timer({ label: "Huiswerk" }) });
+    expect(text(card, ".timer-bar .meta")).toContain("Test");
   });
 });
 

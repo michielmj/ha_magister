@@ -296,7 +296,7 @@ voortgangsbediening per item.
   <img src="docs/assets/homework-card-nl-dark.png" alt="Huiswerkplanner-kaart, dark theme" width="360">
 </p>
 
-**Toevoegen:** open een dashboard, kies *Dashboard bewerken > Kaart toevoegen*, zoek op
+**Toevoegen:** open een dashboard, kies *Dashboard bewerken > Voeg kaart toe*, zoek op
 **Magister** en kies *Magister Homework planner*. Kies in de visuele editor de Huiswerklijst van
 het kind.
 
@@ -315,7 +315,7 @@ het kind.
 
 ```yaml
 type: custom:magister-homework-card
-entity: todo.kind_myschool_homework
+entity: todo.kind_myschool_huiswerk
 title: Huiswerk Kind
 show_completed: false
 show_past: false
@@ -471,18 +471,18 @@ een geweigerde actie wordt teruggedraaid met een melding. Automatiseringen (de d
 Een aparte kaart voor een dashboard (bijvoorbeeld op een wandtablet) met een groot aftellen in een ring, de deelstap, het vak,
 het label en de inleverdag, **Pauze** / **Hervat**, **Stop** (met de voortgangsvraag) en, als de tijd om is, **Klaar**, **+x min**
 en **Nog niet**. Er is geen extra resource nodig: de kaart zit in hetzelfde bestand als de huiswerkkaart. Voeg hem toe met
-*Dashboard bewerken > Kaart toevoegen > Magister Study timer*, of in YAML:
+*Dashboard bewerken > Voeg kaart toe > Magister Study timer*, of in YAML:
 
 ```yaml
 type: custom:magister-timer-card
-entity: todo.kind_myschool_homework
+entity: todo.kind_myschool_huiswerk
 title: Studietimer          # optioneel
 show_when_idle: true        # optioneel; false verbergt de kaart zolang er geen timer loopt
 ```
 
 Zonder timer staat er "Geen timer actief" (of de kaart verbergt zich met `show_when_idle: false`). Een gebruiker die de timer niet
 mag bedienen, ziet de kaart na de eerste geweigerde druk alleen-lezen, met een uitleg. De knoppen zijn groot en de kaart volgt de
-taal van Home Assistant.
+taal van Home Assistant. Twee kaarten op één pagina kondigen zich elk aan voor schermlezers, dus zet de timerkaart alleen neer waar je hem nodig hebt.
 
 ### Automatiseringen
 
@@ -494,7 +494,7 @@ triggers:
   - trigger: event
     event_type: magister_study_timer_finished
     event_data:
-      entity_id: todo.kind_myschool_homework
+      entity_id: todo.kind_myschool_huiswerk
 actions:
   - action: light.turn_on
     target:

@@ -1,5 +1,6 @@
 /** Study timer maths and helpers shared by both cards (see docs/reference/homework-websocket.md). */
-import type { StudyTimer, TimerAction, TimerSettings, TimerState } from "./types";
+import { typeLabel, type Texts } from "./translations";
+import type { HomeworkItem, StudyTimer, TimerAction, TimerSettings, TimerState } from "./types";
 
 export const PREWARN_MAX = 15;
 export const EXTRA_MAX = 30;
@@ -190,3 +191,13 @@ export function settingsOf(settings: TimerSettings | undefined): TimerSettings {
 
 /** The errors that mean this user may not operate the timer (the card then turns read-only). */
 export const NOT_ALLOWED = new Set(["not_allowed_for_role", "unauthorized"]);
+
+/** The effective, translated label of an item (override, Magister type or first manual label). */
+export function effectiveLabel(item: HomeworkItem, texts: Texts): string {
+  const override = item.override ?? null;
+  if (override?.mode === "replace") return override.label.name;
+  if (item.info_type !== null && override?.mode !== "disable") {
+    return typeLabel(texts, item.info_type, item.label ?? "");
+  }
+  return item.manual_labels[0]?.name ?? "";
+}

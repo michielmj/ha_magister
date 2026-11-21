@@ -406,7 +406,7 @@ There is one timer per child at a time.
   ends), **+x min** and **Not yet**. **+x min** appears only now, and only when the student set extra minutes: it runs the
   timer again for x minutes, and can be used each time the time runs out (the pre-warning does not repeat). **Not yet** opens
   the same question "How far are you?", so the student can register progress and stop the timer.
-- **Timer settings.** The **⚙** button on the card opens the student's settings: the **pre-warning** (off, or 1 to 15 minutes
+- **Timer settings.** The **⚙** button on the card opens the student's settings: the **pre-warning** (*Warning beforehand* on the card; off, or 1 to 15 minutes
   before the end) and the **extra minutes** (off, or 1 to 30). They are per child. The student can also ask the AI coach
   to change them (the coach cannot start or stop a timer).
 - The countdown is computed from the end time, ticks once a second only while a timer runs, and a screen reader is told
@@ -456,7 +456,7 @@ show_when_idle: true        # optional; false hides the card while no timer runs
 
 Without a timer it says "No timer active" (or hides itself with `show_when_idle: false`). A user who may not control the
 timer sees it read-only, with an explanation, after the first refused press. The buttons are large, and the card follows the
-Home Assistant language.
+Home Assistant language. Two cards on one page each announce for screen readers, so add the timer card only where it is needed.
 
 ### Automations
 

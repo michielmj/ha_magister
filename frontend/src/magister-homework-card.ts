@@ -47,6 +47,7 @@ import {
   type SubtaskEdit,
 } from "./logic";
 import { HomeworkSubscription, type LoadError } from "./subscription";
+import { effectiveLabel } from "./timer";
 import { TimerController } from "./timer-controller";
 import {
   renderActions,
@@ -1137,7 +1138,7 @@ export class MagisterHomeworkCard extends LitElement {
     const lang = this._language() === "nl" ? "nl" : "en-GB";
     const meta = format(texts.timer.meta, {
       subject: view.timer.subject,
-      label: view.timer.label,
+      label: this._timer.labelOf(view.timer.subtask),
       date: formatShortDay(view.timer.due, lang),
     });
     return html`<section class="timer-bar ${view.state}" aria-label=${texts.timer.region}>
@@ -1431,12 +1432,7 @@ export class MagisterHomeworkCard extends LitElement {
 
   /** The name of an item's (effective) label, for the reference of its subtasks. */
   private _itemLabel(item: HomeworkItem, texts: Texts): string {
-    const override = item.override ?? null;
-    if (override?.mode === "replace") return override.label.name;
-    if (item.info_type !== null && override?.mode !== "disable") {
-      return typeLabel(texts, item.info_type, item.label ?? "");
-    }
-    return item.manual_labels[0]?.name ?? "";
+    return effectiveLabel(item, texts);
   }
 
   private _renderDerived(item: HomeworkItem, texts: Texts): TemplateResult {

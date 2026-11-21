@@ -148,6 +148,27 @@ describe("idle", () => {
     expect(card.getCardSize()).toBe(2);
   });
 
+  it("stays connected while hidden and announces its visibility", async () => {
+    const { card, connection } = await setup({ config: { show_when_idle: false }, push: false });
+    expect(card.connectedWhileHidden).toBe(true);
+    const events: boolean[] = [];
+    card.addEventListener("card-visibility-changed", (event) => {
+      events.push((event as CustomEvent<{ value: boolean }>).detail.value);
+    });
+    connection.push(timerPayload([parent([sub("a")])], { timer: timer() }));
+    await flush(card);
+    connection.push(timerPayload([parent([sub("a")])], { timer: timer() }));
+    await flush(card);
+    connection.push(timerPayload([parent([sub("a")])], { timer: null }));
+    await flush(card);
+    expect(events).toEqual([true, false]);
+  });
+
+  it("shows the translated label of the item in the meta line", async () => {
+    const { card } = await setup({ timer: timer({ label: "Huiswerk" }) });
+    expect(text(card, ".tc-meta")).toContain("Test");
+  });
+
   it("is hidden without a timer when show_when_idle is false, also while loading", async () => {
     const { card, connection } = await setup({ config: { show_when_idle: false }, push: false });
     expect(card.hasAttribute("hidden")).toBe(true);
@@ -187,7 +208,7 @@ describe("a running timer", () => {
   it("shows the title, subject, label, due day, a large countdown and the state", async () => {
     const { card } = await setup({ timer: timer() });
     expect(text(card, ".tc-title")).toBe("Stap a");
-    expect(text(card, ".tc-meta")).toBe("Engels · Proefwerk · Tue 17 Nov");
+    expect(text(card, ".tc-meta")).toBe("Engels · Test · Tue 17 Nov");
     expect(text(card, ".big")).toContain("30:00");
     expect(text(card, ".state-name")).toBe("Running");
     expect(card.getCardSize()).toBe(4);
@@ -331,11 +352,11 @@ describe("rights", () => {
     expect(has(card, ".read-only")).toBe(true);
   });
 
-  it("also for a missing control permission", async () => {
+  it("also for a missing control permission, with the unauthorized text instead of the student text", async () => {
     const callWS = vi.fn().mockRejectedValue(wsError("unauthorized"));
     const { card } = await setup({ timer: timer(), callWS, language: "nl" });
     await click(card, act("pause"));
-    expect(text(card, ".read-only")).toBe(TRANSLATIONS.nl.timer.read_only);
+    expect(text(card, ".read-only")).toBe(TRANSLATIONS.nl.timer.errors.unauthorized);
     expect(text(card, ".toast span")).toBe(TRANSLATIONS.nl.timer.errors.unauthorized);
   });
 

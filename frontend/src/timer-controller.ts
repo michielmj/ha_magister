@@ -94,6 +94,8 @@ export class TimerController {
   settingsForm: SettingsForm = { prewarn: "", extra: "", error: "" };
   /** The user may not control the timer (a denial was answered): the controls are off. */
   locked = false;
+  /** The refusal code that locked the controls. */
+  lockCode: string | undefined;
   announcement = "";
   /** The server clock minus this device's clock. */
   skewMs = 0;
@@ -166,6 +168,7 @@ export class TimerController {
     this.panel = undefined;
     this.settingsOpen = false;
     this.locked = false;
+    this.lockCode = undefined;
     this._pending = undefined;
     this._settingsPending = undefined;
     this._seen = undefined;
@@ -323,6 +326,14 @@ export class TimerController {
       due: found.item.date,
       label: this.deps.itemLabel?.(found.item) ?? found.item.label ?? "",
     };
+  }
+
+  /** The effective, translated label of the timer's item (the timer's own label when it is not in the payload). */
+  labelOf(uid: string): string {
+    const fallback = this.view()?.timer.label ?? "";
+    const found = this._find(uid);
+    if (!found) return fallback;
+    return this.deps.itemLabel?.(found.item) ?? found.item.label ?? fallback;
   }
 
   /** The progress of the timer's subtask (the panel preselects it). */
@@ -488,17 +499,17 @@ export class TimerController {
         action,
         ...params,
       });
+      settle?.(true);
       if (this._pending !== token) return;
       this._pending = undefined;
-      settle?.(true);
       options.onResult?.(result.timer, this.now());
       // The push usually arrived first; otherwise keep the confirmed timer until it does.
       if (sameTimer(this.deps.payload()?.timer, result.timer)) this.override = undefined;
       else this.override = { timer: result.timer };
     } catch (error) {
+      settle?.(false);
       if (this._pending !== token) return;
       this._pending = undefined;
-      settle?.(false);
       this.override = undefined;
       const code = (error as WsError | undefined)?.code;
       this._fail(code);
@@ -512,6 +523,7 @@ export class TimerController {
     const errors = this.deps.texts().timer.errors;
     if (code !== undefined && NOT_ALLOWED.has(code) && this.deps.lockOnDenied === true) {
       this.locked = true;
+      this.lockCode = code;
     }
     this.deps.showError((code ? errors[code] : undefined) ?? errors.default ?? "");
   }
@@ -589,6 +601,7 @@ export class TimerController {
       const code = (error as WsError | undefined)?.code;
       if (code !== undefined && NOT_ALLOWED.has(code) && this.deps.lockOnDenied === true) {
         this.locked = true;
+        this.lockCode = code;
       }
       // Back in the panel with the reason, so the input is not lost.
       this.settingsForm = { ...form, error: (code ? errors[code] : undefined) ?? errors.default ?? "" };
