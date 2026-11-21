@@ -133,6 +133,43 @@ export interface RespondResult {
   proposal: Proposal;
 }
 
+export type TimerState = "running" | "paused" | "finished";
+
+/** The child's study timer (since 1.10.0). Counting down is done on the client from `ends_at` / `remaining`. */
+export interface StudyTimer {
+  /** `<item uid>:sub:<id>` */
+  subtask: string;
+  title: string;
+  subject: string;
+  /** Local due date of the item, YYYY-MM-DD. */
+  due: string;
+  label: string;
+  state: TimerState;
+  /** Running and finished: the end (when it ran out, for finished). */
+  ends_at?: string;
+  /** Paused: the whole seconds that are left. */
+  remaining?: number;
+  /** The length of the current countdown in minutes (the estimate, or the extra minutes after an extension). */
+  minutes: number;
+  started_at: string;
+}
+
+/** The student's timer settings (since 1.10.0); null is off. */
+export interface TimerSettings {
+  prewarn_minutes: number | null;
+  extra_minutes: number | null;
+}
+
+export type TimerAction = "start" | "pause" | "resume" | "stop" | "extend" | "done";
+
+export interface TimerResult {
+  timer: StudyTimer | null;
+}
+
+export interface TimerSettingsResult {
+  timer_settings: TimerSettings;
+}
+
 export interface HomeworkPayload {
   available: boolean;
   items: HomeworkItem[];
@@ -152,6 +189,10 @@ export interface HomeworkPayload {
   daily_max_weekdays?: number[];
   /** Since 1.9.0: the open proposals, then those answered or expired in the last 14 days. */
   proposals?: Proposal[];
+  /** Since 1.10.0: the child's study timer, null when there is none; absent on older backends. */
+  timer?: StudyTimer | null;
+  /** Since 1.10.0: the student's timer settings; absent on older backends. */
+  timer_settings?: TimerSettings;
 }
 
 export interface SetProgressResult {
@@ -182,6 +223,15 @@ export interface CardConfig {
   language?: CardLanguage;
   /** Generated once by the visual editor; keeps the remembered switches per card. */
   card_id?: string;
+}
+
+/** Config of the separate timer card (since 1.10.0). */
+export interface TimerCardConfig {
+  type: string;
+  entity: string;
+  title?: string;
+  /** Show "no timer" when idle (default true); false hides the card. */
+  show_when_idle?: boolean;
 }
 
 export type Unsubscribe = () => Promise<void> | void;

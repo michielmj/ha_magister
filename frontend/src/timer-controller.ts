@@ -1,0 +1,639 @@
+import { STEPS, snapToStep } from "./logic";
+import {
+  NOT_ALLOWED,
+  effectiveState,
+  elapsedFraction,
+  estimateSkew,
+  optimisticTimer,
+  prewarnThreshold,
+  remainingSeconds,
+  sameSettings,
+  sameTimer,
+  settingsOf,
+  timerKey,
+  validateSettings,
+  type SubtaskInfo,
+} from "./timer";
+import { format, type Texts } from "./translations";
+import type {
+  Hass,
+  HomeworkItem,
+  HomeworkPayload,
+  StudyTimer,
+  Subtask,
+  TimerAction,
+  TimerResult,
+  TimerSettings,
+  TimerSettingsResult,
+  TimerState,
+  WsError,
+} from "./types";
+
+export const TIMER = "magister/homework/timer";
+export const TIMER_SETTINGS = "magister/homework/timer_settings";
+/** How long an announcement stays in the live region. */
+const ANNOUNCE_MS = 10_000;
+
+/** What the controller needs from the element that owns it. */
+export interface TimerHost {
+  readonly isConnected: boolean;
+  readonly shadowRoot: ShadowRoot | null;
+  readonly updateComplete: Promise<unknown>;
+  requestUpdate(): void;
+}
+
+/** What the controller needs to know about the card around it. */
+export interface TimerDeps {
+  hass(): Hass | undefined;
+  entity(): string | undefined;
+  payload(): HomeworkPayload | undefined;
+  /** Connected and the data is available: the buttons work. */
+  canWrite(): boolean;
+  texts(): Texts;
+  showError(message: string): void;
+  /** The (effective) label of an item, for the optimistic timer. */
+  itemLabel?(item: HomeworkItem): string;
+  /** Focus targets to try when the timer's own controls have vanished. */
+  fallbackFocus?(): string[];
+  /**
+   * Apply an optimistic progress to a subtask; the returned function settles it (true: the
+   * backend accepted it, false: roll it back).
+   */
+  beginProgress?(uid: string, progress: number): (ok: boolean) => void;
+  /** A denial (`not_allowed_for_role`, `unauthorized`) turns the controls off for the rest of the session. */
+  lockOnDenied?: boolean;
+}
+
+export interface TimerView {
+  timer: StudyTimer;
+  state: TimerState;
+  remaining: number;
+  fraction: number;
+}
+
+export interface ProgressPanel {
+  uid: string;
+  selected: number;
+}
+
+export interface SettingsForm {
+  prewarn: string;
+  extra: string;
+  error: string;
+}
+
+/** The timer of one child: optimistic changes, the countdown, announcements, panels. */
+export class TimerController {
+  /** The optimistic timer, until the backend has answered. */
+  override: { timer: StudyTimer | null } | undefined;
+  settingsOverride: TimerSettings | undefined;
+  /** The subtask whose start waits for the "replace the running timer?" confirmation. */
+  confirmUid: string | undefined;
+  panel: ProgressPanel | undefined;
+  settingsOpen = false;
+  settingsForm: SettingsForm = { prewarn: "", extra: "", error: "" };
+  /** The user may not control the timer (a denial was answered): the controls are off. */
+  locked = false;
+  announcement = "";
+  /** The server clock minus this device's clock. */
+  skewMs = 0;
+
+  private _token = 0;
+  private _pending: number | undefined;
+  private _settingsPending: number | undefined;
+  private _ticker: ReturnType<typeof setInterval> | undefined;
+  private _announceTimer: ReturnType<typeof setTimeout> | undefined;
+  private _seen:
+    | {
+        key: string;
+        prewarnDone: boolean;
+        endDone: boolean;
+        sawActive: boolean;
+        lastRemaining: number | undefined;
+      }
+    | undefined;
+
+  constructor(
+    private readonly host: TimerHost,
+    private readonly deps: TimerDeps,
+  ) {}
+
+  // -- the data --
+
+  now(): number {
+    return Date.now();
+  }
+
+  timer(): StudyTimer | null {
+    if (this.override) return this.override.timer;
+    return this.deps.payload()?.timer ?? null;
+  }
+
+  settings(): TimerSettings {
+    return this.settingsOverride ?? settingsOf(this.deps.payload()?.timer_settings);
+  }
+
+  view(): TimerView | undefined {
+    const timer = this.timer();
+    if (!timer) return undefined;
+    const now = this.now();
+    return {
+      timer,
+      state: effectiveState(timer, now, this.skewMs),
+      remaining: remainingSeconds(timer, now, this.skewMs),
+      fraction: elapsedFraction(timer, now, this.skewMs),
+    };
+  }
+
+  /** The timer when it belongs to this subtask. */
+  viewFor(uid: string): TimerView | undefined {
+    const view = this.view();
+    return view?.timer.subtask === uid ? view : undefined;
+  }
+
+  /** Can "+x min" be offered: only when the timer has run out and extra minutes are set. */
+  extraMinutes(view: TimerView | undefined): number | null {
+    return view?.state === "finished" ? this.settings().extra_minutes : null;
+  }
+
+  // -- lifecycle --
+
+  /** Another entity: nothing of the old child may stay. */
+  reset(): void {
+    this.override = undefined;
+    this.settingsOverride = undefined;
+    this.confirmUid = undefined;
+    this.panel = undefined;
+    this.settingsOpen = false;
+    this.locked = false;
+    this._pending = undefined;
+    this._settingsPending = undefined;
+    this._seen = undefined;
+    this.skewMs = 0;
+    this._setAnnouncement("");
+    this.sync();
+  }
+
+  connected(): void {
+    this.sync();
+  }
+
+  disconnected(): void {
+    this._stopTicker();
+    if (this._announceTimer) clearTimeout(this._announceTimer);
+    this._announceTimer = undefined;
+  }
+
+  /** A payload arrived: confirmed changes replace the optimistic ones. */
+  onPayload(): void {
+    if (this._pending === undefined) this.override = undefined;
+    if (this._settingsPending === undefined) this.settingsOverride = undefined;
+    this._validate();
+    this.observe();
+    this.sync();
+  }
+
+  /** Panels and confirmations whose target is gone (or that cannot be used now) are closed. */
+  private _validate(): void {
+    const timer = this.timer();
+    if (this.panel && (!timer || timer.subtask !== this.panel.uid)) this.panel = undefined;
+    if (this.confirmUid && !this._info(this.confirmUid)) this.confirmUid = undefined;
+  }
+
+  /** Call from willUpdate: confirmations and panels cannot stay while the card is read-only. */
+  willUpdate(): void {
+    if (!this.deps.canWrite()) {
+      this.confirmUid = undefined;
+    }
+    this._validate();
+  }
+
+  // -- ticking and announcements --
+
+  /** Tick once a second, only while a timer counts down. */
+  sync(): void {
+    const view = this.view();
+    const counting = view?.state === "running" && view.timer.state === "running";
+    if (counting && this.host.isConnected) {
+      this._ticker ??= setInterval(() => {
+        this.tick();
+      }, 1000);
+    } else {
+      this._stopTicker();
+    }
+  }
+
+  private _stopTicker(): void {
+    if (this._ticker) clearInterval(this._ticker);
+    this._ticker = undefined;
+  }
+
+  tick(): void {
+    this.observe();
+    this.host.requestUpdate();
+    this.sync();
+  }
+
+  get ticking(): boolean {
+    return this._ticker !== undefined;
+  }
+
+  /**
+   * Announce the pre-warning moment and the end (once each, politely): only when the card sees
+   * the moment pass, never for a timer that was already past it when the card opened.
+   */
+  observe(): void {
+    const view = this.view();
+    if (!view) {
+      this._seen = undefined;
+      return;
+    }
+    const { timer, state, remaining } = view;
+    const key = timerKey(timer);
+    if (this._seen?.key !== key) {
+      this._seen = { key, prewarnDone: false, endDone: false, sawActive: false, lastRemaining: undefined };
+    }
+    const seen = this._seen;
+    const texts = this.deps.texts();
+    if (state === "running" || state === "paused") {
+      seen.sawActive = true;
+      seen.endDone = false;
+      if (!seen.prewarnDone) {
+        const threshold = prewarnThreshold(timer, this.settings());
+        if (threshold === undefined) {
+          seen.prewarnDone = true;
+        } else if (remaining <= threshold) {
+          seen.prewarnDone = true;
+          if (state === "running" && seen.lastRemaining !== undefined && seen.lastRemaining > threshold) {
+            const n = Math.max(Math.round(threshold / 60), 1);
+            this._setAnnouncement(
+              format(n === 1 ? texts.timer.announce_prewarn_one : texts.timer.announce_prewarn, {
+                n,
+                title: timer.title,
+              }),
+            );
+          }
+        }
+      }
+    } else {
+      // Finished: the pre-warning moment has passed for good.
+      seen.prewarnDone = true;
+      if (!seen.endDone) {
+        seen.endDone = true;
+        if (seen.sawActive) {
+          this._setAnnouncement(format(texts.timer.announce_end, { title: timer.title }));
+        }
+      }
+    }
+    seen.lastRemaining = remaining;
+  }
+
+  private _setAnnouncement(text: string): void {
+    if (this._announceTimer) clearTimeout(this._announceTimer);
+    this._announceTimer = undefined;
+    this.announcement = text;
+    this.host.requestUpdate();
+    if (text !== "") {
+      this._announceTimer = setTimeout(() => {
+        this.announcement = "";
+        this._announceTimer = undefined;
+        this.host.requestUpdate();
+      }, ANNOUNCE_MS);
+    }
+  }
+
+  // -- subtasks --
+
+  private _find(uid: string): { subtask: Subtask; item: HomeworkItem } | undefined {
+    for (const item of this.deps.payload()?.items ?? []) {
+      const subtask = item.subtasks?.find((candidate) => candidate.uid === uid);
+      if (subtask) return { subtask, item };
+    }
+    return undefined;
+  }
+
+  private _info(uid: string): SubtaskInfo | undefined {
+    const found = this._find(uid);
+    if (!found || typeof found.subtask.minutes !== "number") return undefined;
+    return {
+      uid,
+      title: found.subtask.title,
+      minutes: found.subtask.minutes,
+      subject: found.item.subject,
+      due: found.item.date,
+      label: this.deps.itemLabel?.(found.item) ?? found.item.label ?? "",
+    };
+  }
+
+  /** The progress of the timer's subtask (the panel preselects it). */
+  progressOf(uid: string): number {
+    return this._find(uid)?.subtask.progress ?? 0;
+  }
+
+  /** Controls are off: no connection, no data, or a denial was answered. */
+  get disabled(): boolean {
+    return !this.deps.canWrite() || this.locked;
+  }
+
+  // -- actions --
+
+  /** The ▶ button of a subtask: confirm first when another timer runs or is paused. */
+  start(uid: string, where: string, replace = false): void {
+    if (this.disabled) return;
+    const info = this._info(uid);
+    if (!info) return;
+    const current = this.view();
+    const busy = current !== undefined && current.state !== "finished";
+    if (busy && !replace) {
+      this.confirmUid = uid;
+      this.host.requestUpdate();
+      this._focus([`.timer-confirm [data-timer-cancel]`]);
+      return;
+    }
+    this.confirmUid = undefined;
+    const next = optimisticTimer("start", current?.timer ?? null, this.now(), {
+      info,
+      skewMs: this.skewMs,
+    });
+    void this._run(
+      "start",
+      { subtask: uid, ...(busy ? { replace: true } : {}) },
+      next,
+      {
+        focus: [timerSelector("pause", uid, where), timerSelector("pause", uid, "bar")],
+        onResult: (timer, receivedMs) => {
+          const skew = estimateSkew(timer, receivedMs);
+          if (skew !== undefined) this.skewMs = skew;
+        },
+      },
+    );
+  }
+
+  cancelConfirm(uid: string): void {
+    this.confirmUid = undefined;
+    this.host.requestUpdate();
+    this._focus([`[data-timer-start="${cssEscape(uid)}"]`]);
+  }
+
+  pause(where: string): void {
+    const view = this.view();
+    if (this.disabled || view?.state !== "running") return;
+    const next = optimisticTimer("pause", view.timer, this.now(), { secondsLeft: view.remaining });
+    void this._run("pause", {}, next, {
+      focus: [timerSelector("resume", view.timer.subtask, where)],
+    });
+  }
+
+  resume(where: string): void {
+    const view = this.view();
+    if (this.disabled || view?.state !== "paused") return;
+    const next = optimisticTimer("resume", view.timer, this.now(), { skewMs: this.skewMs });
+    void this._run("resume", {}, next, {
+      focus: [timerSelector("pause", view.timer.subtask, where)],
+    });
+  }
+
+  /** "+x min": only when the timer has run out and the student set extra minutes. */
+  extend(where: string): void {
+    const view = this.view();
+    const extra = this.settings().extra_minutes;
+    if (this.disabled || view?.state !== "finished" || !extra) return;
+    const next = optimisticTimer("extend", view.timer, this.now(), { extra, skewMs: this.skewMs });
+    void this._run("extend", {}, next, {
+      focus: [timerSelector("pause", view.timer.subtask, where), timerSelector("pause", view.timer.subtask, "bar")],
+    });
+  }
+
+  /** Klaar: the subtask is done and the timer is gone. */
+  done(): void {
+    const view = this.view();
+    if (this.disabled || view?.state !== "finished") return;
+    const uid = view.timer.subtask;
+    void this._run("done", {}, null, { progress: { uid, value: 100 }, focus: this._afterFocus(uid) });
+  }
+
+  /** Stop and "Nog niet" open the panel "Hoe ver ben je?". */
+  openPanel(): void {
+    const view = this.view();
+    if (this.disabled || !view) return;
+    const uid = view.timer.subtask;
+    this.settingsOpen = false;
+    this.panel = { uid, selected: snapToStep(this.progressOf(uid)) };
+    this.host.requestUpdate();
+    this._focus([`.timer-panel [role="radio"][tabindex="0"]`]);
+  }
+
+  selectStep(value: number): void {
+    if (!this.panel || !(STEPS as readonly number[]).includes(value)) return;
+    this.panel = { ...this.panel, selected: value };
+    this.host.requestUpdate();
+    this._focus([`.timer-panel [role="radio"][tabindex="0"]`]);
+  }
+
+  closePanel(): void {
+    if (!this.panel) return;
+    this.panel = undefined;
+    this.host.requestUpdate();
+    this._focus([`[data-timer-act="stop"]`, `[data-timer-act="not_yet"]`]);
+  }
+
+  /** "Opslaan en stoppen" (with the chosen progress) or "Stoppen zonder voortgang". */
+  stop(withProgress: boolean): void {
+    const panel = this.panel;
+    const view = this.view();
+    if (this.disabled || !panel || !view || view.timer.subtask !== panel.uid) return;
+    this.panel = undefined;
+    void this._run(
+      "stop",
+      withProgress ? { progress: panel.selected } : {},
+      null,
+      {
+        ...(withProgress ? { progress: { uid: panel.uid, value: panel.selected } } : {}),
+        focus: this._afterFocus(panel.uid),
+      },
+    );
+  }
+
+  private _afterFocus(uid: string): string[] {
+    return [`[data-timer-start="${cssEscape(uid)}"]`, ...(this.deps.fallbackFocus?.() ?? [])];
+  }
+
+  private async _run(
+    action: TimerAction,
+    params: Record<string, unknown>,
+    next: StudyTimer | null,
+    options: {
+      progress?: { uid: string; value: number };
+      focus?: string[];
+      onResult?: (timer: StudyTimer | null, receivedMs: number) => void;
+    },
+  ): Promise<void> {
+    const hass = this.deps.hass();
+    const entity = this.deps.entity();
+    if (!hass || !entity) return;
+    const token = ++this._token;
+    this._pending = token;
+    this.override = { timer: next };
+    const settle = options.progress
+      ? this.deps.beginProgress?.(options.progress.uid, options.progress.value)
+      : undefined;
+    this.host.requestUpdate();
+    this.observe();
+    this.sync();
+    if (options.focus) this._focus(options.focus);
+    try {
+      const result = await hass.callWS<TimerResult>({
+        type: TIMER,
+        entity_id: entity,
+        action,
+        ...params,
+      });
+      if (this._pending !== token) return;
+      this._pending = undefined;
+      settle?.(true);
+      options.onResult?.(result.timer, this.now());
+      // The push usually arrived first; otherwise keep the confirmed timer until it does.
+      if (sameTimer(this.deps.payload()?.timer, result.timer)) this.override = undefined;
+      else this.override = { timer: result.timer };
+    } catch (error) {
+      if (this._pending !== token) return;
+      this._pending = undefined;
+      settle?.(false);
+      this.override = undefined;
+      const code = (error as WsError | undefined)?.code;
+      this._fail(code);
+    }
+    this.host.requestUpdate();
+    this.observe();
+    this.sync();
+  }
+
+  private _fail(code: string | undefined): void {
+    const errors = this.deps.texts().timer.errors;
+    if (code !== undefined && NOT_ALLOWED.has(code) && this.deps.lockOnDenied === true) {
+      this.locked = true;
+    }
+    this.deps.showError((code ? errors[code] : undefined) ?? errors.default ?? "");
+  }
+
+  // -- settings --
+
+  openSettings(): void {
+    const settings = this.settings();
+    this.panel = undefined;
+    this.settingsForm = {
+      prewarn: settings.prewarn_minutes === null ? "" : String(settings.prewarn_minutes),
+      extra: settings.extra_minutes === null ? "" : String(settings.extra_minutes),
+      error: "",
+    };
+    this.settingsOpen = true;
+    this.host.requestUpdate();
+    this._focus([`.timer-settings select`]);
+  }
+
+  closeSettings(): void {
+    this.settingsOpen = false;
+    this.host.requestUpdate();
+    this._focus([`[data-timer-settings-button]`]);
+  }
+
+  patchSettings(patch: Partial<SettingsForm>): void {
+    this.settingsForm = { ...this.settingsForm, ...patch, error: "" };
+    this.host.requestUpdate();
+  }
+
+  async saveSettings(): Promise<void> {
+    const hass = this.deps.hass();
+    const entity = this.deps.entity();
+    if (this.disabled || !hass || !entity || !this.settingsOpen) return;
+    const form = this.settingsForm;
+    const checked = validateSettings({ prewarn_minutes: form.prewarn, extra_minutes: form.extra });
+    const errors = this.deps.texts().timer.errors;
+    if (!checked.ok) {
+      this.settingsForm = { ...form, error: errors.invalid_format ?? "" };
+      this.host.requestUpdate();
+      return;
+    }
+    const wanted = checked.settings;
+    // Nothing changed: nothing to send.
+    if (sameSettings(wanted, this.settings())) {
+      this.closeSettings();
+      return;
+    }
+    const token = ++this._token;
+    this._settingsPending = token;
+    this.settingsOverride = wanted;
+    this.settingsOpen = false;
+    this.host.requestUpdate();
+    this.observe();
+    this._focus([`[data-timer-settings-button]`]);
+    try {
+      const result = await hass.callWS<TimerSettingsResult>({
+        type: TIMER_SETTINGS,
+        entity_id: entity,
+        prewarn_minutes: wanted.prewarn_minutes,
+        extra_minutes: wanted.extra_minutes,
+      });
+      if (this._settingsPending !== token) return;
+      this._settingsPending = undefined;
+      const stored = settingsOf(result.timer_settings);
+      if (sameSettings(settingsOf(this.deps.payload()?.timer_settings), stored)) {
+        this.settingsOverride = undefined;
+      } else {
+        this.settingsOverride = stored;
+      }
+    } catch (error) {
+      if (this._settingsPending !== token) return;
+      this._settingsPending = undefined;
+      this.settingsOverride = undefined;
+      const code = (error as WsError | undefined)?.code;
+      if (code !== undefined && NOT_ALLOWED.has(code) && this.deps.lockOnDenied === true) {
+        this.locked = true;
+      }
+      // Back in the panel with the reason, so the input is not lost.
+      this.settingsForm = { ...form, error: (code ? errors[code] : undefined) ?? errors.default ?? "" };
+      this.settingsOpen = true;
+      this._focus([`.timer-settings .timer-error`, `.timer-settings select`]);
+    }
+    this.host.requestUpdate();
+    this.observe();
+  }
+
+  /** After a render: the selects show the form's values (the options are rendered after the select is set). */
+  afterRender(): void {
+    if (!this.settingsOpen) return;
+    const form = this.settingsForm;
+    for (const [selector, wanted] of [
+      ["#timer-prewarn", form.prewarn],
+      ["#timer-extra", form.extra],
+    ] as const) {
+      const select = this.host.shadowRoot?.querySelector<HTMLSelectElement>(selector);
+      if (select && select.value !== wanted) select.value = wanted;
+    }
+  }
+
+  // -- focus --
+
+  private _focus(selectors: string[]): void {
+    void this.host.updateComplete.then(() => {
+      for (const selector of selectors) {
+        const element = this.host.shadowRoot?.querySelector<HTMLElement>(selector);
+        if (element) {
+          element.focus();
+          return;
+        }
+      }
+    });
+  }
+}
+
+/** The selector of one timer button: its action, the subtask and where it sits ("row", "bar", "card"). */
+export function timerSelector(act: string, uid: string, where: string): string {
+  return `[data-timer-act="${act}"][data-timer-uid="${cssEscape(uid)}"][data-timer-where="${where}"]`;
+}
+
+function cssEscape(value: string): string {
+  return typeof CSS !== "undefined" && typeof CSS.escape === "function"
+    ? CSS.escape(value)
+    : value.replace(/["\\]/g, "\\$&");
+}

@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Study timer with notifications (M15, phase A: backend). Phase B (the cards) follows.
+## 1.10.0
+
+Study timer with notifications, on the homework card and on a new timer card. Released 2026-11-21.
 
 - **Timer.** A timer on a subtask with an estimated time, one per child, paused and resumed, in the backend: it keeps
   running when the card is closed and survives a restart (an end that passed while Home Assistant was down finishes at
@@ -23,6 +25,22 @@ Study timer with notifications (M15, phase A: backend). Phase B (the cards) foll
   `magister.start_study_timer` and `magister.stop_study_timer`, `list_homework` and `get_progress` show a running
   timer. The AI cannot start or stop a timer. Logbook entries for start, pause, resume, stop, end, extension and
   "deelstap afgerond via melding". Diagnostics show counts only.
+- **Homework card.** Subtasks with an estimated time get a ▶ button. While a timer runs or is paused the row shows the
+  countdown with ⏸ / ▶ and ■; when it has run out it shows "Tijd is om" with **Klaar**, **+x min** (only then, and only
+  when the student set extra minutes) and **Nog niet**. Starting while another timer runs asks for confirmation and
+  then replaces it. A timer bar at the top shows the subtask and the countdown, also when the subtask is on another
+  day. **■ Stop** and **Nog niet** open the panel "Hoe ver ben je?" (0/25/50/75/100, the current progress preselected):
+  **Opslaan en stoppen** sets the progress and stops in one call, **Stoppen zonder voortgang** only stops. A ⚙
+  **Timerinstellingen** panel sets the pre-warning (off or 1-15) and the extra minutes (off or 1-30). The countdown is
+  computed from the end time (corrected for a device clock that is off, using the answer to the start), ticks once a
+  second only while a timer runs, and a polite `aria-live` region announces the pre-warning and the end, never every
+  second. Optimistic with rollback and translated errors; keyboard operable; Dutch and English. New screenshots.
+- **Timer card.** A new card `custom:magister-timer-card` in the same bundle (no extra resource, its own entry in the
+  card picker, with a visual editor; options `entity`, `title`, `show_when_idle`). A large countdown in a progress
+  ring, the subtask, subject, label and due day, **Pauze** / **Hervat**, **Stop** (progress panel), and when time is up
+  **Klaar**, **+x min** and **Nog niet**. "Geen timer actief" when idle, or hidden with `show_when_idle: false`. Large
+  touch targets for a wall tablet. A user who may not control the timer sees it read-only with an explanation (after
+  the first refused press). New screenshots.
 - **Downgrade.** The store is version 1.9 (major still 1): 1.9.x and older read it, ignore the timer and the settings
   and drop them when they save again, so a running timer is lost.
 
