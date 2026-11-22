@@ -428,10 +428,30 @@ There is one timer per child at a time.
   The notification is time-sensitive on iOS, and a new one replaces the old one (one per child).
 - **In Home Assistant** the end also creates a notification (the bell). **It is visible to every Home Assistant user**,
   not only the student; its title has the child's **first name** only ("Studietimer *name*: tijd is om"). It goes away when the
-  timer is extended, stopped or completed. Home Assistant cannot show a pop-up in a browser unless the page is open, so the
-  website shows nothing by itself.
+  timer is extended, stopped or completed. A pop-up in the browser comes from the *browser notifications* below.
 - **Privacy.** A phone notification shows the subtask's title and the subject, so anyone who holds the phone can read it on
   the **lock screen**. Phone notifications go **only** to the devices you chose for that child, **never to parents**.
+
+### Browser notifications
+
+*Since 1.10.1.* When a Magister card is open in a browser, that browser can show a **notification** at the pre-warning
+("Nog 5 minuten: *subtask* (*subject*)") and when the time is up ("Tijd is om: *subtask* (*subject*)"), in the language of Home
+Assistant, without buttons; clicking it brings the window to the front.
+
+- **Switch it on.** Open the **⚙** panel of the homework card, or the **⚙ Notifications** button of the timer card, and
+  tick **Notifications in this browser**. The browser asks for permission: choose *Allow*. **Sound** (on by default) plays a
+  short beep with the notification; untick it for a silent notification. If sound does not play, the browser blocks it until
+  you have clicked on the page.
+- **Only while the page is open.** A notification appears only for a moment that passes while a Magister card is open
+  in that browser; another tab in front, or a tab in the background, is fine (a one-shot timer wakes the page at the
+  moment). A timer that already ran out before the page was opened does not notify. With several cards or tabs open you
+  still get one notification per moment.
+- **Per browser.** The choice is stored in the browser and is not shared with other browsers, devices or users. A parent who
+  opens the card on their own computer can switch it on for that browser too.
+- **Not available** when the browser does not allow notifications (the panel says so and how to change it), when Home
+  Assistant is not opened over **https**, or in the **Home Assistant app**: the app uses its own push notifications (see
+  above). **Chrome on Android** is not supported either: it refuses notifications from a web page, so the panel says the
+  browser does not support them.
 
 ### Who may operate it
 

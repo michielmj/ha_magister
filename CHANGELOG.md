@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 1.10.1
+
+Browser notifications for the study timer. Released 2026-11-21.
+
+- **Browser notifications.** A browser with a Magister card open shows a notification at the pre-warning ("Nog n
+  minuten: titel (vak)") and when the time is up ("Tijd is om: titel (vak)"), in the language of Home Assistant, one tag
+  per child, no buttons; clicking focuses the window. Only for moments reached while the page is open. One notification per
+  moment per browser, also with several cards or tabs (`BroadcastChannel` with a `localStorage` fallback).
+- **Settings per browser** (`localStorage`, nothing in the backend): "Meldingen in deze browser" and "Geluid" (a short
+  built-in tone, on by default), in the ⚙ panel of the homework card and behind a "Meldingen" button on the timer card.
+  Hidden with an explanation when the browser does not support notifications, on http, and in the Home Assistant app
+  (which keeps its own push notifications); a denied permission is explained.
+- **Hidden tabs.** One-shot timers for the pre-warning and the end wake the page at the moment, so another tab in
+  front is fine. The end notification replaces the pre-warning on screen and alerts again (`renotify`). A Web Lock
+  (where the browser has it) makes the claim atomic across tabs. The sound is unlocked by the first click, tap or key press
+  after a reload.
+- **Chrome on Android** refuses `new Notification()`: switching on is probed once, and a browser that throws is shown as
+  "not supported" and the whole section, the sound option included, is switched off there. Elsewhere the tone plays
+  only with a notification that was switched on and allowed.
+- The timer payload gained `prewarned` (`true` once the pre-warning was sent or skipped, as in an extension run): a card
+  that first sees it does not announce or notify a pre-warning. The "Meldingen in deze browser" checkbox moved out of the
+  settings form (it applies at once, Cancel and Save do not affect it).
+
 ## 1.10.0
 
 Study timer with notifications, on the homework card and on a new timer card. Released 2026-11-21.

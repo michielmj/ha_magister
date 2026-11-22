@@ -1,4 +1,6 @@
 import { css, html, nothing, type TemplateResult } from "lit";
+import { live } from "lit/directives/live.js";
+import { notifyState, setEnabled, setSound } from "./notifications";
 import { STEPS, formatMinutes } from "./logic";
 import { EXTRA_MAX, PREWARN_MAX, formatCountdown } from "./timer";
 import type { TimerController, TimerView } from "./timer-controller";
@@ -259,6 +261,79 @@ export function renderSettingsButton(context: TimerContext): TemplateResult {
 
 const range = (max: number): number[] => Array.from({ length: max }, (_, index) => index + 1);
 
+/** "Meldingen in deze browser" and "Geluid": per browser, so also for a viewer who may not control the timer. */
+export function renderNotifySettings(context: TimerContext): TemplateResult {
+  const { texts } = context;
+  const state = notifyState();
+  const text = texts.timer;
+  let body: TemplateResult;
+  if (state.availability !== "ok") {
+    const reason = {
+      app: text.notify_app,
+      insecure: text.notify_insecure,
+      unsupported: text.notify_unsupported,
+    }[state.availability];
+    body = html`<p class="meta notify-unavailable">${reason}</p>`;
+  } else {
+    body = html`<label class="notify-row">
+        <input
+          type="checkbox"
+          id="timer-notify"
+          .checked=${live(state.active)}
+          @change=${(event: Event) => {
+            void setEnabled((event.target as HTMLInputElement).checked, text.notify_confirm);
+          }}
+        />
+        <span>${text.notify_enable}</span>
+      </label>
+      ${state.permission === "denied"
+        ? html`<p class="timer-error notify-denied" role="status">${text.notify_denied}</p>
+            <p class="meta">${text.notify_denied_hint}</p>`
+        : nothing}
+      ${state.active
+        ? html`<label class="notify-row">
+            <input
+              type="checkbox"
+              id="timer-notify-sound"
+              .checked=${live(state.sound)}
+              @change=${(event: Event) => {
+                setSound((event.target as HTMLInputElement).checked);
+              }}
+            />
+            <span>${text.notify_sound}</span>
+          </label>`
+        : nothing}
+      <p class="meta">${text.notify_hint}</p>`;
+  }
+  return html`<div class="timer-notify" role="group" aria-label=${text.notify_title}>${body}</div>`;
+}
+
+/** The small "Meldingen" button of the timer card, which opens that panel. */
+export function renderNotifyButton(context: TimerContext, open: boolean, toggle: () => void): TemplateResult {
+  const { texts } = context;
+  return html`<div class="notify-bar">
+    <button
+      type="button"
+      class="notify-btn"
+      data-notify-button
+      aria-expanded=${open ? "true" : "false"}
+      @click=${toggle}
+    ><span aria-hidden="true">⚙</span> ${texts.timer.notify_title}</button>
+    ${open
+      ? html`<div
+          class="timer-settings notify-panel"
+          tabindex="-1"
+          @keydown=${(event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              toggle();
+            }
+          }}
+        >${renderNotifySettings(context)}</div>`
+      : nothing}
+  </div>`;
+}
+
 /** The pre-warning and the extra minutes: off, or a number of minutes. */
 export function renderSettings(context: TimerContext): TemplateResult | typeof nothing {
   const { controller, texts } = context;
@@ -322,7 +397,16 @@ export function renderSettings(context: TimerContext): TemplateResult | typeof n
       }}>${texts.timer.cancel}</button>
       <button type="submit" class="primary" ?disabled=${off}>${texts.timer.save}</button>
     </div>
-  </form>`;
+  </form>
+  <div
+    class="timer-settings notify-panel notify-joined"
+    @keydown=${(event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        controller.closeSettings();
+      }
+    }}
+  >${renderNotifySettings(context)}</div>`;
 }
 
 /** Everything the timer buttons and panels need, in one stylesheet shared by both cards. */
@@ -407,6 +491,51 @@ export const timerStyles = css`
   .timer-start {
     color: var(--timer-color);
   }
+  .timer-notify {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--divider-color);
+  }
+  .notify-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 36px;
+    cursor: pointer;
+  }
+  .notify-row input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--primary-color);
+  }
+  .notify-row input:focus-visible,
+  .notify-btn:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+  .notify-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-top: 12px;
+  }
+  .notify-bar .notify-panel {
+    align-self: stretch;
+  }
+  .notify-btn {
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--divider-color);
+    border-radius: 18px;
+    background: transparent;
+    color: var(--secondary-text-color);
+    font: inherit;
+    font-size: 0.9em;
+    cursor: pointer;
+  }
   .timer-settings-btn {
     min-width: 36px;
     min-height: 36px;
@@ -431,6 +560,23 @@ export const timerStyles = css`
     border: 1px solid color-mix(in srgb, var(--timer-color) 50%, transparent);
     background: color-mix(in srgb, var(--timer-color) 8%, transparent);
     font-size: 0.9em;
+  }
+  /* In the homework card's panel the notification section continues the form: one box, a divider between. */
+  .timer-settings:not(.notify-panel):has(+ .notify-joined) {
+    margin-bottom: 0;
+    border-bottom: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .notify-joined {
+    margin-top: 0;
+    border-top: 1px solid var(--divider-color);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+  .notify-joined .timer-notify {
+    padding-top: 0;
+    border-top: 0;
   }
   .timer-confirm {
     flex-direction: row;

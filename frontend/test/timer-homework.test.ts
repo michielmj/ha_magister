@@ -153,12 +153,13 @@ describe("timer controls on subtask rows", () => {
   it("ticks only while a timer runs", async () => {
     const { card, push } = await setup();
     const base = vi.getTimerCount();
+    // the ticker, and a one-shot timer for the end (no pre-warning is set)
     await push(timerPayload([parent([sub("a")])], { timer: timer() }));
-    expect(vi.getTimerCount()).toBe(base + 1);
+    expect(vi.getTimerCount()).toBe(base + 2);
     await push(timerPayload([parent([sub("a")])], { timer: pausedTimer() }));
     expect(vi.getTimerCount()).toBe(base);
     await push(timerPayload([parent([sub("a")])], { timer: timer() }));
-    expect(vi.getTimerCount()).toBe(base + 1);
+    expect(vi.getTimerCount()).toBe(base + 2);
     await push(timerPayload([parent([sub("a")])], { timer: finishedTimer() }));
     // (the end announcement clears itself after a while)
     await vi.advanceTimersByTimeAsync(11_000);
@@ -176,7 +177,8 @@ describe("timer controls on subtask rows", () => {
     expect(text(card, `${rowOf()} .timer-state`)).toBe("Time is up");
     expect(has(card, act("done", "row"))).toBe(true);
     await vi.advanceTimersByTimeAsync(11_000);
-    expect(vi.getTimerCount()).toBe(base - 1);
+    // the ticker and the one-shot end timer are gone
+    expect(vi.getTimerCount()).toBe(base - 2);
   });
 
   it("corrects for a device clock that is behind the server", async () => {

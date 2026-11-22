@@ -454,10 +454,30 @@ herstart van Home Assistant (een einde dat intussen voorbij ging, loopt direct a
   vastleggen. De melding is tijdgevoelig op iOS en een nieuwe vervangt de oude (één per kind).
 - **In Home Assistant** maakt het einde ook een melding (de bel). **Die is zichtbaar voor elke Home Assistant-gebruiker**, niet
   alleen voor de leerling; de titel noemt alleen de **voornaam** van het kind ("Studietimer *naam*: tijd is om"). Hij verdwijnt
-  als de timer wordt verlengd, gestopt of afgerond. Home Assistant kan geen pop-up in een browser tonen als de pagina niet open
-  staat, dus de website toont zelf niets.
+  als de timer wordt verlengd, gestopt of afgerond. Een pop-up in de browser komt van de *browsermeldingen* hieronder.
 - **Privacy.** Een telefoonmelding toont de titel van de deelstap en het vak, dus wie de telefoon vasthoudt kan het op het
   **vergrendelscherm** lezen. Telefoonmeldingen gaan **alleen** naar de apparaten die je voor dat kind koos, **nooit naar ouders**.
+
+### Browsermeldingen
+
+*Sinds 1.10.1.* Als een Magister-kaart in een browser open staat, kan die browser een **melding** tonen bij de waarschuwing
+vooraf ("Nog 5 minuten: *deelstap* (*vak*)") en als de tijd om is ("Tijd is om: *deelstap* (*vak*)"), in de taal van Home
+Assistant en zonder knoppen; klikken op de melding haalt het venster naar voren.
+
+- **Aanzetten.** Open het **⚙**-paneel van de huiswerkkaart, of de knop **⚙ Meldingen** van de timerkaart, en vink
+  **Meldingen in deze browser** aan. De browser vraagt om toestemming: kies *Toestaan*. **Geluid** (standaard aan) speelt een
+  korte pieptoon bij de melding; vink het uit voor een stille melding. Hoor je geen geluid, dan blokkeert de browser dat tot
+  je op de pagina hebt geklikt.
+- **Alleen zolang de pagina open staat.** Een melding komt alleen voor een moment dat voorbijgaat terwijl een Magister-kaart in
+  die browser open staat; een ander tabblad vooraan, of een tabblad op de achtergrond, is prima (een eenmalige timer maakt
+  de pagina op het moment wakker). Een timer die al af was voordat de pagina openging, meldt niet. Bij meer kaarten of
+  tabbladen krijg je toch één melding per moment.
+- **Per browser.** De keuze staat in de browser en wordt niet gedeeld met andere browsers, apparaten of gebruikers. Een ouder
+  die de kaart op de eigen computer opent, kan het voor die browser ook aanzetten.
+- **Niet beschikbaar** als de browser geen meldingen toestaat (het paneel zegt dat en hoe je het wijzigt), als Home Assistant
+  niet via **https** is geopend, of in de **Home Assistant-app**: de app gebruikt zijn eigen pushmeldingen (zie
+  hierboven). **Chrome op Android** werkt ook niet: die browser weigert meldingen van een webpagina, dus het paneel zegt
+  dat de browser geen meldingen ondersteunt.
 
 ### Wie het mag bedienen
 

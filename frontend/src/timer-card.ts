@@ -6,6 +6,7 @@ import { TimerController } from "./timer-controller";
 import {
   renderActions,
   renderLive,
+  renderNotifyButton,
   renderPanel,
   timerStyles,
   type TimerContext,
@@ -237,7 +238,7 @@ export class MagisterTimerCard extends LitElement {
     const texts = this._texts();
     return html`<ha-card .header=${this._config?.title ?? ""}>
       ${renderLive(this._context(texts))}
-      <div class="content ${this._config?.title ? "titled" : ""}">${this._renderBody(texts)}</div>
+      <div class="content ${this._config?.title ? "titled" : ""}">${this._renderBody(texts)}${this._renderNotify(texts)}</div>
       ${this._toast
         ? html`<div class="toast" role="alert">
             <span>${this._toast}</span>
@@ -247,6 +248,27 @@ export class MagisterTimerCard extends LitElement {
           </div>`
         : nothing}
     </ha-card>`;
+  }
+
+  private _renderNotify(texts: Texts): TemplateResult | typeof nothing {
+    if (!this._config?.entity || this._loadError || !this._payload) return nothing;
+    return renderNotifyButton(this._context(texts), this._timer.notifyOpen, () => {
+      this._timer.notifyOpen = !this._timer.notifyOpen;
+      this.requestUpdate();
+      // Like the settings panel: focus moves in on open and back to the button on close.
+      const selectors = this._timer.notifyOpen
+        ? [".notify-panel input", ".notify-panel"]
+        : ["[data-notify-button]"];
+      void this.updateComplete.then(() => {
+        for (const selector of selectors) {
+          const element = this.shadowRoot?.querySelector<HTMLElement>(selector);
+          if (element) {
+            element.focus();
+            return;
+          }
+        }
+      });
+    });
   }
 
   private _renderBody(texts: Texts): TemplateResult {
